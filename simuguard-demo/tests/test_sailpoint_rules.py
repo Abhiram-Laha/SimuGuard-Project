@@ -233,3 +233,55 @@ class TestSP06PrivilegeCreepRule:
         assert findings[0].rule_id == "SP-06"
         assert findings[0].severity == Severity.MEDIUM
         assert "Privilege Creep Detected" in findings[0].gap_title
+
+
+class TestSailPointCorrelationAndFallback:
+    """Test AUDIT-02: Strict identity correlation and empty-resource fallback."""
+
+    def test_empty_resources_returns_empty_by_default(self):
+        from simuguard.rules.sailpoint_rules import correlate_identities_from_resources
+        loader = EnterpriseDatasetLoader()
+        sp_data = loader.load_sailpoint_governance()
+        ctx = RuleEvaluationContext(sailpoint_governance=sp_data)
+
+        correlated, unmapped = correlate_identities_from_resources([], sp_data, ctx)
+        assert correlated == set()
+        assert unmapped == []
+
+        # Evaluate rules with default empty context -> zero findings
+        rule = UnprovisionedAccessRule()
+        findings = rule.evaluate([], ctx)
+        assert len(findings) == 0
+
+    def test_explicitly_requested_all_identity_evaluation(self):
+        from simuguard.rules.sailpoint_rules import correlate_identities_from_resources
+        loader = EnterpriseDatasetLoader()
+        sp_data = loader.load_sailpoint_governance()
+        ctx = RuleEvaluationContext(
+            sailpoint_governance=sp_data,
+            extra_metadata={"evaluate_all_identities": True},
+        )
+
+        correlated, unmapped = correlate_identities_from_resources([], sp_data, ctx)
+        assert len(correlated) == 22
+        assert "sp-ident-sarah-chen" in correlated
+        assert "sp-ident-svc-analytics-ingest" in correlated
+        assert unmapped == []
+
+    def test_normal_resource_correlation(self):
+        from simuguard.rules.sailpoint_rules import correlate_identities_from_resources
+        loader = EnterpriseDatasetLoader()
+        sp_data = loader.load_sailpoint_governance()
+        ctx = RuleEvaluationContext(sailpoint_governance=sp_data)
+
+        res = AwsIamRolePolicyAttachmentResource(
+            resource_type="aws_iam_role_policy_attachment",
+            resource_name="test_analytics_attachment",
+            source_file="test.tf",
+            role="role-analytics-ingestion-svc",
+            policy_arn="arn:aws:iam::aws:policy/AmazonS3FullAccess",
+        )
+
+        correlated, unmapped = correlate_identities_from_resources([res], sp_data, ctx)
+        assert correlated == {"sp-ident-svc-analytics-ingest"}
+        assert unmapped == []

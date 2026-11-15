@@ -141,10 +141,9 @@ class RiskEngine:
             weight = self.severity_weights.get(gap.severity, 10.0)
             base_score += weight * crit_mult
 
-        # 3. Compute Blast Radius Multiplier (capped at 2.0)
-        blast_multiplier = 1.0 + (0.05 * n_direct) + (0.02 * n_cascading)
-        if blast_multiplier > 2.0:
-            blast_multiplier = 2.0
+        # 3. Compute Blast Radius Multiplier (capped at 2.0 with consistent rounding - AUDIT-03)
+        raw_multiplier = 1.0 + (0.05 * n_direct) + (0.02 * n_cascading)
+        blast_multiplier = round(min(2.0, max(1.0, raw_multiplier)), 4)
 
         # 4. Final Bounded Score
         unrounded = base_score * blast_multiplier

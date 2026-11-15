@@ -145,6 +145,44 @@ class TestRiskScoreBoundariesAndCalculations:
         breakdown = risk_engine.calculate_score([], blast_radius=blast)
         assert breakdown.blast_radius_multiplier == 2.0
 
+    def test_blast_multiplier_consistent_rounding_precision(self, risk_engine):
+        """Test AUDIT-03: Multiplier precision avoids floating point artifacts."""
+        # N_direct = 2, N_cascading = 5 -> in IEEE 754, 1.0 + 0.05*2 + 0.02*5 is 1.2000000000000002
+        blast = BlastRadiusResult(
+            direct_impacts=[
+                ImpactedNode(node_id=f"d-{i}", node_name=f"d-{i}", node_type="T", criticality=AssetCriticality.MEDIUM, tier=BlastTier.DIRECT, impact_reason="reason", trigger_resource="t")
+                for i in range(2)
+            ],
+            cascading_impacts=[
+                ImpactedNode(node_id=f"c-{i}", node_name=f"c-{i}", node_type="T", criticality=AssetCriticality.MEDIUM, tier=BlastTier.CASCADING, impact_reason="reason", trigger_resource="t")
+                for i in range(5)
+            ],
+        )
+        breakdown = risk_engine.calculate_score([], blast_radius=blast)
+        assert breakdown.blast_radius_multiplier == 1.2
+        # Verify str representation is clean
+        assert str(breakdown.blast_radius_multiplier) == "1.2"
+
+    def test_risk_score_deterministic_repeatability(self, risk_engine):
+        """Test that risk score calculations are 100% deterministic and repeatable."""
+        blast = BlastRadiusResult(
+            direct_impacts=[
+                ImpactedNode(node_id="d1", node_name="d1", node_type="T", criticality=AssetCriticality.CRITICAL, tier=BlastTier.DIRECT, impact_reason="reason", trigger_resource="t")
+            ],
+            cascading_impacts=[
+                ImpactedNode(node_id="c1", node_name="c1", node_type="T", criticality=AssetCriticality.HIGH, tier=BlastTier.CASCADING, impact_reason="reason", trigger_resource="t")
+            ],
+        )
+        gaps = [
+            SecurityGap(rule_id="R1", severity=Severity.HIGH, gap_title="High Gap", technical_impact="impact description", compliance_violation="compliance control"),
+            SecurityGap(rule_id="R2", severity=Severity.MEDIUM, gap_title="Med Gap", technical_impact="impact description", compliance_violation="compliance control"),
+        ]
+
+        scores = [risk_engine.calculate_score(gaps, blast_radius=blast).final_risk_score for _ in range(100)]
+        assert len(set(scores)) == 1
+        # Formula check: (25 + 10) * 1.5 (CRITICAL) = 52.5; multiplier = 1.07; 52.5 * 1.07 = 56.175 -> 56
+        assert scores[0] == 56
+
 
 class TestVerdictDecisionPrecedence:
     """Test that verdict precedence rules strictly govern decisions."""

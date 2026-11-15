@@ -108,3 +108,65 @@ class TestReportersIntegration:
         assert "BLOCK_DEPLOYMENT" in output
         assert "PREDICTED INFRASTRUCTURE BLAST RADIUS" in output
         assert "PRE-IMPLEMENTATION VALIDATION PLAYBOOK" in output
+
+
+class TestHclSyntaxErrorMapping:
+    """Test AUDIT-01: Explicit mapping of HCL syntax errors to SYNTAX-01."""
+
+    def test_malformed_hcl_generates_syntax01_critical_gap_and_blocks(self, analyzer, tmp_path):
+        malformed_file = tmp_path / "broken_syntax.tf"
+        malformed_file.write_text(
+            'resource "panos_security_policy" "broken" {\n  rule {\n    name = "unclosed\n',
+            encoding="utf-8",
+        )
+
+        report = analyzer.analyze_file(str(malformed_file))
+
+        # Check verdict cannot be ALLOW; MUST be BLOCK_DEPLOYMENT due to CRITICAL syntax error
+        assert report.deployment_verdict == DeploymentVerdict.BLOCK_DEPLOYMENT
+        assert report.deployment_verdict != DeploymentVerdict.ALLOW
+
+        # Verify SYNTAX-01 finding details
+        syntax_gaps = [g for g in report.identified_security_gaps if g.rule_id == "SYNTAX-01"]
+        assert len(syntax_gaps) >= 1
+        gap = syntax_gaps[0]
+        assert gap.severity.value == "CRITICAL"
+        assert "broken_syntax.tf" in gap.gap_title
+        assert "parsing failed" in gap.technical_impact.lower()
+
+        # Verify JSON report includes SYNTAX-01
+        json_output = JsonReporter.to_json(report)
+        assert "SYNTAX-01" in json_output
+        assert "broken_syntax.tf" in json_output
+
+        # Verify Terminal report renders SYNTAX-01 finding
+        import io
+        buf = io.StringIO()
+        reporter = TerminalReporter(out=buf, use_color=False)
+        reporter.render(report)
+        term_text = buf.getvalue()
+        assert "[SYNTAX-01]" in term_text
+        assert "HCL Syntax Error" in term_text
+
+
+class TestEmptyResourcesNoSailPointLeakage:
+    """Test AUDIT-02: Empty resource sets do not trigger unrelated SailPoint findings."""
+
+    def test_empty_comment_file_produces_no_sailpoint_findings(self, analyzer, tmp_path):
+        empty_tf = tmp_path / "empty_comments.tf"
+        empty_tf.write_text(
+            "# Ticket: PR-9999\n# Only comments, zero infrastructure resources.\n",
+            encoding="utf-8",
+        )
+
+        report = analyzer.analyze_file(str(empty_tf))
+
+        # Must not contain any SailPoint governance findings
+        sp_gaps = [g for g in report.identified_security_gaps if (g.rule_id or "").startswith("SP-")]
+        assert len(sp_gaps) == 0
+
+        # Unrelated entities must not be leaked
+        all_titles = " ".join(g.gap_title for g in report.identified_security_gaps)
+        assert "sp-prov-2004" not in all_titles
+        assert "liam-oconnor" not in all_titles
+        assert "vikram-sharma" not in all_titles

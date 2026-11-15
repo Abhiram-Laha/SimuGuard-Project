@@ -266,7 +266,39 @@ class SimuGuardAnalyzer:
         iam_gaps = self._check_iam_least_privilege(parsed_file.resources, blast_result)
         identified_gaps.extend(iam_gaps)
 
-        # 5. Handle Provider Schema Errors separately
+        # 5. Handle HCL Syntax Errors (AUDIT-01)
+        for syntax_err in parsed_file.hcl_syntax_errors:
+            line_info = f" (line {syntax_err.line_number})" if syntax_err.line_number else ""
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="SYNTAX-01",
+                    severity=Severity.CRITICAL,
+                    gap_title=f"HCL Syntax Error: {syntax_err.filename}{line_info}",
+                    technical_impact=(
+                        f"Terraform HCL syntax parsing failed in file '{syntax_err.filename}'{line_info}: "
+                        f"{syntax_err.error_message}. Malformed configurations cannot be planned or deployed safely."
+                    ),
+                    compliance_violation="HashiCorp HCL Syntax Specification & Safe Pipeline Ingestion Standard",
+                    remediation_guidance=(
+                        f"Correct the syntax error in '{syntax_err.filename}': {syntax_err.error_message}. "
+                        "Validate locally with 'terraform validate' or 'terraform fmt' before submitting change."
+                    ),
+                )
+            )
+
+        if not parsed_file.is_valid_hcl and not parsed_file.hcl_syntax_errors:
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="SYNTAX-01",
+                    severity=Severity.CRITICAL,
+                    gap_title=f"HCL Syntax Error: {parsed_file.filename}",
+                    technical_impact=f"File '{parsed_file.filename}' contains invalid HCL syntax.",
+                    compliance_violation="HashiCorp HCL Syntax Specification",
+                    remediation_guidance="Fix syntax errors and validate with 'terraform validate'.",
+                )
+            )
+
+        # 6. Handle Provider Schema Errors separately
         for schema_err in parsed_file.provider_schema_errors:
             identified_gaps.append(
                 SecurityGap(
@@ -282,7 +314,7 @@ class SimuGuardAnalyzer:
                 )
             )
 
-        # 6. Check Unmapped Resources
+        # 7. Check Unmapped Resources
         has_unknown = (
             len(blast_result.unknown_nodes) > 0
             or len(blast_result.unknown_impacts) > 0
@@ -303,7 +335,7 @@ class SimuGuardAnalyzer:
                 )
             )
 
-        # 7. Compute Risk Score & Verdict
+        # 8. Compute Risk Score & Verdict
         score_breakdown = self.risk_engine.calculate_score(
             security_gaps=identified_gaps,
             blast_radius=blast_result,
@@ -357,13 +389,19 @@ class SimuGuardAnalyzer:
         dir_result = self.parser.parse_directory(dir_path)
         all_res = dir_result.all_resources
         all_schema_errs = []
+        all_syntax_errs = []
+        is_all_valid = True
         for f in dir_result.files:
             all_schema_errs.extend(f.provider_schema_errors)
+            all_syntax_errs.extend(f.hcl_syntax_errors)
+            if not f.is_valid_hcl:
+                is_all_valid = False
 
         synthetic_parsed = ParsedTerraformFile(
             file_path=str(dir_path),
             filename=Path(dir_path).name,
-            is_valid_hcl=True,
+            is_valid_hcl=is_all_valid,
+            hcl_syntax_errors=all_syntax_errs,
             provider_schema_errors=all_schema_errs,
             resources=all_res,
         )

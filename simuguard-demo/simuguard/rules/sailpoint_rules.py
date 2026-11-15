@@ -57,17 +57,18 @@ def correlate_identities_from_resources(
     Returns:
         Tuple of (correlated_identity_ids, unmapped_entity_errors)
     """
-    if context.extra_metadata.get("evaluate_all_identities"):
+    # 1. Explicitly requested all-identity evaluation
+    if context.extra_metadata.get("evaluate_all_identities") is True:
         all_ids = {i["id"] for i in sp_data.get("identities", {}).get("identities", [])}
         return all_ids, []
 
+    # 2. Explicit targeted identities override
     if "target_identities" in context.extra_metadata:
         return set(context.extra_metadata["target_identities"]), []
 
-    # If no resources are provided (e.g. standalone rule unit tests), evaluate all
+    # 3. Empty resources fallback (AUDIT-02): return empty set by default
     if not resources:
-        all_ids = {i["id"] for i in sp_data.get("identities", {}).get("identities", [])}
-        return all_ids, []
+        return set(), []
 
     correlated: Set[str] = set()
     unmapped: List[str] = []
