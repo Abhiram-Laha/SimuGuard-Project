@@ -1,0 +1,49 @@
+{
+  "panorama": {
+    "server_id": "pan-mgmt-01",
+    "hostname": "pan-mgmt-01.mgmt.apex-global.example",
+    "management_ip": "10.254.0.5",
+    "version": "Panorama 11.1 Nebula",
+    "role": "CENTRAL_NETWORK_SECURITY_MANAGEMENT",
+    "device_groups": [
+      {
+        "id": "DG-Enterprise-Shared",
+        "parent": null,
+        "description": "Enterprise-wide shared objects, address groups, and baseline security pre-rules",
+        "managed_devices": []
+      },
+      {
+        "id": "DG-Internet-Perimeter",
+        "parent": "DG-Enterprise-Shared",
+        "description": "Internet-facing perimeter firewalls enforcing DMZ and external boundaries",
+        "managed_devices": [
+          "fw-edge-01-primary",
+          "fw-edge-02-secondary"
+        ]
+      },
+      {
+        "id": "DG-Internal-Segmentation",
+        "parent": "DG-Enterprise-Shared",
+        "description": "Internal core segmentation firewalls protecting databases, PCI, and restricted CUI",
+        "managed_devices": [
+          "fw-internal-01-primary",
+          "fw-internal-02-secondary"
+        ]
+      }
+    ],
+    "templates": [
+      {
+        "id": "TMPL-Base-System",
+        "description": "Base system configuration: NTP, DNS, Syslog, SNMP, Radius/SAML"
+      },
+      {
+        "id": "TMPL-Edge-Interfaces-Routing",
+        "description": "Perimeter network interfaces, external BGP peering, and static routes"
+      },
+      {
+        "id": "TMPL-Internal-Segmentation",
+        "description": "Internal VLAN trunking, subinterfaces, and OSPF/BGP routing"
+      }
+    ]
+  }
+}

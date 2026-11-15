@@ -1,0 +1,60 @@
+graph TB
+    %% SimuGuard AI Platform Architecture
+    %% Differentiating Implemented Components from Planned Integrations
+
+    classDef impl fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef future fill:#fff3e0,stroke:#e65100,stroke-dasharray: 5 5,stroke-width:2px;
+    classDef input fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    classDef decision fill:#ede7f6,stroke:#512da8,stroke-width:2px;
+    classDef output fill:#fce4ec,stroke:#c2185b,stroke-width:2px;
+
+    subgraph Inputs ["1. Change Request Submission"]
+        PR["Terraform PR Changes<br/>(changes/*.tf)"]:::input
+        DEV_USER["DevOps / Security Engineer"]:::input
+        DEV_USER -->|Submits Pull Request| PR
+    end
+
+    subgraph Ingestion_Normalization ["2. Ingestion & Normalization Engine (Implemented)"]
+        PARSER["simuguard/parsers/hcl_parser.py<br/>(TerraformHclParser with python-hcl2)"]:::impl
+        NORM["Resource Normalization<br/>PanosSecurityPolicy<br/>AwsSecurityGroupRule<br/>AwsIamRolePolicyAttachment"]:::impl
+        PR --> PARSER
+        PARSER --> NORM
+    end
+
+    subgraph Environment_Sources ["3. Environment Topology Providers"]
+        LOCAL_DEMO["Local Enterprise Demo Provider<br/>(demo_environment/ JSON Datasets)<br/>[IMPLEMENTED]"]:::impl
+        PAN_API["Future Live Panorama API<br/>(REST API / XML API Integration)<br/>[PLANNED ROADMAP]"]:::future
+        AWS_API["Future Live AWS Cloud API<br/>(boto3 / AWS Organizations / Config)<br/>[PLANNED ROADMAP]"]:::future
+    end
+
+    subgraph Digital_Twin ["4. Enterprise Digital Twin Engine (Implemented)"]
+        LOADER["EnterpriseDatasetLoader<br/>(simuguard/graph/dataset_loader.py)"]:::impl
+        GRAPH["NetworkX Directed Graph Engine<br/>(simuguard/graph/digital_twin.py)<br/>64 Nodes, 39 Edges"]:::impl
+        LOCAL_DEMO --> LOADER
+        LOADER --> GRAPH
+        PAN_API -.->|Future Ingestion| GRAPH
+        AWS_API -.->|Future Ingestion| GRAPH
+    end
+
+    subgraph Analysis_Engine ["5. Security & Blast Radius Engine (Phase 3 & 4)"]
+        BLAST["Blast Radius Traversal Engine<br/>(simuguard/graph/blast_radius.py)<br/>Direct & Cascading Impact Propagation<br/>[IMPLEMENTED]"]:::impl
+        RULES["Security Rule Engine<br/>(Misconfiguration & Egress Rules)<br/>[PHASE 4 ROADMAP]"]:::future
+        SCORING["Quantitative Risk Scoring<br/>(0 - 100 Risk Engine)<br/>[PHASE 4 ROADMAP]"]:::future
+        REMED["Remediation Engine<br/>(Least-Privilege Suggestions)<br/>[PHASE 4 ROADMAP]"]:::future
+
+        NORM --> BLAST
+        GRAPH --> BLAST
+        BLAST --> RULES
+        RULES --> SCORING
+        SCORING --> REMED
+    end
+
+    subgraph Decision_Output ["6. Verdict, Governance & Simulation Artifacts"]
+        DECISION{"Deployment Verdict<br/>ALLOW | WARN | BLOCK"}:::decision
+        REPORT["PreFlightSimulationReport<br/>(Pydantic v2 Core Schema)<br/>JSON & Markdown Artifacts<br/>[IMPLEMENTED]"]:::output
+        HUMAN["SecOps / Lead Reviewer<br/>(Human Approval Gate)"]:::decision
+
+        REMED --> DECISION
+        DECISION --> REPORT
+        REPORT --> HUMAN
+    end

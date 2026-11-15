@@ -1,0 +1,52 @@
+{
+  "vpcs": [
+    {
+      "id": "vpc-prod-us-east-1",
+      "account_id": "111122223333",
+      "name": "vpc-production-east1",
+      "cidr_block": "10.100.0.0/16",
+      "region": "us-east-1",
+      "subnets": [
+        "subnet-prod-public-dmz",
+        "subnet-prod-app-private",
+        "subnet-prod-db-private",
+        "subnet-prod-pci-private",
+        "subnet-prod-cui-vault"
+      ],
+      "enable_dns_hostnames": true,
+      "enable_dns_support": true,
+      "connected_firewall_zone": "Trust-DMZ",
+      "transit_gateway_attachment": "tgw-attach-prod-01"
+    },
+    {
+      "id": "vpc-dev-us-east-1",
+      "account_id": "222233334444",
+      "name": "vpc-development-east1",
+      "cidr_block": "10.200.0.0/16",
+      "region": "us-east-1",
+      "subnets": [
+        "subnet-dev-public",
+        "subnet-dev-app-private"
+      ],
+      "enable_dns_hostnames": true,
+      "enable_dns_support": true,
+      "connected_firewall_zone": "Dev-App-Workloads",
+      "transit_gateway_attachment": "tgw-attach-dev-01"
+    },
+    {
+      "id": "vpc-sec-us-east-1",
+      "account_id": "333344445555",
+      "name": "vpc-security-east1",
+      "cidr_block": "10.250.0.0/16",
+      "region": "us-east-1",
+      "subnets": [
+        "subnet-sec-siem-private",
+        "subnet-sec-logging-private"
+      ],
+      "enable_dns_hostnames": true,
+      "enable_dns_support": true,
+      "connected_firewall_zone": "Mgmt-OOB",
+      "transit_gateway_attachment": "tgw-attach-sec-01"
+    }
+  ]
+}

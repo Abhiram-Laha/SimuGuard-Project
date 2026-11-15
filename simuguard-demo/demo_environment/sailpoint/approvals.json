@@ -1,0 +1,54 @@
+{
+  "approvals": [
+    {
+      "id": "sp-appr-1001",
+      "request_id": "sp-req-1001-approved-s3-read",
+      "approval_step": 1,
+      "approver_identity_id": "sp-ident-sarah-chen",
+      "approver_role": "CISO / Department Manager",
+      "decision": "APPROVED",
+      "decision_timestamp": "2026-11-01T11:30:00Z",
+      "comments": "Approved for quarterly SOX compliance audit reconciliation."
+    },
+    {
+      "id": "sp-appr-1002",
+      "request_id": "sp-req-1002-rejected-prod-admin",
+      "approval_step": 1,
+      "approver_identity_id": "sp-ident-alex-morgan",
+      "approver_role": "Cloud Platform Lead",
+      "decision": "REJECTED",
+      "decision_timestamp": "2026-11-05T14:45:00Z",
+      "comments": "Rejected: External contractors are prohibited from holding root AWS Production access under policy SEC-IAM-004."
+    },
+    {
+      "id": "sp-appr-1003",
+      "request_id": "sp-req-1003-pending-admin-access",
+      "approval_step": 1,
+      "approver_identity_id": "sp-ident-priya-patel",
+      "approver_role": "Engineering Manager",
+      "decision": "PENDING",
+      "decision_timestamp": null,
+      "comments": "Awaiting initial managerial review and subsequent CISO secondary approval."
+    },
+    {
+      "id": "sp-appr-1004",
+      "request_id": "sp-req-1004-emergency-firewall-access",
+      "approval_step": 1,
+      "approver_identity_id": "sp-ident-elena-rodriguez",
+      "approver_role": "SecOps Incident Commander",
+      "decision": "APPROVED",
+      "decision_timestamp": "2026-11-14T02:05:00Z",
+      "comments": "Emergency break-glass authorized for incident INC-84920; time-limited to 4 hours."
+    },
+    {
+      "id": "sp-appr-1005",
+      "request_id": "sp-req-1005-revocation-contractor",
+      "approval_step": 1,
+      "approver_identity_id": "sp-ident-carlos-mendez",
+      "approver_role": "Database Operations Manager",
+      "decision": "APPROVED",
+      "decision_timestamp": "2026-11-12T10:15:00Z",
+      "comments": "Confirmed project completion; approved deprovisioning of database access."
+    }
+  ]
+}

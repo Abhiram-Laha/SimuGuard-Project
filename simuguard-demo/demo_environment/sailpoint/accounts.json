@@ -1,0 +1,654 @@
+{
+  "accounts": [
+    {
+      "id": "sp-acct-ad-sarah-chen",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-sarah-chen",
+      "native_identity": "CN=Sarah Chen,OU=Security,DC=corp,DC=apex-global,DC=example",
+      "account_name": "s.chen",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T14:20:00Z"
+    },
+    {
+      "id": "sp-acct-entra-sarah-chen",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-sarah-chen",
+      "native_identity": "sarah.chen@apex-global.example",
+      "account_name": "sarah.chen@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T14:22:00Z"
+    },
+    {
+      "id": "sp-acct-aws-secops-sarah-chen",
+      "source_id": "sp-src-aws-secops",
+      "identity_id": "sp-ident-sarah-chen",
+      "native_identity": "arn:aws:iam::333344445555:user/sarah.chen-exec",
+      "account_name": "sarah.chen-exec",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-14T09:15:00Z"
+    },
+    {
+      "id": "sp-acct-ad-marcus-vance",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-marcus-vance",
+      "native_identity": "CN=Marcus Vance,OU=Architecture,DC=corp,DC=apex-global,DC=example",
+      "account_name": "m.vance",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T16:00:00Z"
+    },
+    {
+      "id": "sp-acct-entra-marcus-vance",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-marcus-vance",
+      "native_identity": "marcus.vance@apex-global.example",
+      "account_name": "marcus.vance@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T16:05:00Z"
+    },
+    {
+      "id": "sp-acct-aws-prod-marcus-vance",
+      "source_id": "sp-src-aws-prod",
+      "identity_id": "sp-ident-marcus-vance",
+      "native_identity": "arn:aws:iam::111122223333:user/marcus.vance-arch",
+      "account_name": "marcus.vance-arch",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T11:45:00Z"
+    },
+    {
+      "id": "sp-acct-ad-elena-rodriguez",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-elena-rodriguez",
+      "native_identity": "CN=Elena Rodriguez,OU=SecOps,DC=corp,DC=apex-global,DC=example",
+      "account_name": "e.rodriguez",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T18:10:00Z"
+    },
+    {
+      "id": "sp-acct-entra-elena-rodriguez",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-elena-rodriguez",
+      "native_identity": "elena.rodriguez@apex-global.example",
+      "account_name": "elena.rodriguez@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T18:12:00Z"
+    },
+    {
+      "id": "sp-acct-aws-secops-elena-rodriguez",
+      "source_id": "sp-src-aws-secops",
+      "identity_id": "sp-ident-elena-rodriguez",
+      "native_identity": "arn:aws:iam::333344445555:user/usr-secops-analyst",
+      "account_name": "usr-secops-analyst",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T17:30:00Z"
+    },
+    {
+      "id": "sp-acct-pan-elena-rodriguez",
+      "source_id": "sp-src-firewall-mgmt",
+      "identity_id": "sp-ident-elena-rodriguez",
+      "native_identity": "pan_admin_elena",
+      "account_name": "pan_admin_elena",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-14T12:00:00Z"
+    },
+    {
+      "id": "sp-acct-ad-david-kim",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-david-kim",
+      "native_identity": "CN=David Kim,OU=NetSec,DC=corp,DC=apex-global,DC=example",
+      "account_name": "d.kim",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T15:20:00Z"
+    },
+    {
+      "id": "sp-acct-entra-david-kim",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-david-kim",
+      "native_identity": "david.kim@apex-global.example",
+      "account_name": "david.kim@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T15:22:00Z"
+    },
+    {
+      "id": "sp-acct-pan-david-kim",
+      "source_id": "sp-src-firewall-mgmt",
+      "identity_id": "sp-ident-david-kim",
+      "native_identity": "pan_admin_david",
+      "account_name": "pan_admin_david",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T14:50:00Z"
+    },
+    {
+      "id": "sp-acct-ad-priya-patel",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-priya-patel",
+      "native_identity": "CN=Priya Patel,OU=DevOps,DC=corp,DC=apex-global,DC=example",
+      "account_name": "p.patel",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T19:00:00Z"
+    },
+    {
+      "id": "sp-acct-entra-priya-patel",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-priya-patel",
+      "native_identity": "priya.patel@apex-global.example",
+      "account_name": "priya.patel@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T19:05:00Z"
+    },
+    {
+      "id": "sp-acct-aws-dev-priya-patel",
+      "source_id": "sp-src-aws-dev",
+      "identity_id": "sp-ident-priya-patel",
+      "native_identity": "arn:aws:iam::222233334444:user/priya.patel-devlead",
+      "account_name": "priya.patel-devlead",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T18:40:00Z"
+    },
+    {
+      "id": "sp-acct-aws-prod-priya-patel",
+      "source_id": "sp-src-aws-prod",
+      "identity_id": "sp-ident-priya-patel",
+      "native_identity": "arn:aws:iam::111122223333:user/priya.patel-prodops",
+      "account_name": "priya.patel-prodops",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T17:15:00Z"
+    },
+    {
+      "id": "sp-acct-ad-alex-morgan",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-alex-morgan",
+      "native_identity": "CN=Alex Morgan,OU=CloudAdmin,DC=corp,DC=apex-global,DC=example",
+      "account_name": "a.morgan",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T19:30:00Z"
+    },
+    {
+      "id": "sp-acct-entra-alex-morgan",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-alex-morgan",
+      "native_identity": "alex.morgan@apex-global.example",
+      "account_name": "alex.morgan@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T19:32:00Z"
+    },
+    {
+      "id": "sp-acct-aws-prod-alex-morgan",
+      "source_id": "sp-src-aws-prod",
+      "identity_id": "sp-ident-alex-morgan",
+      "native_identity": "arn:aws:iam::111122223333:user/alex.morgan-cloudadmin",
+      "account_name": "alex.morgan-cloudadmin",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T18:00:00Z"
+    },
+    {
+      "id": "sp-acct-aws-dev-alex-morgan",
+      "source_id": "sp-src-aws-dev",
+      "identity_id": "sp-ident-alex-morgan",
+      "native_identity": "arn:aws:iam::222233334444:user/alex.morgan-devadmin",
+      "account_name": "alex.morgan-devadmin",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T16:30:00Z"
+    },
+    {
+      "id": "sp-acct-aws-secops-alex-morgan",
+      "source_id": "sp-src-aws-secops",
+      "identity_id": "sp-ident-alex-morgan",
+      "native_identity": "arn:aws:iam::333344445555:user/alex.morgan-secopsadmin",
+      "account_name": "alex.morgan-secopsadmin",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-14T10:00:00Z"
+    },
+    {
+      "id": "sp-acct-ad-rachel-green",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-rachel-green",
+      "native_identity": "CN=Rachel Green,OU=Developers,DC=corp,DC=apex-global,DC=example",
+      "account_name": "r.green",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T17:45:00Z"
+    },
+    {
+      "id": "sp-acct-entra-rachel-green",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-rachel-green",
+      "native_identity": "rachel.green@apex-global.example",
+      "account_name": "rachel.green@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T17:46:00Z"
+    },
+    {
+      "id": "sp-acct-aws-dev-rachel-green",
+      "source_id": "sp-src-aws-dev",
+      "identity_id": "sp-ident-rachel-green",
+      "native_identity": "arn:aws:iam::222233334444:user/rachel.green-dev",
+      "account_name": "rachel.green-dev",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T16:15:00Z"
+    },
+    {
+      "id": "sp-acct-ad-james-wilson",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-james-wilson",
+      "native_identity": "CN=James Wilson,OU=Analytics,DC=corp,DC=apex-global,DC=example",
+      "account_name": "j.wilson",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T18:20:00Z"
+    },
+    {
+      "id": "sp-acct-entra-james-wilson",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-james-wilson",
+      "native_identity": "james.wilson@apex-global.example",
+      "account_name": "james.wilson@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T18:22:00Z"
+    },
+    {
+      "id": "sp-acct-aws-dev-james-wilson",
+      "source_id": "sp-src-aws-dev",
+      "identity_id": "sp-ident-james-wilson",
+      "native_identity": "arn:aws:iam::222233334444:user/james.wilson-dev",
+      "account_name": "james.wilson-dev",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T14:00:00Z"
+    },
+    {
+      "id": "sp-acct-aws-prod-james-wilson",
+      "source_id": "sp-src-aws-prod",
+      "identity_id": "sp-ident-james-wilson",
+      "native_identity": "arn:aws:iam::111122223333:user/james.wilson-dataops",
+      "account_name": "james.wilson-dataops",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T11:00:00Z"
+    },
+    {
+      "id": "sp-acct-ad-ananya-rao",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-ananya-rao",
+      "native_identity": "CN=Ananya Rao,OU=PaymentSecurity,DC=corp,DC=apex-global,DC=example",
+      "account_name": "a.rao",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T13:40:00Z"
+    },
+    {
+      "id": "sp-acct-entra-ananya-rao",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-ananya-rao",
+      "native_identity": "ananya.rao@apex-global.example",
+      "account_name": "ananya.rao@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T13:42:00Z"
+    },
+    {
+      "id": "sp-acct-db-ananya-rao",
+      "source_id": "sp-src-database-platform",
+      "identity_id": "sp-ident-ananya-rao",
+      "native_identity": "dbuser:pci_token_vault/ananya_custodian",
+      "account_name": "ananya_custodian",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-14T16:00:00Z"
+    },
+    {
+      "id": "sp-acct-aws-prod-ananya-rao",
+      "source_id": "sp-src-aws-prod",
+      "identity_id": "sp-ident-ananya-rao",
+      "native_identity": "arn:aws:iam::111122223333:user/ananya.rao-pci",
+      "account_name": "ananya.rao-pci",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T10:00:00Z"
+    },
+    {
+      "id": "sp-acct-ad-carlos-mendez",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-carlos-mendez",
+      "native_identity": "CN=Carlos Mendez,OU=DBA,DC=corp,DC=apex-global,DC=example",
+      "account_name": "c.mendez",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T12:30:00Z"
+    },
+    {
+      "id": "sp-acct-entra-carlos-mendez",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-carlos-mendez",
+      "native_identity": "carlos.mendez@apex-global.example",
+      "account_name": "carlos.mendez@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T12:32:00Z"
+    },
+    {
+      "id": "sp-acct-db-carlos-mendez",
+      "source_id": "sp-src-database-platform",
+      "identity_id": "sp-ident-carlos-mendez",
+      "native_identity": "dbuser:core_prod_postgres/carlos_dba",
+      "account_name": "carlos_dba",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T12:00:00Z"
+    },
+    {
+      "id": "sp-acct-ad-emily-watson",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-emily-watson",
+      "native_identity": "CN=Emily Watson,OU=Finance,DC=corp,DC=apex-global,DC=example",
+      "account_name": "e.watson",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T11:10:00Z"
+    },
+    {
+      "id": "sp-acct-entra-emily-watson",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-emily-watson",
+      "native_identity": "emily.watson@apex-global.example",
+      "account_name": "emily.watson@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T11:12:00Z"
+    },
+    {
+      "id": "sp-acct-apps-emily-watson",
+      "source_id": "sp-src-enterprise-apps",
+      "identity_id": "sp-ident-emily-watson",
+      "native_identity": "erp_user:e_watson_finance",
+      "account_name": "e_watson_finance",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T10:45:00Z"
+    },
+    {
+      "id": "sp-acct-ad-michael-brown",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-michael-brown",
+      "native_identity": "CN=Michael Brown,OU=Audit,DC=corp,DC=apex-global,DC=example",
+      "account_name": "m.brown",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-14T15:20:00Z"
+    },
+    {
+      "id": "sp-acct-entra-michael-brown",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-michael-brown",
+      "native_identity": "michael.brown@apex-global.example",
+      "account_name": "michael.brown@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-14T15:22:00Z"
+    },
+    {
+      "id": "sp-acct-aws-secops-michael-brown",
+      "source_id": "sp-src-aws-secops",
+      "identity_id": "sp-ident-michael-brown",
+      "native_identity": "arn:aws:iam::333344445555:user/michael.brown-auditor",
+      "account_name": "michael.brown-auditor",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-14T14:00:00Z"
+    },
+    {
+      "id": "sp-acct-ad-vikram-sharma",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-vikram-sharma",
+      "native_identity": "CN=Vikram Sharma,OU=Developers,DC=corp,DC=apex-global,DC=example",
+      "account_name": "v.sharma",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T16:40:00Z"
+    },
+    {
+      "id": "sp-acct-entra-vikram-sharma",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-vikram-sharma",
+      "native_identity": "vikram.sharma@apex-global.example",
+      "account_name": "vikram.sharma@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T16:42:00Z"
+    },
+    {
+      "id": "sp-acct-aws-dev-vikram-sharma",
+      "source_id": "sp-src-aws-dev",
+      "identity_id": "sp-ident-vikram-sharma",
+      "native_identity": "arn:aws:iam::222233334444:user/vikram.sharma-dev",
+      "account_name": "vikram.sharma-dev",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T15:30:00Z"
+    },
+    {
+      "id": "sp-acct-ad-jessica-taylor",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-jessica-taylor",
+      "native_identity": "CN=Jessica Taylor,OU=Products,DC=corp,DC=apex-global,DC=example",
+      "account_name": "j.taylor",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T17:00:00Z"
+    },
+    {
+      "id": "sp-acct-entra-jessica-taylor",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-jessica-taylor",
+      "native_identity": "jessica.taylor@apex-global.example",
+      "account_name": "jessica.taylor@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T17:02:00Z"
+    },
+    {
+      "id": "sp-acct-apps-jessica-taylor",
+      "source_id": "sp-src-enterprise-apps",
+      "identity_id": "sp-ident-jessica-taylor",
+      "native_identity": "portal_admin:j_taylor_po",
+      "account_name": "j_taylor_po",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T16:50:00Z"
+    },
+    {
+      "id": "sp-acct-ad-kevin-lee",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-kevin-lee",
+      "native_identity": "CN=Kevin Lee,OU=SecOps,DC=corp,DC=apex-global,DC=example",
+      "account_name": "k.lee",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T14:15:00Z"
+    },
+    {
+      "id": "sp-acct-entra-kevin-lee",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-kevin-lee",
+      "native_identity": "kevin.lee@apex-global.example",
+      "account_name": "kevin.lee@apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T14:17:00Z"
+    },
+    {
+      "id": "sp-acct-aws-dev-kevin-lee",
+      "source_id": "sp-src-aws-dev",
+      "identity_id": "sp-ident-kevin-lee",
+      "native_identity": "arn:aws:iam::222233334444:user/kevin.lee-appsec",
+      "account_name": "kevin.lee-appsec",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T13:00:00Z"
+    },
+    {
+      "id": "sp-acct-ad-sophia-alvarez",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-sophia-alvarez",
+      "native_identity": "CN=Sophia Alvarez,OU=Contractors,DC=corp,DC=apex-global,DC=example",
+      "account_name": "c-s.alvarez",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T15:10:00Z"
+    },
+    {
+      "id": "sp-acct-entra-sophia-alvarez",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-sophia-alvarez",
+      "native_identity": "sophia.alvarez@vendor.apex-global.example",
+      "account_name": "sophia.alvarez@vendor.apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T15:12:00Z"
+    },
+    {
+      "id": "sp-acct-aws-dev-sophia-alvarez",
+      "source_id": "sp-src-aws-dev",
+      "identity_id": "sp-ident-sophia-alvarez",
+      "native_identity": "arn:aws:iam::222233334444:user/sophia.alvarez-consultant",
+      "account_name": "sophia.alvarez-consultant",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T14:30:00Z"
+    },
+    {
+      "id": "sp-acct-ad-liam-oconnor",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-liam-oconnor",
+      "native_identity": "CN=Liam O'Connor,OU=Contractors,DC=corp,DC=apex-global,DC=example",
+      "account_name": "c-l.oconnor",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-14T11:00:00Z"
+    },
+    {
+      "id": "sp-acct-entra-liam-oconnor",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-liam-oconnor",
+      "native_identity": "liam.oconnor@vendor.apex-global.example",
+      "account_name": "liam.oconnor@vendor.apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-14T11:02:00Z"
+    },
+    {
+      "id": "sp-acct-ad-olivia-smith",
+      "source_id": "sp-src-active-directory",
+      "identity_id": "sp-ident-olivia-smith",
+      "native_identity": "CN=Olivia Smith,OU=Contractors,DC=corp,DC=apex-global,DC=example",
+      "account_name": "c-o.smith",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T16:20:00Z"
+    },
+    {
+      "id": "sp-acct-entra-olivia-smith",
+      "source_id": "sp-src-entra-id",
+      "identity_id": "sp-ident-olivia-smith",
+      "native_identity": "olivia.smith@vendor.apex-global.example",
+      "account_name": "olivia.smith@vendor.apex-global.example",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T16:22:00Z"
+    },
+    {
+      "id": "sp-acct-aws-dev-olivia-smith",
+      "source_id": "sp-src-aws-dev",
+      "identity_id": "sp-ident-olivia-smith",
+      "native_identity": "arn:aws:iam::222233334444:user/olivia.smith-qa",
+      "account_name": "olivia.smith-qa",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T15:00:00Z"
+    },
+    {
+      "id": "sp-acct-aws-prod-svc-analytics",
+      "source_id": "sp-src-aws-prod",
+      "identity_id": "sp-ident-svc-analytics-ingest",
+      "native_identity": "arn:aws:iam::111122223333:role/role-analytics-ingestion-svc",
+      "account_name": "role-analytics-ingestion-svc",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T19:50:00Z"
+    },
+    {
+      "id": "sp-acct-aws-prod-svc-portal",
+      "source_id": "sp-src-aws-prod",
+      "identity_id": "sp-ident-svc-portal-backend",
+      "native_identity": "arn:aws:iam::111122223333:role/role-customer-portal-backend",
+      "account_name": "role-customer-portal-backend",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T19:55:00Z"
+    },
+    {
+      "id": "sp-acct-db-svc-portal",
+      "source_id": "sp-src-database-platform",
+      "identity_id": "sp-ident-svc-portal-backend",
+      "native_identity": "dbuser:core_prod_postgres/portal_backend_svc",
+      "account_name": "portal_backend_svc",
+      "account_status": "ACTIVE",
+      "privileged": false,
+      "last_login": "2026-11-15T19:55:00Z"
+    },
+    {
+      "id": "sp-acct-aws-prod-svc-payment",
+      "source_id": "sp-src-aws-prod",
+      "identity_id": "sp-ident-svc-payment-processor",
+      "native_identity": "arn:aws:iam::111122223333:role/role-payment-processor-pci",
+      "account_name": "role-payment-processor-pci",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T19:52:00Z"
+    },
+    {
+      "id": "sp-acct-db-svc-payment",
+      "source_id": "sp-src-database-platform",
+      "identity_id": "sp-ident-svc-payment-processor",
+      "native_identity": "dbuser:pci_token_vault/payment_token_svc",
+      "account_name": "payment_token_svc",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T19:52:00Z"
+    },
+    {
+      "id": "sp-acct-aws-prod-svc-cicd",
+      "source_id": "sp-src-aws-prod",
+      "identity_id": "sp-ident-svc-cicd-pipeline",
+      "native_identity": "arn:aws:iam::111122223333:role/role-ci-cd-deployment-pipeline",
+      "account_name": "role-ci-cd-deployment-pipeline",
+      "account_status": "ACTIVE",
+      "privileged": true,
+      "last_login": "2026-11-15T18:30:00Z"
+    }
+  ]
+}

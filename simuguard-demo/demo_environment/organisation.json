@@ -1,0 +1,27 @@
+{
+  "organisation_id": "ORG-APEX-GLOBAL-01",
+  "name": "Apex Global Technologies",
+  "legal_name": "Apex Global Technologies Inc.",
+  "domain": "apex-global.example",
+  "industry": "Enterprise Financial Services & Technology Operations",
+  "headquarters": "New York, NY, USA",
+  "architecture_model": "Hybrid Cloud Multi-Region (On-Prem Edge Datacenter + AWS Multi-Account Estate)",
+  "compliance_frameworks": [
+    "NIST SP 800-171 Rev 2 (Controlled Unclassified Information)",
+    "NIST CSF 2.0 (PR.AC, PR.PT, DE.CM)",
+    "CIS Palo Alto Firewall Benchmark v1.1.0",
+    "CIS Amazon Web Services Foundations Benchmark v2.0.0",
+    "PCI-DSS v4.0 (Payment Card Industry Data Security Standard)"
+  ],
+  "contact": {
+    "security_operations": "secops@apex-global.example",
+    "cloud_infrastructure": "cloud-infra@apex-global.example",
+    "grc_compliance": "grc@apex-global.example"
+  },
+  "dataset_metadata": {
+    "version": "1.0.0",
+    "classification": "SYNTHETIC_DATASET_FOR_SIMULATION",
+    "synthetic": true,
+    "disclaimer": "This dataset represents a fictional enterprise. All IP addresses, domains, names, serial numbers, and account IDs are synthetic and for demonstration purposes only."
+  }
+}

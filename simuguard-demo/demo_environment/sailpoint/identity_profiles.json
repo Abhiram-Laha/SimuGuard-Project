@@ -1,0 +1,74 @@
+{
+  "identity_profiles": [
+    {
+      "id": "sp-idp-corporate-employees",
+      "name": "Corporate Full-Time Employees",
+      "authoritative_source": "sp-src-active-directory",
+      "priority": 10,
+      "identity_refresh_interval": "HOURLY",
+      "attribute_mappings": {
+        "identification_number": "employeeID",
+        "email": "mail",
+        "first_name": "givenName",
+        "last_name": "sn",
+        "job_title": "title",
+        "department": "department",
+        "manager": "manager",
+        "lifecycle_state": "userAccountControl"
+      },
+      "description": "Authoritative identity configuration for full-time regular employees of Apex Global Technologies."
+    },
+    {
+      "id": "sp-idp-external-contractors",
+      "name": "Third-Party Contractors & Vendors",
+      "authoritative_source": "sp-src-active-directory",
+      "priority": 20,
+      "identity_refresh_interval": "DAILY",
+      "attribute_mappings": {
+        "identification_number": "contractorID",
+        "email": "mail",
+        "first_name": "givenName",
+        "last_name": "sn",
+        "job_title": "title",
+        "department": "department",
+        "sponsor": "manager",
+        "contract_end_date": "accountExpires",
+        "lifecycle_state": "userAccountControl"
+      },
+      "description": "Authoritative identity configuration for contingent workers, external consultants, and contractor staff."
+    },
+    {
+      "id": "sp-idp-privileged-admins",
+      "name": "Privileged Infrastructure & Cloud Administrators",
+      "authoritative_source": "sp-src-active-directory",
+      "priority": 5,
+      "identity_refresh_interval": "HOURLY",
+      "attribute_mappings": {
+        "identification_number": "adminBadgeNumber",
+        "email": "mail",
+        "first_name": "givenName",
+        "last_name": "sn",
+        "job_title": "title",
+        "department": "department",
+        "pam_vault_tier": "securityClearance",
+        "lifecycle_state": "userAccountControl"
+      },
+      "description": "Specialized high-assurance identity configuration for administrators possessing elevated access to cloud, network, and IAM estates."
+    },
+    {
+      "id": "sp-idp-service-identities",
+      "name": "Non-Human Machine & Cloud Service Identities",
+      "authoritative_source": "sp-src-entra-id",
+      "priority": 30,
+      "identity_refresh_interval": "DAILY",
+      "attribute_mappings": {
+        "service_account_id": "appId",
+        "display_name": "displayName",
+        "owning_team": "department",
+        "service_tier": "extension_serviceTier",
+        "lifecycle_state": "accountEnabled"
+      },
+      "description": "Identity configuration governing non-human service identities, microservice workloads, and automated CI/CD deployment pipelines."
+    }
+  ]
+}

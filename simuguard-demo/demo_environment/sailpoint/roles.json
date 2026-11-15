@@ -1,0 +1,127 @@
+{
+  "roles": [
+    {
+      "id": "sp-role-finance-analyst",
+      "name": "Finance & Treasury Analyst",
+      "type": "BUSINESS_ROLE",
+      "access_profiles": [
+        "sp-ap-ad-finance-reporting",
+        "sp-ap-aws-prod-s3-read"
+      ],
+      "assigned_identities": [
+        "sp-ident-emily-watson"
+      ],
+      "description": "Business role granting corporate treasury analysts access to financial file shares and CUI financial vaults."
+    },
+    {
+      "id": "sp-role-network-security-engineer",
+      "name": "Network Security Engineer",
+      "type": "IT_ROLE",
+      "access_profiles": [
+        "sp-ap-paloalto-firewall-admin",
+        "sp-ap-aws-secops-audit"
+      ],
+      "assigned_identities": [
+        "sp-ident-david-kim"
+      ],
+      "description": "IT engineering role authorizing configuration, testing, and deployment of network security firewalls."
+    },
+    {
+      "id": "sp-role-cloud-administrator",
+      "name": "Cloud Platform Administrator (Privileged)",
+      "type": "IT_ROLE",
+      "access_profiles": [
+        "sp-ap-aws-prod-admin",
+        "sp-ap-aws-dev-poweruser",
+        "sp-ap-aws-secops-audit"
+      ],
+      "assigned_identities": [
+        "sp-ident-alex-morgan"
+      ],
+      "description": "Privileged IT role granting broad root administration across all AWS organization accounts."
+    },
+    {
+      "id": "sp-role-production-support-engineer",
+      "name": "Production Support & SRE Engineer",
+      "type": "IT_ROLE",
+      "access_profiles": [
+        "sp-ap-aws-dev-poweruser",
+        "sp-ap-paloalto-firewall-audit",
+        "sp-ap-db-customer-read"
+      ],
+      "assigned_identities": [
+        "sp-ident-priya-patel"
+      ],
+      "description": "Operational engineering role providing diagnostic and telemetry monitoring rights across production and staging."
+    },
+    {
+      "id": "sp-role-developer",
+      "name": "Software Application Developer",
+      "type": "BUSINESS_ROLE",
+      "access_profiles": [
+        "sp-ap-ad-corp-users",
+        "sp-ap-aws-dev-poweruser"
+      ],
+      "assigned_identities": [
+        "sp-ident-rachel-green",
+        "sp-ident-vikram-sharma",
+        "sp-ident-sophia-alvarez",
+        "sp-ident-olivia-smith"
+      ],
+      "description": "Standard engineering role providing developer repository, workstation, and development cloud account access."
+    },
+    {
+      "id": "sp-role-security-operations-analyst",
+      "name": "Security Operations (SecOps) Analyst",
+      "type": "IT_ROLE",
+      "access_profiles": [
+        "sp-ap-aws-secops-audit",
+        "sp-ap-paloalto-firewall-audit"
+      ],
+      "assigned_identities": [
+        "sp-ident-elena-rodriguez",
+        "sp-ident-kevin-lee"
+      ],
+      "description": "Security role providing read-only audit inspection rights across AWS CloudTrail, GuardDuty, and PAN-OS logs."
+    },
+    {
+      "id": "sp-role-database-administrator",
+      "name": "Relational Database Administrator (DBA)",
+      "type": "IT_ROLE",
+      "access_profiles": [
+        "sp-ap-db-customer-read",
+        "sp-ap-db-token-admin"
+      ],
+      "assigned_identities": [
+        "sp-ident-carlos-mendez"
+      ],
+      "description": "Privileged database administrator role governing PostgreSQL cluster instances, tablespaces, and backups."
+    },
+    {
+      "id": "sp-role-compliance-auditor",
+      "name": "GRC Compliance & Audit Specialist",
+      "type": "BUSINESS_ROLE",
+      "access_profiles": [
+        "sp-ap-aws-secops-audit",
+        "sp-ap-paloalto-firewall-audit"
+      ],
+      "assigned_identities": [
+        "sp-ident-michael-brown"
+      ],
+      "description": "Audit role authorizing inspection of cloud evidence, firewall configurations, and compliance controls."
+    },
+    {
+      "id": "sp-role-payment-security-custodian",
+      "name": "Payment Card Tokenization Custodian",
+      "type": "IT_ROLE",
+      "access_profiles": [
+        "sp-ap-db-token-admin",
+        "sp-ap-aws-secops-audit"
+      ],
+      "assigned_identities": [
+        "sp-ident-ananya-rao"
+      ],
+      "description": "High-assurance PCI DSS custodian role authorized to maintain cryptographic tokenization keys and enclave databases."
+    }
+  ]
+}

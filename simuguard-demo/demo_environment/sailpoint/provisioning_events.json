@@ -1,0 +1,71 @@
+{
+  "provisioning_events": [
+    {
+      "id": "sp-prov-2001-grant-s3-read",
+      "action": "GRANT",
+      "source_id": "sp-src-aws-prod",
+      "target_account_id": "sp-acct-apps-emily-watson",
+      "identity_id": "sp-ident-emily-watson",
+      "entitlement_id": "sp-ent-aws-s3-cui-read",
+      "trigger_request_id": "sp-req-1001-approved-s3-read",
+      "state": "PROVISIONED",
+      "timestamp": "2026-11-01T11:35:00Z",
+      "reconciliation_status": "VERIFIED_ON_SOURCE",
+      "description": "IAM inline policy S3TelemetryWriteOnly successfully synchronized on AWS Production connected account."
+    },
+    {
+      "id": "sp-prov-2002-revoke-contractor-db",
+      "action": "REVOKE",
+      "source_id": "sp-src-database-platform",
+      "target_account_id": "sp-acct-ad-liam-oconnor",
+      "identity_id": "sp-ident-liam-oconnor",
+      "entitlement_id": "sp-ent-db-core-read",
+      "trigger_request_id": "sp-req-1005-revocation-contractor",
+      "state": "PROVISIONED",
+      "timestamp": "2026-11-12T10:20:00Z",
+      "reconciliation_status": "VERIFIED_ON_SOURCE",
+      "description": "Database role core_app_reader successfully dropped from contractor account."
+    },
+    {
+      "id": "sp-prov-2003-disable-leaver-account",
+      "action": "DISABLE_ACCOUNT",
+      "source_id": "sp-src-active-directory",
+      "target_account_id": "sp-acct-ad-liam-oconnor",
+      "identity_id": "sp-ident-liam-oconnor",
+      "entitlement_id": null,
+      "trigger_request_id": null,
+      "state": "PROVISIONED",
+      "timestamp": "2026-11-12T10:25:00Z",
+      "reconciliation_status": "VERIFIED_ON_SOURCE",
+      "description": "Active Directory account disabled following contract termination."
+    },
+    {
+      "id": "sp-prov-2004-pending-admin-grant",
+      "action": "GRANT",
+      "source_id": "sp-src-aws-prod",
+      "target_account_id": "sp-acct-aws-dev-vikram-sharma",
+      "identity_id": "sp-ident-vikram-sharma",
+      "entitlement_id": "sp-ent-aws-prod-root-admin",
+      "trigger_request_id": "sp-req-1003-pending-admin-access",
+      "state": "REQUESTED_NOT_PROVISIONED",
+      "timestamp": "2026-11-15T08:00:00Z",
+      "reconciliation_status": "AWAITING_APPROVAL",
+      "governance_rule": "PROVISIONING_GATE: Unapproved and unprovisioned events convey ZERO effective permissions.",
+      "description": "Provisioning plan generated but locked behind approval gate; no change pushed to AWS."
+    },
+    {
+      "id": "sp-prov-2005-failed-provisioning-retry",
+      "action": "GRANT",
+      "source_id": "sp-src-aws-dev",
+      "target_account_id": "sp-acct-aws-dev-olivia-smith",
+      "identity_id": "sp-ident-olivia-smith",
+      "entitlement_id": "sp-ent-aws-dev-poweruser",
+      "trigger_request_id": null,
+      "state": "FAILED",
+      "timestamp": "2026-11-10T09:00:00Z",
+      "reconciliation_status": "RETRY_QUEUED",
+      "error_message": "Transient AWS STS token timeout; permission not yet materialized on target.",
+      "description": "Approved grant failed during connector execution; not currently active on target."
+    }
+  ]
+}

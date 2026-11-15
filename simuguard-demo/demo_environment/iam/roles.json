@@ -1,0 +1,78 @@
+{
+  "roles": [
+    {
+      "id": "role-analytics-ingestion-svc",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/role-analytics-ingestion-svc",
+      "trust_principal": "arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED5594F3D61DF8373E",
+      "attached_policies": [
+        "arn:aws:iam::111122223333:policy/S3TelemetryWriteOnly"
+      ],
+      "permission_boundary": "arn:aws:iam::111122223333:policy/ApexWorkloadBoundary",
+      "criticality": "High",
+      "description": "Production telemetry ingestion role; baseline permits writes only to unclassified staging"
+    },
+    {
+      "id": "role-customer-portal-backend",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/role-customer-portal-backend",
+      "trust_principal": "arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED5594F3D61DF8373E",
+      "attached_policies": [
+        "arn:aws:iam::111122223333:policy/CustomerPortalDatabaseAccess"
+      ],
+      "permission_boundary": "arn:aws:iam::111122223333:policy/ApexWorkloadBoundary",
+      "criticality": "Critical",
+      "description": "Customer Portal backend execution role with scoped RDS and customer S3 access"
+    },
+    {
+      "id": "role-payment-processor-pci",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/role-payment-processor-pci",
+      "trust_principal": "arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED5594F3D61DF8373E",
+      "attached_policies": [
+        "arn:aws:iam::111122223333:policy/PCITokenVaultAccess",
+        "arn:aws:iam::111122223333:policy/KmsDecryptPaymentScoped"
+      ],
+      "permission_boundary": "arn:aws:iam::111122223333:policy/ApexStrictPCIBoundary",
+      "criticality": "Critical",
+      "description": "PCI DSS execution identity strictly constrained to tokenization vault and KMS key"
+    },
+    {
+      "id": "role-secops-incident-responder",
+      "account_id": "333344445555",
+      "arn": "arn:aws:iam::333344445555:role/role-secops-incident-responder",
+      "trust_principal": "arn:aws:iam::333344445555:root",
+      "attached_policies": [
+        "arn:aws:iam::aws:policy/SecurityAudit",
+        "arn:aws:iam::333344445555:policy/CrossAccountSecOpsAuditPolicy"
+      ],
+      "permission_boundary": null,
+      "criticality": "Critical",
+      "description": "Security operations role authorized to assume read-only audit roles across accounts"
+    },
+    {
+      "id": "role-dev-developer-sandbox",
+      "account_id": "222233334444",
+      "arn": "arn:aws:iam::222233334444:role/role-dev-developer-sandbox",
+      "trust_principal": "arn:aws:iam::222233334444:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLEDDEV001",
+      "attached_policies": [
+        "arn:aws:iam::aws:policy/PowerUserAccess"
+      ],
+      "permission_boundary": "arn:aws:iam::222233334444:policy/ApexDevSandboxBoundary",
+      "criticality": "Medium",
+      "description": "Development sandbox role with PowerUserAccess within development account boundaries"
+    },
+    {
+      "id": "role-ci-cd-deployment-pipeline",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/role-ci-cd-deployment-pipeline",
+      "trust_principal": "arn:aws:iam::222233334444:root",
+      "attached_policies": [
+        "arn:aws:iam::aws:policy/AdministratorAccess"
+      ],
+      "permission_boundary": null,
+      "criticality": "Critical",
+      "description": "Production CI/CD deployment role with broad administrative privileges"
+    }
+  ]
+}

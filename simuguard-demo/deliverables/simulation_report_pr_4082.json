@@ -1,0 +1,125 @@
+{
+  "change_ticket_id": "PR-4082-FIREWALL-IAM",
+  "overall_risk_score": 100,
+  "deployment_verdict": "BLOCK_DEPLOYMENT",
+  "executive_summary": "Pre-flight simulation for PR-4082-FIREWALL-IAM concluded with verdict: BLOCK_DEPLOYMENT. Composite risk score: 100/100. Identified 2 security finding(s) across 9 affected asset(s). Deployment BLOCKED: Detected 1 CRITICAL security finding(s): [Cloud Privilege Escalation: Managed Policy 'AmazonS3FullAccess']. Critical security violations override numerical scores.",
+  "predicted_affected_assets": [
+    {
+      "asset_id": "eks-analytics-worker-pool",
+      "asset_name": "Public Analytics Ingestion Cluster",
+      "asset_type": "Compute_Cluster",
+      "criticality": "HIGH",
+      "blast_tier": "DIRECT",
+      "impact_description": "Explicitly mapped security group 'sg-analytics-web-01' on workload 'eks-analytics-worker-pool' updated with unrestricted 0.0.0.0/0 outbound egress"
+    },
+    {
+      "asset_id": "role-analytics-ingestion-svc",
+      "asset_name": "role-analytics-ingestion-svc",
+      "asset_type": "IAM_Role",
+      "criticality": "HIGH",
+      "blast_tier": "DIRECT",
+      "impact_description": "Policy 'AmazonS3FullAccess' attached to IAM role 'role-analytics-ingestion-svc'"
+    },
+    {
+      "asset_id": "APP-003-CUSTOMER-ANALYTICS",
+      "asset_name": "Customer Telemetry & Analytics",
+      "asset_type": "Business_Application",
+      "criticality": "HIGH",
+      "blast_tier": "CASCADING",
+      "impact_description": "Business application 'Customer Telemetry & Analytics' hosted on impacted workload 'eks-analytics-worker-pool' is potentially exposed to compromise or service disruption"
+    },
+    {
+      "asset_id": "subnet-trust-dmz",
+      "asset_name": "Subnet: DMZ Public Web & Ingestion Subnet (10.100.4.0/24)",
+      "asset_type": "Network_Subnet",
+      "criticality": "HIGH",
+      "blast_tier": "CASCADING",
+      "impact_description": "Zone boundary potentially weakened by unrestricted egress rule on hosted workload 'eks-analytics-worker-pool'"
+    },
+    {
+      "asset_id": "s3-enterprise-cui-vault",
+      "asset_name": "s3://corp-restricted-cui-financial-vault",
+      "asset_type": "Storage_S3_Bucket",
+      "criticality": "CRITICAL",
+      "blast_tier": "CASCADING",
+      "impact_description": "Overprivileged policy attachment on 'role-analytics-ingestion-svc' satisfies CROSS_ZONE_IAM_PATH blast condition: potentially exposes sensitive data in 's3-enterprise-cui-vault' to cross-bucket read/write access if execution credentials are compromised"
+    },
+    {
+      "asset_id": "DATA-01-CUI-FINANCIAL-VAULT",
+      "asset_name": "Corporate Restricted Financial & CUI Vault",
+      "asset_type": "Data_Asset",
+      "criticality": "CRITICAL",
+      "blast_tier": "CASCADING",
+      "impact_description": "Sensitive data asset 'Corporate Restricted Financial & CUI Vault' (RESTRICTED_CUI_PII) stored in 's3-enterprise-cui-vault' is potentially exposed to unauthorized access, tampering, or exfiltration"
+    },
+    {
+      "asset_id": "kms-cui-vault",
+      "asset_name": "alias/apex-cui-financial-vault",
+      "asset_type": "KMS_Key",
+      "criticality": "HIGH",
+      "blast_tier": "CASCADING",
+      "impact_description": "KMS encryption key 'alias/apex-cui-financial-vault' protecting 's3-enterprise-cui-vault' is associated with potentially exposed data store"
+    },
+    {
+      "asset_id": "s3-dev-staging-telemetry",
+      "asset_name": "s3://apex-dev-staging-telemetry",
+      "asset_type": "Storage_S3_Bucket",
+      "criticality": "LOW",
+      "blast_tier": "CASCADING",
+      "impact_description": "Overprivileged policy attachment on 'role-analytics-ingestion-svc' satisfies CAN_ACCESS blast condition: potentially exposes sensitive data in 's3-dev-staging-telemetry' to cross-bucket read/write access if execution credentials are compromised"
+    },
+    {
+      "asset_id": "DATA-06-DEV-STAGING-TELEMETRY",
+      "asset_name": "Development Staging & Telemetry Storage",
+      "asset_type": "Data_Asset",
+      "criticality": "LOW",
+      "blast_tier": "CASCADING",
+      "impact_description": "Sensitive data asset 'Development Staging & Telemetry Storage' (INTERNAL_OPERATIONAL) stored in 's3-dev-staging-telemetry' is potentially exposed to unauthorized access, tampering, or exfiltration"
+    }
+  ],
+  "identified_security_gaps": [
+    {
+      "severity": "HIGH",
+      "gap_title": "Unrestricted AWS Security Group Egress: 'allow_outbound_webhook'",
+      "technical_impact": "AWS Security Group rule 'allow_outbound_webhook' on SG 'sg-analytics-web-01' allows egress to '0.0.0.0/0' on protocol 'tcp' ports 443-443. Enables unrestricted outbound network communication to any host on the public internet.",
+      "compliance_violation": "CIS AWS Foundations Benchmark v1.4.0 (Rule 5.3) & NIST CSF 2.0 PR.AC-05",
+      "rule_id": "FW-02",
+      "remediation_guidance": "Restrict cidr_blocks on 'allow_outbound_webhook' to specific target service CIDRs, VPC endpoints, or AWS Prefix Lists."
+    },
+    {
+      "severity": "CRITICAL",
+      "gap_title": "Cloud Privilege Escalation: Managed Policy 'AmazonS3FullAccess'",
+      "technical_impact": "Attaching broad managed policy 'arn:aws:iam::aws:policy/AmazonS3FullAccess' to role 'role-analytics-ingestion-svc' grants unrestricted wildcard read/write/delete actions over AWS resources, including confidential CUI data assets in the enterprise vault.",
+      "compliance_violation": "NIST SP 800-171 3.1.1 & CIS AWS Benchmark v1.4.0 (Rule 1.16)",
+      "rule_id": "IAM-01",
+      "remediation_guidance": "Replace 'arn:aws:iam::aws:policy/AmazonS3FullAccess' with a customer-managed, least-privilege policy scoped to exact S3 bucket actions (e.g. s3:PutObject on telemetry staging)."
+    }
+  ],
+  "pre_implementation_validation_plan": [
+    {
+      "step_number": 1,
+      "target_component": "AWS Security Group (sg-analytics-web-01)",
+      "what_to_validate": "Verify egress CIDR scoping on security group 'sg-analytics-web-01'",
+      "cli_command": "aws ec2 describe-security-group-rules --filters \"Name=group-id,Values=sg-analytics-web-01\" --query \"SecurityGroupRules[?IsEgress==`true`]\"",
+      "expected_pass_criteria": "Egress CIDR must be restricted to partner subnet, NOT 0.0.0.0/0",
+      "command_type": "PAN_OS_CLI"
+    },
+    {
+      "step_number": 2,
+      "target_component": "AWS IAM Role (role-analytics-ingestion-svc)",
+      "what_to_validate": "Verify attached policies on role 'role-analytics-ingestion-svc' adhere to least-privilege",
+      "cli_command": "aws iam list-attached-role-policies --role-name role-analytics-ingestion-svc",
+      "expected_pass_criteria": "Role must NOT attach AmazonS3FullAccess or AdministratorAccess",
+      "command_type": "PAN_OS_CLI"
+    }
+  ],
+  "safe_remediated_config": "# [REMEDIATED] Scoped AWS Security Group Egress Rule\nresource \"aws_security_group_rule\" \"remediated_outbound_egress\" {\n  type              = \"egress\"\n  from_port         = 443\n  to_port           = 443\n  protocol          = \"tcp\"\n  cidr_blocks       = [\"198.51.100.0/24\"] # Scoped partner CIDR (RFC 5737)\n  security_group_id = \"sg-analytics-web-01\"\n}\n\n# [REMEDIATED] Scoped Least-Privilege IAM Policy for Telemetry Ingestion\nresource \"aws_iam_policy\" \"scoped_telemetry_s3_write\" {\n  name        = \"pol-telemetry-staging-write-only\"\n  description = \"Scoped write-only access to unclassified telemetry bucket\"\n  policy = jsonencode({\n    Version = \"2012-10-17\"\n    Statement = [{\n      Action   = [\"s3:PutObject\", \"s3:AbortMultipartUpload\"]\n      Effect   = \"Allow\"\n      Resource = \"arn:aws:s3:::apex-telemetry-staging-us-east-1/*\"\n    }]\n  })\n}\n\nresource \"aws_iam_role_policy_attachment\" \"scoped_analytics_attachment\" {\n  role       = \"role-analytics-ingestion-svc\"\n  policy_arn = aws_iam_policy.scoped_telemetry_s3_write.arn\n}",
+  "target_environment": "Enterprise Hybrid (PAN-OS / AWS)",
+  "evaluated_file": "pr_4082_firewall_iam.tf",
+  "generated_at": "2026-11-15T22:53:44.398205+00:00",
+  "compliance_frameworks": [
+    "NIST CSF 2.0 (PR.AC, PR.PT)",
+    "NIST SP 800-171 3.13.1",
+    "CIS Palo Alto Firewall Benchmark v1.1.0"
+  ]
+}

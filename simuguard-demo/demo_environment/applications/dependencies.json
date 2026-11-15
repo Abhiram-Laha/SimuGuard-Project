@@ -1,0 +1,60 @@
+{
+  "service_dependencies": [
+    {
+      "source_app_id": "APP-001-CUSTOMER-PORTAL",
+      "target_app_id": "APP-007-API-GATEWAY",
+      "protocol": "HTTPS",
+      "nature": "CONFIGURED",
+      "description": "Customer Portal proxies authenticated API calls through core API Gateway"
+    },
+    {
+      "source_app_id": "APP-007-API-GATEWAY",
+      "target_app_id": "APP-002-PAYMENT-PROCESSING",
+      "protocol": "mTLS",
+      "nature": "CONFIGURED",
+      "description": "API Gateway securely dispatches card checkout transactions to PCI enclave"
+    },
+    {
+      "source_app_id": "APP-007-API-GATEWAY",
+      "target_app_id": "APP-008-ORDER-MANAGEMENT",
+      "protocol": "gRPC",
+      "nature": "CONFIGURED",
+      "description": "API Gateway streams client trade and checkout requests to Order Engine"
+    },
+    {
+      "source_app_id": "APP-008-ORDER-MANAGEMENT",
+      "target_app_id": "APP-005-FINANCIAL-REPORTING",
+      "protocol": "Kafka/TLS",
+      "nature": "CONFIGURED",
+      "description": "Settled orders publish ledger balance changes to core financial reporting"
+    },
+    {
+      "source_app_id": "APP-003-CUSTOMER-ANALYTICS",
+      "target_app_id": "APP-009-DATA-INGESTION",
+      "protocol": "HTTPS",
+      "nature": "CONFIGURED",
+      "description": "Clickstream events flow through ingestion pipeline workers"
+    },
+    {
+      "source_app_id": "APP-004-HR-MANAGEMENT",
+      "target_app_id": "APP-006-EMPLOYEE-IDENTITY-SVC",
+      "protocol": "SAML/OIDC",
+      "nature": "CONFIGURED",
+      "description": "Employee HR portal authenticates user credentials against IdP"
+    },
+    {
+      "source_app_id": "APP-012-AUDIT-COMPLIANCE",
+      "target_app_id": "APP-005-FINANCIAL-REPORTING",
+      "protocol": "PostgreSQL/TLS",
+      "nature": "INFERRED",
+      "description": "Audit engine queries financial ledger DB for quarterly reconciliation"
+    },
+    {
+      "source_app_id": "APP-012-AUDIT-COMPLIANCE",
+      "target_app_id": "APP-010-SECURITY-MONITORING",
+      "protocol": "REST/TLS",
+      "nature": "CONFIGURED",
+      "description": "Audit engine ingests SIEM alerts and security compliance signals"
+    }
+  ]
+}

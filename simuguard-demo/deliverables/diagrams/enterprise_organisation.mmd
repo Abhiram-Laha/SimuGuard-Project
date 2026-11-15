@@ -1,0 +1,77 @@
+graph TB
+    %% Apex Global Technologies - Enterprise Organisation Architecture
+    %% Source: simuguard-demo/demo_environment/
+
+    classDef org fill:#e3f2fd,stroke:#1565c0,stroke-width:3px;
+    classDef ou fill:#f5f5f5,stroke:#424242,stroke-width:2px;
+    classDef acc fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef pan fill:#ede7f6,stroke:#512da8,stroke-width:2px;
+    classDef app fill:#fff3e0,stroke:#e65100,stroke-width:1px;
+    classDef data fill:#fce4ec,stroke:#880e4f,stroke-width:2px;
+
+    APEX["Apex Global Technologies Inc.<br/>Domain: apex-global.example<br/>Frameworks: NIST CSF 2.0, NIST SP 800-171, PCI-DSS v4.0, CIS Benchmarks"]:::org
+
+    subgraph Governance ["Central Security & Network Management"]
+        PAN["Panorama 11.1 (pan-mgmt-01)<br/>DG-Enterprise-Shared<br/>DG-Internet-Perimeter<br/>DG-Internal-Segmentation"]:::pan
+        SIEM["Enterprise SIEM & Splunk Cloud<br/>Centralized Ingestion (10.250.1.50)"]:::pan
+    end
+
+    subgraph AWS_Org ["AWS Organization: o-apexglobal01"]
+        subgraph OU_Core ["Core Services OU (ou-apex-core)"]
+            MGMT_ACC["Management Account<br/>Account ID: 000011112222"]:::ou
+        end
+
+        subgraph OU_Workloads ["Workloads OU (ou-apex-workloads)"]
+            subgraph Prod_Account ["Production Account: 111122223333"]
+                direction TB
+                PROD_NET["VPC: vpc-prod-us-east-1 (10.100.0.0/16)"]:::acc
+                
+                subgraph Apps_Prod ["Production Business Applications"]
+                    APP1["APP-001: Customer Portal"]:::app
+                    APP2["APP-002: PCI Payment Processing"]:::app
+                    APP3["APP-003: Customer Analytics & Clickstream"]:::app
+                    APP7["APP-007: Core API Gateway"]:::app
+                    APP8["APP-008: Order Management Engine"]:::app
+                end
+
+                subgraph Repos_Prod ["Critical Data Repositories"]
+                    DATA1["DATA-01: CUI Financial Ledger<br/>s3-enterprise-cui-vault (Restricted CUI)"]:::data
+                    DATA2["DATA-02: PCI Token Vault<br/>rds-pci-token-vault-prod (PCI Cardholder)"]:::data
+                    DATA3["DATA-03: Customer PII DB<br/>rds-postgres-core-prod (Confidential PII)"]:::data
+                end
+            end
+
+            subgraph Dev_Account ["Development Account: 222233334444"]
+                DEV_NET["VPC: vpc-dev-us-east-1 (10.200.0.0/16)"]:::acc
+                APP11["APP-011: Developer Sandbox"]:::app
+                DATA6["DATA-06: Dev Staging Telemetry<br/>s3-dev-staging-telemetry (Unclassified)"]:::data
+            end
+        end
+
+        subgraph OU_Security ["Security OU (ou-apex-security)"]
+            subgraph Sec_Account ["Security Operations Account: 333344445555"]
+                SEC_NET["VPC: vpc-secops-us-east-1 (10.250.0.0/16)"]:::acc
+                APP10["APP-010: Central Security SIEM"]:::app
+                DATA5["DATA-05: Central CloudTrail Logs<br/>s3-central-security-cloudtrail-sec"]:::data
+            end
+        end
+    end
+
+    %% Dependencies and Organization Links
+    APEX --> PAN
+    APEX --> AWS_Org
+    PAN -.->|Central Rulebases| PROD_NET
+    PAN -.->|Central Rulebases| DEV_NET
+
+    APP1 -->|Calls Service| APP7
+    APP7 -->|Calls Service| APP2
+    APP7 -->|Calls Service| APP8
+    APP3 -->|Calls Service| APP7
+
+    APP1 -.->|Stores Data| DATA3
+    APP2 -.->|Stores Data| DATA2
+    APP3 -.->|Unauthorized Exfil Risk| DATA1
+
+    PROD_NET -.->|CloudTrail & VPC Flow Logs| DATA5
+    DEV_NET -.->|CloudTrail & VPC Flow Logs| DATA5
+    DATA5 --> SIEM

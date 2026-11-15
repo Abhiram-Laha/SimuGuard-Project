@@ -1,0 +1,212 @@
+{
+  "compute_workloads": [
+    {
+      "id": "eks-analytics-worker-pool",
+      "name": "Public Analytics Ingestion Cluster",
+      "type": "Compute_Cluster",
+      "account_id": "111122223333",
+      "environment": "Production",
+      "subnet_id": "subnet-trust-dmz",
+      "security_group_id": "sg-analytics-web-01",
+      "attached_iam_role": "role-analytics-ingestion-svc",
+      "criticality": "High",
+      "description": "Public analytics telemetry ingestion pods processing external partner webhooks"
+    },
+    {
+      "id": "eks-customer-portal-cluster",
+      "name": "Customer Web Portal Microservices EKS",
+      "type": "Compute_Cluster",
+      "account_id": "111122223333",
+      "environment": "Production",
+      "subnet_id": "subnet-prod-app-private",
+      "security_group_id": "sg-customer-portal-alb",
+      "attached_iam_role": "role-customer-portal-backend",
+      "criticality": "Critical",
+      "description": "Core frontend and customer account microservices cluster"
+    },
+    {
+      "id": "eks-payment-processor-pool",
+      "name": "PCI Payment Processing Worker Pool",
+      "type": "Compute_Cluster",
+      "account_id": "111122223333",
+      "environment": "Production",
+      "subnet_id": "subnet-pci-cardholder",
+      "security_group_id": "sg-payment-service-pci",
+      "attached_iam_role": "role-payment-processor-pci",
+      "criticality": "Critical",
+      "description": "PCI DSS scoped tokenization compute workers in cardholder data environment"
+    },
+    {
+      "id": "eks-dev-cluster",
+      "name": "Development & CI/CD Sandbox Cluster",
+      "type": "Compute_Cluster",
+      "account_id": "222233334444",
+      "environment": "Development",
+      "subnet_id": "subnet-dev-app-private",
+      "security_group_id": "sg-dev-k8s-nodes",
+      "attached_iam_role": "role-dev-developer-sandbox",
+      "criticality": "Medium",
+      "description": "Developer sandbox running testing microservices"
+    },
+    {
+      "id": "ec2-sec-siem-forwarder",
+      "name": "Central Security SIEM Log Forwarder Instance",
+      "type": "Compute_Instance",
+      "account_id": "333344445555",
+      "environment": "Security",
+      "subnet_id": "subnet-mgmt-oob",
+      "security_group_id": "sg-sec-siem-forwarder",
+      "attached_iam_role": "role-secops-incident-responder",
+      "criticality": "Critical",
+      "description": "Dedicated EC2 instance collecting enterprise-wide CloudTrail and syslog telemetry"
+    }
+  ],
+  "load_balancers": [
+    {
+      "id": "alb-customer-portal-ext",
+      "name": "alb-customer-portal-production",
+      "account_id": "111122223333",
+      "dns_name": "portal.apex-global.example",
+      "scheme": "internet-facing",
+      "subnet_id": "subnet-trust-dmz",
+      "security_group_id": "sg-customer-portal-alb",
+      "target_workload_id": "eks-customer-portal-cluster"
+    },
+    {
+      "id": "alb-payment-ingestion-internal",
+      "name": "alb-payment-internal-pci",
+      "account_id": "111122223333",
+      "dns_name": "payment-api.internal.apex-global.example",
+      "scheme": "internal",
+      "subnet_id": "subnet-prod-app-private",
+      "security_group_id": "sg-payment-service-pci",
+      "target_workload_id": "eks-payment-processor-pool"
+    }
+  ],
+  "databases": [
+    {
+      "id": "rds-postgres-core-prod",
+      "name": "Production Core Customer Database Cluster",
+      "type": "Database_RDS_PostgreSQL",
+      "account_id": "111122223333",
+      "subnet_id": "subnet-database-backend",
+      "security_group_id": "sg-rds-postgres-prod",
+      "endpoint": "core-db.prod.apex-global.example:5432",
+      "data_classification": "Confidential / PII",
+      "criticality": "Critical",
+      "encrypted_with_kms": "arn:aws:kms:us-east-1:111122223333:key/k-customer-db-encryption"
+    },
+    {
+      "id": "rds-pci-token-vault-prod",
+      "name": "Production PCI Cardholder Token Vault DB",
+      "type": "Database_RDS_PostgreSQL",
+      "account_id": "111122223333",
+      "subnet_id": "subnet-pci-cardholder",
+      "security_group_id": "sg-payment-service-pci",
+      "endpoint": "token-vault.pci.apex-global.example:5432",
+      "data_classification": "PCI-DSS Cardholder Data",
+      "criticality": "Critical",
+      "encrypted_with_kms": "arn:aws:kms:us-east-1:111122223333:key/k-pci-token-encryption"
+    }
+  ],
+  "storage_buckets": [
+    {
+      "id": "s3-enterprise-cui-vault",
+      "name": "s3://corp-restricted-cui-financial-vault",
+      "type": "Storage_S3_Bucket",
+      "account_id": "111122223333",
+      "arn": "arn:aws:s3:::corp-restricted-cui-financial-vault",
+      "data_classification": "Restricted / CUI / PII",
+      "criticality": "Critical",
+      "compliance_controls": [
+        "NIST SP 800-171 3.1.3 (Control CUI Flow)",
+        "NIST SP 800-171 3.13.1 (Boundary Protection)"
+      ],
+      "encrypted_with_kms": "arn:aws:kms:us-east-1:111122223333:key/k-cui-vault-encryption",
+      "versioning_enabled": true,
+      "public_access_block": true
+    },
+    {
+      "id": "s3-customer-pii-lake-prod",
+      "name": "s3://apex-customer-pii-lake-prod",
+      "type": "Storage_S3_Bucket",
+      "account_id": "111122223333",
+      "arn": "arn:aws:s3:::apex-customer-pii-lake-prod",
+      "data_classification": "Confidential / PII",
+      "criticality": "Critical",
+      "encrypted_with_kms": "arn:aws:kms:us-east-1:111122223333:key/k-customer-db-encryption",
+      "versioning_enabled": true,
+      "public_access_block": true
+    },
+    {
+      "id": "s3-pci-audit-records-prod",
+      "name": "s3://apex-pci-audit-records-prod",
+      "type": "Storage_S3_Bucket",
+      "account_id": "111122223333",
+      "arn": "arn:aws:s3:::apex-pci-audit-records-prod",
+      "data_classification": "PCI-DSS Restricted Audit",
+      "criticality": "Critical",
+      "versioning_enabled": true,
+      "public_access_block": true
+    },
+    {
+      "id": "s3-dev-staging-telemetry",
+      "name": "s3://apex-dev-staging-telemetry",
+      "type": "Storage_S3_Bucket",
+      "account_id": "222233334444",
+      "arn": "arn:aws:s3:::apex-dev-staging-telemetry",
+      "data_classification": "Internal Operational Test Data",
+      "criticality": "Low",
+      "versioning_enabled": false,
+      "public_access_block": true
+    },
+    {
+      "id": "s3-central-security-cloudtrail-sec",
+      "name": "s3://apex-central-security-cloudtrail-sec",
+      "type": "Storage_S3_Bucket",
+      "account_id": "333344445555",
+      "arn": "arn:aws:s3:::apex-central-security-cloudtrail-sec",
+      "data_classification": "Security Audit Logs",
+      "criticality": "Critical",
+      "versioning_enabled": true,
+      "public_access_block": true
+    }
+  ],
+  "kms_keys": [
+    {
+      "id": "kms-cui-vault",
+      "arn": "arn:aws:kms:us-east-1:111122223333:key/k-cui-vault-encryption",
+      "account_id": "111122223333",
+      "alias": "alias/apex-cui-financial-vault",
+      "description": "KMS Customer Managed Key for NIST 800-171 CUI data",
+      "key_rotation_enabled": true
+    },
+    {
+      "id": "kms-pci-token",
+      "arn": "arn:aws:kms:us-east-1:111122223333:key/k-pci-token-encryption",
+      "account_id": "111122223333",
+      "alias": "alias/apex-pci-cardholder-encryption",
+      "description": "KMS Key for PCI DSS tokenized primary account numbers",
+      "key_rotation_enabled": true
+    },
+    {
+      "id": "kms-customer-db",
+      "arn": "arn:aws:kms:us-east-1:111122223333:key/k-customer-db-encryption",
+      "account_id": "111122223333",
+      "alias": "alias/apex-core-postgres-encryption",
+      "description": "KMS Key for production relational customer database",
+      "key_rotation_enabled": true
+    }
+  ],
+  "cloudtrail": [
+    {
+      "id": "trail-apex-enterprise-multiregion",
+      "name": "apex-enterprise-audit-trail",
+      "account_id": "333344445555",
+      "s3_bucket": "s3://apex-central-security-cloudtrail-sec",
+      "include_global_service_events": true,
+      "is_multi_region_trail": true,
+      "enable_log_file_validation": true
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "organisation": {
+    "arn": "arn:aws:organizations::111100000001:organization/o-apexglobal01",
+    "id": "o-apexglobal01",
+    "master_account_id": "111100000001",
+    "master_account_email": "root-aws@apex-global.example",
+    "feature_set": "ALL",
+    "organizational_units": [
+      {
+        "id": "ou-apex-core",
+        "name": "Core",
+        "description": "Shared administrative, network transit, and billing infrastructure"
+      },
+      {
+        "id": "ou-apex-workloads",
+        "name": "Workloads",
+        "description": "Production and development business application hosting"
+      },
+      {
+        "id": "ou-apex-security",
+        "name": "Security",
+        "description": "Security incident response, log aggregation, and compliance audit"
+      }
+    ]
+  }
+}

@@ -1,0 +1,52 @@
+flowchart TD
+    %% Apex Global Technologies - Sensitive Data Architecture & Classifications
+
+    subgraph Data_Classifications ["Enterprise Data Classification Tiers"]
+        TIER_CUI["RESTRICTED_CUI_PII<br/>(NIST SP 800-171 / SOX 404 / Critical)"]
+        TIER_PCI["PCI_CARDHOLDER_DATA<br/>(PCI DSS 4.0 / Enclave Isolation / Critical)"]
+        TIER_PII["CONFIDENTIAL_PII<br/>(GDPR / CCPA / SOC 2 / High)"]
+        TIER_OPS["INTERNAL_OPERATIONAL<br/>(Telemetry & Staging / Medium)"]
+    end
+
+    subgraph Data_Assets ["Core Enterprise Data Assets"]
+        DATA_01["DATA-01: Corporate Restricted Financial & CUI Vault<br/>General Ledger, Tax Filings, Treasury Reserves"]
+        DATA_02["DATA-02: Production Payment Card Tokenization Vault<br/>Primary Account Numbers (PAN), CVV Hashes"]
+        DATA_03["DATA-03: Production Core Customer Database Cluster<br/>Customer Profiles, Billing Addresses, Preferences"]
+        DATA_04["DATA-04: Corporate Employee HR Records Archive<br/>Payroll Details, SSNs, Medical Benefits"]
+        DATA_05["DATA-05: Central CloudTrail & Security Audit Logs<br/>Multi-Account Audit Logs, Forensic Telemetry"]
+        DATA_06["DATA-06: Development Staging & Telemetry Storage<br/>De-Identified Debug Logs & Test Payloads"]
+    end
+
+    TIER_CUI --> DATA_01
+    TIER_PCI --> DATA_02
+    TIER_PII --> DATA_03
+    TIER_PII --> DATA_04
+    TIER_CUI --> DATA_05
+    TIER_OPS --> DATA_06
+
+    subgraph Storage_Repositories ["Cloud Storage & Database Repositories"]
+        S3_CUI["s3-enterprise-cui-vault<br/>(S3 Bucket / Zone: Restricted-Data-Vault)"]
+        RDS_PCI["rds-pci-token-vault-prod<br/>(RDS PostgreSQL / Zone: PCI-Cardholder-Data)"]
+        RDS_CORE["rds-postgres-core-prod<br/>(RDS PostgreSQL / Zone: Database-Backend)"]
+        S3_PII["s3-customer-pii-lake-prod<br/>(S3 Bucket / Zone: Prod-App-Workloads)"]
+        S3_LOGS["s3-central-security-cloudtrail-sec<br/>(S3 Bucket / Account: Apex-Security)"]
+        S3_DEV["s3-dev-staging-telemetry<br/>(S3 Bucket / Account: Apex-Development)"]
+    end
+
+    DATA_01 --- S3_CUI
+    DATA_02 --- RDS_PCI
+    DATA_03 --- RDS_CORE
+    DATA_04 --- S3_PII
+    DATA_05 --- S3_LOGS
+    DATA_06 --- S3_DEV
+
+    subgraph Encryption_Keys ["AWS KMS Customer Managed Keys (CMKs)"]
+        KMS_CUI["kms-cui-vault<br/>(AES-256 Envelope Encryption)"]
+        KMS_PCI["kms-pci-token<br/>(HSM-Backed Encryption)"]
+        KMS_DB["kms-customer-db<br/>(XTS-AES-256 Storage Encryption)"]
+    end
+
+    S3_CUI -.->|ENCRYPTED_BY| KMS_CUI
+    RDS_PCI -.->|ENCRYPTED_BY| KMS_PCI
+    RDS_CORE -.->|ENCRYPTED_BY| KMS_DB
+    S3_LOGS -.->|ENCRYPTED_BY| KMS_CUI

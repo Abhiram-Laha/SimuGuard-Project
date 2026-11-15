@@ -1,0 +1,56 @@
+{
+  "classifications": [
+    {
+      "tier": "RESTRICTED_CUI_PII",
+      "name": "Restricted Controlled Unclassified Information & PII",
+      "description": "Critical federal contract data, unclassified defense info, and executive financial ledgers governed by NIST SP 800-171 Rev 2.",
+      "handling_requirements": [
+        "FIPS 140-3 KMS encryption at rest and in transit",
+        "Mandatory dual-custody access controls",
+        "Strict boundary segmentation without direct perimeter connectivity",
+        "Continuous CloudTrail data event logging"
+      ],
+      "regulatory_frameworks": ["NIST SP 800-171 3.1.3", "DFARS 252.204-7012", "Sarbanes-Oxley 404"]
+    },
+    {
+      "tier": "PCI_CARDHOLDER_DATA",
+      "name": "Payment Card Industry (PCI-DSS) Enclave Data",
+      "description": "Primary account numbers (PAN), CVVs, and magnetic stripe data governed by PCI-DSS v4.0.",
+      "handling_requirements": [
+        "Mandatory cryptographic tokenization before cross-zone egress",
+        "Isolated Cardholder Data Environment (CDE) subnet",
+        "Zero inbound access from untrusted zones"
+      ],
+      "regulatory_frameworks": ["PCI-DSS v4.0 Requirements 1, 3, 4, 10"]
+    },
+    {
+      "tier": "CONFIDENTIAL_PII",
+      "name": "Confidential Customer & Employee PII",
+      "description": "Customer bank accounts, social security numbers, employee salary histories, and HR records.",
+      "handling_requirements": [
+        "KMS CMK encryption at rest",
+        "Role-based access control with least-privilege scoping"
+      ],
+      "regulatory_frameworks": ["GDPR Article 32", "CCPA/CPRA", "NYDFS 23 NYCRR 500"]
+    },
+    {
+      "tier": "INTERNAL_OPERATIONAL",
+      "name": "Internal Operational & Infrastructure Telemetry",
+      "description": "Application debug logs, non-sensitive telemetry, system metrics, and test datasets.",
+      "handling_requirements": [
+        "Internal corporate access only",
+        "Standard SSE-S3 encryption"
+      ],
+      "regulatory_frameworks": ["Enterprise Internal Baseline"]
+    },
+    {
+      "tier": "PUBLIC",
+      "name": "Public Marketing & Documentation",
+      "description": "Public documentation, marketing images, and public web assets.",
+      "handling_requirements": [
+        "Integrity protection only"
+      ],
+      "regulatory_frameworks": []
+    }
+  ]
+}

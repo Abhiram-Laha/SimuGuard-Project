@@ -1,0 +1,7 @@
+# SimuGuard AI - Core Dependencies
+pydantic>=2.7.0,<3.0.0
+pytest>=8.0.0,<10.0.0
+python-hcl2>=8.2.0,<9.0.0
+networkx>=3.0.0,<4.0.0
+reportlab>=4.0.0
+python-pptx>=1.0.0

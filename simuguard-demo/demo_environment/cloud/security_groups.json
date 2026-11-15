@@ -1,0 +1,154 @@
+{
+  "security_groups": [
+    {
+      "id": "sg-analytics-web-01",
+      "account_id": "111122223333",
+      "vpc_id": "vpc-prod-us-east-1",
+      "group_name": "sg-analytics-web-01",
+      "description": "Security Group for EKS Analytics Ingestion Cluster Pods",
+      "attached_workloads": ["eks-analytics-worker-pool"],
+      "ingress_rules": [
+        {
+          "protocol": "tcp",
+          "from_port": 443,
+          "to_port": 443,
+          "cidr_blocks": ["10.100.4.0/24"],
+          "description": "HTTPS ingress from DMZ reverse proxies"
+        }
+      ],
+      "egress_rules": [
+        {
+          "protocol": "tcp",
+          "from_port": 443,
+          "to_port": 443,
+          "cidr_blocks": ["198.51.100.0/24"],
+          "description": "Standard baseline: egress scoped to partner webhook CIDR (RFC 5737)"
+        }
+      ]
+    },
+    {
+      "id": "sg-customer-portal-alb",
+      "account_id": "111122223333",
+      "vpc_id": "vpc-prod-us-east-1",
+      "group_name": "sg-customer-portal-alb",
+      "description": "Public Customer Web Portal Application Load Balancer",
+      "attached_workloads": ["alb-customer-portal-ext"],
+      "ingress_rules": [
+        {
+          "protocol": "tcp",
+          "from_port": 443,
+          "to_port": 443,
+          "cidr_blocks": ["0.0.0.0/0"],
+          "description": "Public TLS HTTPS ingress"
+        }
+      ],
+      "egress_rules": [
+        {
+          "protocol": "tcp",
+          "from_port": 8443,
+          "to_port": 8443,
+          "cidr_blocks": ["10.100.10.0/23"],
+          "description": "Forward to internal production API containers"
+        }
+      ]
+    },
+    {
+      "id": "sg-payment-service-pci",
+      "account_id": "111122223333",
+      "vpc_id": "vpc-prod-us-east-1",
+      "group_name": "sg-payment-service-pci",
+      "description": "PCI Enclave Payment Processing Microservice SG",
+      "attached_workloads": ["eks-payment-processor-pool"],
+      "ingress_rules": [
+        {
+          "protocol": "tcp",
+          "from_port": 8443,
+          "to_port": 8443,
+          "cidr_blocks": ["10.100.10.0/23"],
+          "description": "Scoped tokenization requests from production API cluster"
+        }
+      ],
+      "egress_rules": [
+        {
+          "protocol": "tcp",
+          "from_port": 5432,
+          "to_port": 5432,
+          "cidr_blocks": ["10.100.30.50/32"],
+          "description": "Secure SQL egress to PCI database vault"
+        }
+      ]
+    },
+    {
+      "id": "sg-rds-postgres-prod",
+      "account_id": "111122223333",
+      "vpc_id": "vpc-prod-us-east-1",
+      "group_name": "sg-rds-postgres-prod",
+      "description": "Production PostgreSQL Database Cluster SG",
+      "attached_workloads": ["rds-postgres-core-prod"],
+      "ingress_rules": [
+        {
+          "protocol": "tcp",
+          "from_port": 5432,
+          "to_port": 5432,
+          "cidr_blocks": ["10.100.10.0/23"],
+          "description": "PostgreSQL access from production application workloads"
+        }
+      ],
+      "egress_rules": []
+    },
+    {
+      "id": "sg-dev-k8s-nodes",
+      "account_id": "222233334444",
+      "vpc_id": "vpc-dev-us-east-1",
+      "group_name": "sg-dev-k8s-nodes",
+      "description": "Development EKS Worker Nodes SG",
+      "attached_workloads": ["eks-dev-cluster"],
+      "ingress_rules": [
+        {
+          "protocol": "tcp",
+          "from_port": 443,
+          "to_port": 443,
+          "cidr_blocks": ["10.200.0.0/16"],
+          "description": "Internal dev VPC traffic"
+        }
+      ],
+      "egress_rules": [
+        {
+          "protocol": "-1",
+          "from_port": 0,
+          "to_port": 0,
+          "cidr_blocks": ["0.0.0.0/0"],
+          "description": "Dev outbound package downloads"
+        }
+      ]
+    },
+    {
+      "id": "sg-sec-siem-forwarder",
+      "account_id": "333344445555",
+      "vpc_id": "vpc-sec-us-east-1",
+      "group_name": "sg-sec-siem-forwarder",
+      "description": "Security SIEM Central Log Collector SG",
+      "attached_workloads": ["ec2-sec-siem-forwarder"],
+      "ingress_rules": [
+        {
+          "protocol": "tcp",
+          "from_port": 6514,
+          "to_port": 6514,
+          "cidr_blocks": ["10.100.0.0/16", "10.200.0.0/16", "10.254.0.0/24"],
+          "description": "Encrypted Syslog ingestion from all corporate accounts"
+        }
+      ],
+      "egress_rules": []
+    },
+    {
+      "id": "sg-guest-network-01",
+      "account_id": "111122223333",
+      "vpc_id": "vpc-prod-us-east-1",
+      "group_name": "sg-guest-network-01",
+      "description": "Guest WiFi and visitor network isolation group (unmapped to production workloads)",
+      "attached_workloads": [],
+      "ingress_rules": [],
+      "egress_rules": []
+    }
+  ]
+}

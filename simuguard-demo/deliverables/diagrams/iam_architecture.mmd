@@ -1,0 +1,87 @@
+graph TB
+    %% Apex Global Technologies - IAM Architecture Diagram
+    %% Source: simuguard-demo/demo_environment/
+
+    classDef role fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px;
+    classDef policy fill:#e0f2f1,stroke:#00897b,stroke-width:1.5px;
+    classDef boundary fill:#fff8e1,stroke:#f57f17,stroke-width:2px;
+    classDef res fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef vuln fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    classDef ident fill:#eceff1,stroke:#455a64,stroke-width:1px;
+
+    subgraph IAM_Identities ["IAM Principals & Federation (AWS Accounts)"]
+        subgraph Prod_Identities ["Production Account (111122223333)"]
+            IRSA_ANALYTICS["EKS OIDC IRSA Federation<br/>sa: analytics-ingestion-sa"]:::ident
+            IRSA_PORTAL["EKS OIDC IRSA Federation<br/>sa: customer-portal-sa"]:::ident
+            IRSA_PCI["EKS OIDC IRSA Federation<br/>sa: payment-processor-sa"]:::ident
+            ROLE_ANALYTICS["role-analytics-ingestion-svc<br/>(Analytics Pod Identity)"]:::role
+            ROLE_PORTAL["role-customer-portal-backend<br/>(Portal Backend Identity)"]:::role
+            ROLE_PCI["role-payment-processor-pci<br/>(Payment Tokenizer Identity)"]:::role
+            ROLE_CICD["role-ci-cd-deployment-pipeline<br/>(Production Deployer)"]:::vuln
+        end
+
+        subgraph Dev_Identities ["Development Account (222233334444)"]
+            ROLE_DEV["role-dev-developer-sandbox<br/>(Dev Sandbox Identity)"]:::role
+            USR_DEV["usr-dev-lead (IAM User)"]:::ident
+        end
+
+        subgraph SecOps_Identities ["Security Account (333344445555)"]
+            ROLE_SECOPS["role-secops-incident-responder<br/>(SecOps Incident Response)"]:::role
+            USR_SECOPS["usr-secops-analyst (IAM User)"]:::ident
+        end
+    end
+
+    subgraph Policies_Boundaries ["IAM Policies & Permission Boundaries"]
+        POL_S3_WRITE["policy/S3TelemetryWriteOnly<br/>Allow s3:PutObject on dev-staging"]:::policy
+        POL_DB_PORTAL["policy/CustomerPortalDatabaseAccess<br/>Allow scoped RDS & customer S3"]:::policy
+        POL_PCI_SCOPED["policy/PCITokenVaultAccess<br/>Allow scoped RDS connect & KMS decrypt"]:::policy
+        
+        BND_WORKLOAD["policy/ApexWorkloadBoundary<br/>DENY s3:* on corp-restricted-cui-vault"]:::boundary
+        BND_PCI["policy/ApexStrictPCIBoundary<br/>DENY general s3, dynamodb"]:::boundary
+        BND_DEV["policy/ApexDevSandboxBoundary<br/>DENY prod & secops account access"]:::boundary
+
+        POL_S3_FULL["arn:aws:iam::aws:policy/AmazonS3FullAccess<br/>⚠️ DANGEROUS WILDCARD s3:* on *"]:::vuln
+        POL_ADMIN["arn:aws:iam::aws:policy/AdministratorAccess<br/>⚠️ ROOT WILDCARD * on *"]:::vuln
+    end
+
+    subgraph Cloud_Data_Stores ["Cloud Resources & KMS Keys"]
+        S3_CUI["s3-enterprise-cui-vault<br/>Classification: RESTRICTED_CUI_PII"]:::res
+        S3_DEV["s3-dev-staging-telemetry<br/>Classification: INTERNAL_OPERATIONAL"]:::res
+        RDS_CORE["rds-postgres-core-prod<br/>Classification: CONFIDENTIAL_PII"]:::res
+        RDS_PCI["rds-pci-token-vault-prod<br/>Classification: PCI_CARDHOLDER_DATA"]:::res
+        KMS_CUI["kms-cui-vault<br/>(k-cui-vault-encryption)"]:::res
+        KMS_PCI["kms-pci-token<br/>(k-pci-token-encryption)"]:::res
+    end
+
+    %% Bindings & Assumptions
+    IRSA_ANALYTICS -->|Assumes via OIDC| ROLE_ANALYTICS
+    IRSA_PORTAL -->|Assumes via OIDC| ROLE_PORTAL
+    IRSA_PCI -->|Assumes via OIDC| ROLE_PCI
+    USR_DEV -->|Assumes| ROLE_DEV
+    USR_SECOPS -->|Assumes (MFA Enforced)| ROLE_SECOPS
+
+    %% Role to Boundary
+    ROLE_ANALYTICS -.->|Constrained By| BND_WORKLOAD
+    ROLE_PORTAL -.->|Constrained By| BND_WORKLOAD
+    ROLE_PCI -.->|Constrained By| BND_PCI
+    ROLE_DEV -.->|Constrained By| BND_DEV
+
+    %% Role to Policies
+    ROLE_ANALYTICS -->|Attached Policy (Baseline)| POL_S3_WRITE
+    ROLE_PORTAL -->|Attached Policy| POL_DB_PORTAL
+    ROLE_PCI -->|Attached Policy| POL_PCI_SCOPED
+    ROLE_CICD -->|Attached Policy| POL_ADMIN
+
+    %% Cross-Account Insecure Trust
+    ROLE_DEV ==>|⚠️ INSECURE CROSS-ACCOUNT ASSUME (NO MFA)| ROLE_CICD
+
+    %% Resource Permissions
+    POL_S3_WRITE -->|Authorized PutObject| S3_DEV
+    POL_DB_PORTAL -->|Authorized Connect| RDS_CORE
+    POL_PCI_SCOPED -->|Authorized Connect| RDS_PCI
+    POL_PCI_SCOPED -->|Authorized Decrypt| KMS_PCI
+    S3_CUI -->|Encrypted By| KMS_CUI
+
+    %% Simulated Threat Path
+    POL_S3_FULL -.->|Simulated PR Attachment| ROLE_ANALYTICS
+    ROLE_ANALYTICS ==>|⚠️ POTENTIAL EXFILTRATION PATH| S3_CUI

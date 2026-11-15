@@ -1,0 +1,90 @@
+{
+  "address_objects": [
+    {
+      "name": "obj-customer-portal-alb-vip",
+      "type": "ip-netmask",
+      "value": "203.0.113.20/32",
+      "description": "Public VIP for Customer Web Portal"
+    },
+    {
+      "name": "obj-partner-webhook-cidr",
+      "type": "ip-netmask",
+      "value": "198.51.100.0/24",
+      "description": "Verified external analytics webhook partner IP block (RFC 5737)"
+    },
+    {
+      "name": "obj-dmz-analytics-subnet",
+      "type": "ip-netmask",
+      "value": "10.100.4.0/24",
+      "description": "Analytics worker pool subnet in DMZ"
+    },
+    {
+      "name": "obj-prod-app-subnet",
+      "type": "ip-netmask",
+      "value": "10.100.10.0/23",
+      "description": "Production Kubernetes microservices subnet"
+    },
+    {
+      "name": "obj-dev-app-subnet",
+      "type": "ip-netmask",
+      "value": "10.200.10.0/23",
+      "description": "Development sandbox cluster subnet"
+    },
+    {
+      "name": "obj-db-postgres-cluster-vip",
+      "type": "ip-netmask",
+      "value": "10.100.20.10/32",
+      "description": "Production PostgreSQL database internal endpoint"
+    },
+    {
+      "name": "obj-pci-token-service-vip",
+      "type": "ip-netmask",
+      "value": "10.100.30.50/32",
+      "description": "Payment tokenization service enclave VIP"
+    },
+    {
+      "name": "obj-cui-vault-storage-vip",
+      "type": "ip-netmask",
+      "value": "10.100.40.15/32",
+      "description": "Restricted CUI and financial vault internal gateway"
+    },
+    {
+      "name": "obj-corp-offices-cidr",
+      "type": "ip-netmask",
+      "value": "10.10.0.0/16",
+      "description": "Corporate employee office range"
+    },
+    {
+      "name": "obj-mgmt-panorama-vip",
+      "type": "ip-netmask",
+      "value": "10.254.0.5/32",
+      "description": "Panorama management IP"
+    },
+    {
+      "name": "obj-mgmt-bastion-vip",
+      "type": "ip-netmask",
+      "value": "10.254.0.100/32",
+      "description": "SecOps Linux Bastion host"
+    },
+    {
+      "name": "any",
+      "type": "wildcard",
+      "value": "0.0.0.0/0",
+      "description": "Palo Alto predefined wildcard address object"
+    }
+  ],
+  "address_groups": [
+    {
+      "name": "grp-edge-public-endpoints",
+      "members": ["obj-customer-portal-alb-vip"]
+    },
+    {
+      "name": "grp-internal-production-subnets",
+      "members": ["obj-prod-app-subnet", "obj-db-postgres-cluster-vip"]
+    },
+    {
+      "name": "grp-sensitive-data-endpoints",
+      "members": ["obj-pci-token-service-vip", "obj-cui-vault-storage-vip"]
+    }
+  ]
+}

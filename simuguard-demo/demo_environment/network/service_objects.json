@@ -1,0 +1,74 @@
+{
+  "service_objects": [
+    {
+      "name": "service-https",
+      "protocol": "tcp",
+      "port": "443",
+      "description": "Standard HTTPS TLS encrypted web traffic"
+    },
+    {
+      "name": "service-http",
+      "protocol": "tcp",
+      "port": "80",
+      "description": "Plaintext HTTP web traffic"
+    },
+    {
+      "name": "service-ssh",
+      "protocol": "tcp",
+      "port": "22",
+      "description": "Secure Shell administrative management"
+    },
+    {
+      "name": "service-dns-udp",
+      "protocol": "udp",
+      "port": "53",
+      "description": "Domain Name System UDP resolution"
+    },
+    {
+      "name": "service-ntp-udp",
+      "protocol": "udp",
+      "port": "123",
+      "description": "Network Time Protocol UDP sync"
+    },
+    {
+      "name": "service-postgresql",
+      "protocol": "tcp",
+      "port": "5432",
+      "description": "PostgreSQL relational database traffic"
+    },
+    {
+      "name": "service-redis",
+      "protocol": "tcp",
+      "port": "6379",
+      "description": "Redis in-memory caching service"
+    },
+    {
+      "name": "service-pci-token-api",
+      "protocol": "tcp",
+      "port": "8443",
+      "description": "PCI Enclave Tokenization REST API"
+    },
+    {
+      "name": "service-syslog-tls",
+      "protocol": "tcp",
+      "port": "6514",
+      "description": "Encrypted Syslog telemetry forwarder"
+    },
+    {
+      "name": "application-default",
+      "protocol": "dynamic",
+      "port": "standard-app-id-ports",
+      "description": "Palo Alto App-ID standard port mapping"
+    }
+  ],
+  "service_groups": [
+    {
+      "name": "grp-core-web-services",
+      "members": ["service-https", "service-http"]
+    },
+    {
+      "name": "grp-network-infra-services",
+      "members": ["service-dns-udp", "service-ntp-udp"]
+    }
+  ]
+}

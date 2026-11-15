@@ -1,0 +1,125 @@
+{
+  "access_profiles": [
+    {
+      "id": "sp-ap-aws-prod-s3-read",
+      "name": "Production S3 CUI Vault Read Access",
+      "source_id": "sp-src-aws-prod",
+      "entitlements": [
+        "sp-ent-aws-s3-cui-read"
+      ],
+      "privileged": true,
+      "approval_scheme": "MANAGER_AND_SECURITY_OWNER",
+      "description": "Enables authorized personnel to inspect NIST SP 800-171 Controlled Unclassified Information financial ledgers."
+    },
+    {
+      "id": "sp-ap-aws-prod-admin",
+      "name": "Production Cloud Full Administrator Access",
+      "source_id": "sp-src-aws-prod",
+      "entitlements": [
+        "sp-ent-aws-prod-root-admin"
+      ],
+      "privileged": true,
+      "approval_scheme": "DUAL_EXECUTIVE_APPROVAL",
+      "description": "High-risk administrative profile granting full root infrastructure control in the AWS Production account."
+    },
+    {
+      "id": "sp-ap-aws-dev-poweruser",
+      "name": "Development Cloud PowerUser Access",
+      "source_id": "sp-src-aws-dev",
+      "entitlements": [
+        "sp-ent-aws-dev-poweruser"
+      ],
+      "privileged": false,
+      "approval_scheme": "MANAGER_ONLY",
+      "description": "Standard cloud development profile permitting resource provisioning within development account boundaries."
+    },
+    {
+      "id": "sp-ap-aws-secops-audit",
+      "name": "Security Operations Cloud Audit Access",
+      "source_id": "sp-src-aws-secops",
+      "entitlements": [
+        "sp-ent-aws-secops-audit"
+      ],
+      "privileged": true,
+      "approval_scheme": "SECURITY_OWNER_ONLY",
+      "description": "SecOps read-only profile authorizing multi-account CloudTrail log review and compliance scanning."
+    },
+    {
+      "id": "sp-ap-ad-corp-users",
+      "name": "Active Directory Standard Corporate Baseline",
+      "source_id": "sp-src-active-directory",
+      "entitlements": [
+        "sp-ent-ad-developers-group"
+      ],
+      "privileged": false,
+      "approval_scheme": "AUTOMATIC_BIRTHRIGHT",
+      "description": "Standard birthright profile assigned to all software engineering personnel upon joining the enterprise."
+    },
+    {
+      "id": "sp-ap-ad-finance-reporting",
+      "name": "Finance Department Operational Access",
+      "source_id": "sp-src-active-directory",
+      "entitlements": [
+        "sp-ent-ad-finance-group"
+      ],
+      "privileged": false,
+      "approval_scheme": "MANAGER_ONLY",
+      "description": "Directory profile granting corporate treasury analysts access to financial file shares and ERP consoles."
+    },
+    {
+      "id": "sp-ap-entra-enterprise-apps",
+      "name": "Customer Portal Product Administration",
+      "source_id": "sp-src-entra-id",
+      "entitlements": [
+        "sp-ent-entra-portal-app"
+      ],
+      "privileged": true,
+      "approval_scheme": "SECURITY_OWNER_ONLY",
+      "description": "Single sign-on profile authorizing product managers to configure banking portal modules."
+    },
+    {
+      "id": "sp-ap-paloalto-firewall-admin",
+      "name": "Palo Alto Firewall Network Administration Access",
+      "source_id": "sp-src-firewall-mgmt",
+      "entitlements": [
+        "sp-ent-panos-admin-write"
+      ],
+      "privileged": true,
+      "approval_scheme": "DUAL_EXECUTIVE_APPROVAL",
+      "description": "Privileged network security profile authorizing firewall rule changes and commit pushes on Panorama."
+    },
+    {
+      "id": "sp-ap-paloalto-firewall-audit",
+      "name": "Palo Alto Firewall Security Audit Access",
+      "source_id": "sp-src-firewall-mgmt",
+      "entitlements": [
+        "sp-ent-panos-audit-read"
+      ],
+      "privileged": false,
+      "approval_scheme": "SECURITY_OWNER_ONLY",
+      "description": "Read-only inspection profile for auditing firewall policies and active session tables."
+    },
+    {
+      "id": "sp-ap-db-customer-read",
+      "name": "Core Customer Database Read Access",
+      "source_id": "sp-src-database-platform",
+      "entitlements": [
+        "sp-ent-db-core-read"
+      ],
+      "privileged": false,
+      "approval_scheme": "RESOURCE_OWNER_ONLY",
+      "description": "Read-only database profile permitting backend application developers to query customer records."
+    },
+    {
+      "id": "sp-ap-db-token-admin",
+      "name": "PCI Tokenization Vault Database Operator Access",
+      "source_id": "sp-src-database-platform",
+      "entitlements": [
+        "sp-ent-db-pci-token-access"
+      ],
+      "privileged": true,
+      "approval_scheme": "DUAL_EXECUTIVE_APPROVAL",
+      "description": "Critical database operator profile restricted strictly to designated PCI DSS token custodians."
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "firewall_rules": {
+    "FW-01": {
+      "status": "PASS",
+      "severity": "CRITICAL",
+      "positive_detected": true,
+      "negative_clean": true
+    },
+    "FW-02": {
+      "status": "PASS",
+      "panos_severity": "HIGH",
+      "aws_all_ports_severity": "CRITICAL",
+      "aws_scoped_port_severity": "HIGH"
+    },
+    "FW-03": {
+      "status": "PASS",
+      "protected_zone_detected": true,
+      "exempt_zone_clean": true
+    },
+    "FW-04": {
+      "status": "PASS",
+      "cleartext_flagged": true,
+      "ssl_clean": true,
+      "db_public_severity": "CRITICAL"
+    },
+    "FW-05": {
+      "status": "PASS",
+      "shadowing_detected": true
+    },
+    "FW-06": {
+      "status": "PASS",
+      "cross_zone_severity": "CRITICAL"
+    }
+  },
+  "sailpoint_rules": {
+    "SP-01 / SP-CORR": {
+      "status": "PASS",
+      "unmapped_role_flagged": true
+    },
+    "SP-02": {
+      "status": "PASS",
+      "unprovisioned_events_flagged": 2
+    },
+    "SP-03 (SoD)": {
+      "status": "PASS",
+      "conflict_severity": "CRITICAL"
+    },
+    "SP-04": {
+      "status": "PASS",
+      "contractor_severity": "CRITICAL"
+    },
+    "SP-05": {
+      "status": "PASS",
+      "revoked_flagged": 1
+    },
+    "SP-06": {
+      "status": "PASS",
+      "creep_flagged": 1
+    }
+  },
+  "risk_engine": {
+    "status": "PASS",
+    "raw_base_score": 97.5,
+    "blast_multiplier": 1.2000000000000002,
+    "final_risk_score": 100,
+    "verdict": "BLOCK_DEPLOYMENT"
+  },
+  "verdict_precedence": {
+    "critical_forces_block": true,
+    "high_forces_warn": true,
+    "unknown_forces_warn": true,
+    "clean_allows": true,
+    "status": "PASS"
+  },
+  "digital_twin": {
+    "status": "PASS",
+    "total_active_nodes": 220,
+    "total_active_edges": 77,
+    "broad_iam_cascading_count": 7,
+    "scoped_iam_cascading_count": 0,
+    "unmapped_resource_triggers_unknown": true,
+    "unmapped_safe_nodes_is_zero": true
+  },
+  "terraform_parser": {
+    "status": "PASS",
+    "pr_4082_resources": [
+      "aws_security_group_rule.allow_outbound_webhook",
+      "aws_iam_role_policy_attachment.analytics_s3_access"
+    ],
+    "pr_4083_resources": [
+      "panos_security_policy.analytics_egress_rule",
+      "aws_iam_role_policy_attachment.analytics_s3_access"
+    ],
+    "allow_netflix_resources": [
+      "aws_security_group_rule.allow_outbound_netflix"
+    ],
+    "allow_netflix_schema_errors": [
+      "Attribute 'destination' is not supported by Terraform AWS provider for resource 'aws_security_group_rule.allow_outbound_netflix'. AWS Security Groups operate at Layer 4 and do not accept domain names or FQDN destinations. Valid attributes are: cidr_blocks, description, from_port, ipv6_cidr_blocks, prefix_list_ids, protocol, security_group_id, self, source_security_group_id, to_port, type."
+    ]
+  },
+  "sample_scenarios": {
+    "PR-4082": {
+      "verdict": "BLOCK_DEPLOYMENT",
+      "score": 100,
+      "affected_count": 9,
+      "cui_exposed": true,
+      "gaps": [
+        "Unrestricted AWS Security Group Egress: 'allow_outbound_webhook'",
+        "Cloud Privilege Escalation: Managed Policy 'AmazonS3FullAccess'"
+      ]
+    },
+    "PR-4083": {
+      "verdict": "BLOCK_DEPLOYMENT",
+      "score": 100,
+      "affected_count": 15,
+      "gaps": [
+        "PAN-OS App-ID Deep Inspection Bypass: Rule 'Allow-Analytics-Outbound-Webhook'",
+        "Unrestricted Internet Egress: PAN-OS Rule 'Allow-Analytics-Outbound-Webhook'",
+        "Missing Threat Prevention Profile: Rule 'Allow-Analytics-Outbound-Webhook'",
+        "Insecure Cleartext Protocol: Rule 'Allow-Analytics-Outbound-Webhook'",
+        "Cloud Privilege Escalation: Managed Policy 'AmazonS3FullAccess'"
+      ]
+    },
+    "allow_netflix.tf": {
+      "verdict": "WARN_MANUAL_REVIEW",
+      "score": 35,
+      "schema_error_flagged": true,
+      "unmapped_flagged": true,
+      "gaps": [
+        "Terraform Provider Schema Error: aws_security_group_rule.allow_outbound_netflix",
+        "Unmapped Infrastructure Resource: aws_security_group_rule.allow_outbound_netflix (Security group 'sg-guest-network-01' has no verified mapping in Digital Twin)"
+      ]
+    }
+  },
+  "reporters": {
+    "status": "PASS",
+    "json_required_keys_present": true,
+    "terminal_renders_cleanly": true
+  }
+}

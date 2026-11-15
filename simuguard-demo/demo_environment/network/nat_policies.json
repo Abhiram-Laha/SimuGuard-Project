@@ -1,0 +1,31 @@
+{
+  "nat_policies": [
+    {
+      "id": "NAT-001-DMZ-STATIC-PORTAL",
+      "name": "Static-NAT-Customer-Portal-ALB",
+      "description": "Destination NAT forwarding external public VIP to internal ALB in DMZ",
+      "source_zones": ["Untrust-Internet"],
+      "destination_zones": ["Untrust-Internet"],
+      "destination_interface": "ethernet1/1",
+      "service": "service-https",
+      "source_addresses": ["any"],
+      "destination_addresses": ["obj-customer-portal-alb-vip"],
+      "translation_type": "destination-translation",
+      "translated_address": "10.100.4.20",
+      "translated_port": 443
+    },
+    {
+      "id": "NAT-002-INTERNAL-DYNAMIC-PAT",
+      "name": "Dynamic-PAT-Corp-Outbound-Internet",
+      "description": "Source NAT overloading corporate internal users behind primary public IP",
+      "source_zones": ["Corp-Users", "Trust-DMZ", "Dev-App-Workloads"],
+      "destination_zones": ["Untrust-Internet"],
+      "destination_interface": "ethernet1/1",
+      "service": "any",
+      "source_addresses": ["10.10.0.0/16", "10.100.4.0/24", "10.200.10.0/23"],
+      "destination_addresses": ["any"],
+      "translation_type": "dynamic-ip-and-port",
+      "translated_interface": "ethernet1/1"
+    }
+  ]
+}

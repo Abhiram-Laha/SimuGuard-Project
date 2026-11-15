@@ -1,0 +1,66 @@
+flowchart TD
+    %% Apex Global Technologies - Panorama Central Management Architecture
+
+    subgraph Central_Panorama ["Palo Alto Panorama Central Management Server"]
+        PAN_SERVER["Panorama M-600 Virtual: pan-mgmt-01<br/>Hostname: pan-mgmt-01.mgmt.apex-global.example<br/>IP: 10.254.1.10 (PAN-OS 11.1 Nebula)"]
+        
+        subgraph Admin_Access ["Administrative Role-Based Access (RBAC)"]
+            ADMIN_SUPER["Superuser Administrator<br/>sp-ent-panos-admin-write<br/>(David Kim / Network Security Engineers)"]
+            ADMIN_AUDIT["Read-Only Security Auditor<br/>sp-ap-paloalto-firewall-audit<br/>(SecOps / GRC Compliance)"]
+        end
+        
+        ADMIN_SUPER -->|Full Config & Commit Rights| PAN_SERVER
+        ADMIN_AUDIT -->|Audit & Log Review Rights| PAN_SERVER
+    end
+
+    subgraph Template_Hierarchy ["Template & Template Stack Hierarchy"]
+        TPL_GLOBAL["Template: TPL-Global-Baseline<br/>NTP, DNS (10.10.1.10, 10.10.1.11), Syslog, SNMPv3"]
+        TPL_EDGE["Template: TPL-Edge-Networking<br/>VR: vr-default-edge, Zones: Untrust, DMZ, Corp, Transit"]
+        TPL_INT["Template: TPL-Internal-Networking<br/>VR: vr-internal-core, Zones: Prod, Dev, DB, PCI, Vault"]
+        
+        STACK_EDGE["Template Stack: STACK-Edge-Firewalls"]
+        STACK_INT["Template Stack: STACK-Internal-Firewalls"]
+        
+        TPL_GLOBAL --> STACK_EDGE
+        TPL_EDGE --> STACK_EDGE
+        TPL_GLOBAL --> STACK_INT
+        TPL_INT --> STACK_INT
+    end
+
+    subgraph Device_Group_Hierarchy ["Device Group Rulebase Hierarchy"]
+        DG_SHARED["Shared Device Group (Root Baseline)<br/>Address Objects, Service Objects, Global Block Rules"]
+        
+        subgraph DG_Edge ["Device Group: DG-Internet-Perimeter"]
+            PRE_EDGE["Pre-Rulebase: Drop Inbound Spoofing, DNS/NTP Baseline"]
+            POST_EDGE["Post-Rulebase: Corp Egress Web-Browsing, Default Deny"]
+        end
+
+        subgraph DG_Internal ["Device Group: DG-Internal-Segmentation"]
+            PRE_INT["Pre-Rulebase: Strict DB Ingress, Strict PCI Cardholder Policy"]
+            POST_INT["Post-Rulebase: Dev-to-Prod Isolation, Default Deny"]
+        end
+
+        DG_SHARED --> DG_Edge
+        DG_SHARED --> DG_Internal
+    end
+
+    PAN_SERVER -->|Compiles & Pushes| Template_Hierarchy
+    PAN_SERVER -->|Manages & Commits| Device_Group_Hierarchy
+
+    subgraph Managed_Firewalls ["Managed Physical Firewalls"]
+        subgraph Edge_Pair ["Internet Perimeter Pair"]
+            FW_E1["fw-edge-01-primary"]
+            FW_E2["fw-edge-02-secondary"]
+        end
+        
+        subgraph Internal_Pair ["Internal Segmentation Pair"]
+            FW_I1["fw-internal-01-primary"]
+            FW_I2["fw-internal-02-secondary"]
+        end
+    end
+
+    STACK_EDGE -.->|Config Push (SSL 3978)| Edge_Pair
+    DG_Edge -.->|Policy Commit| Edge_Pair
+
+    STACK_INT -.->|Config Push (SSL 3978)| Internal_Pair
+    DG_Internal -.->|Policy Commit| Internal_Pair

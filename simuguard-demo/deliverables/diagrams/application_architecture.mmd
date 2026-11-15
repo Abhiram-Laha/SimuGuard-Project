@@ -1,0 +1,68 @@
+flowchart TD
+    %% Apex Global Technologies - Enterprise Application Architecture & Dependencies
+
+    subgraph Tier1_Apps ["Tier 1: Mission-Critical Applications"]
+        APP_001["APP-001: Customer Web Portal<br/>(Customer-Facing Interface)"]
+        APP_007["APP-007: Core Enterprise API Gateway<br/>(Central Microservices Routing)"]
+        APP_002["APP-002: PCI Payment Processing<br/>(PCI DSS Cardholder Processing)"]
+        APP_006["APP-006: Enterprise IdP & IAM<br/>(SAML / OIDC Authentication)"]
+    end
+
+    subgraph Tier2_Apps ["Tier 2: Business-Critical Operational Applications"]
+        APP_008["APP-008: Order Management & Settlement<br/>(Transaction Processing)"]
+        APP_009["APP-009: Global Data Ingestion Pipeline<br/>(Telemetry & Streaming Ingestion)"]
+        APP_003["APP-003: Customer Analytics<br/>(Machine Learning & Analytics)"]
+        APP_005["APP-005: Core Financial Reporting<br/>(General Ledger & Reconciliation)"]
+        APP_010["APP-010: Central Security SIEM & SOC<br/>(Threat Detection & Forwarding)"]
+    end
+
+    subgraph Tier3_Apps ["Tier 3: Internal & Governance Applications"]
+        APP_004["APP-004: HR & Payroll Portal<br/>(Employee Records & Benefits)"]
+        APP_011["APP-011: Internal Developer Platform<br/>(Developer Sandbox & Staging)"]
+        APP_012["APP-012: GRC Continuous Audit<br/>(SOX & PCI Compliance Engine)"]
+    end
+
+    %% Cross-Application Service Dependencies
+    APP_001 -->|HTTPS / REST API| APP_007
+    APP_001 -.->|OIDC / SAML SSO| APP_006
+    APP_007 -->|gRPC Order Event| APP_008
+    APP_008 -->|mTLS PCI Tokenization API| APP_002
+    APP_009 -->|Kafka / Event Stream| APP_003
+    APP_003 -->|Daily Ledger Export| APP_005
+    APP_010 -->|Security Alert Feed| APP_012
+    APP_011 -.->|API Routing| APP_007
+
+    subgraph Workload_Binding ["Underlying Compute Workloads"]
+        EKS_PORTAL["eks-customer-portal-cluster"]
+        EKS_PAYMENT["eks-payment-processor-pool"]
+        EKS_ANALYTICS["eks-analytics-worker-pool"]
+        EKS_DEV["eks-dev-cluster"]
+        EC2_SIEM["ec2-sec-siem-forwarder"]
+    end
+
+    APP_001 --- EKS_PORTAL
+    APP_007 --- EKS_PORTAL
+    APP_008 --- EKS_PORTAL
+    APP_004 --- EKS_PORTAL
+    
+    APP_002 --- EKS_PAYMENT
+    
+    APP_009 --- EKS_ANALYTICS
+    APP_003 --- EKS_ANALYTICS
+    APP_005 --- EKS_ANALYTICS
+    
+    APP_011 --- EKS_DEV
+    
+    APP_010 --- EC2_SIEM
+    APP_012 --- EC2_SIEM
+
+    subgraph Backend_Data ["Backend Databases & Storage"]
+        DB_POSTGRES[("rds-postgres-core-prod")]
+        DB_TOKEN[("rds-pci-token-vault-prod")]
+        S3_CUI[("s3-enterprise-cui-vault")]
+    end
+
+    APP_001 --> DB_POSTGRES
+    APP_008 --> DB_POSTGRES
+    APP_002 --> DB_TOKEN
+    APP_005 --> S3_CUI

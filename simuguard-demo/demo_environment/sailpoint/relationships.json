@@ -1,0 +1,271 @@
+{
+  "relationships": [
+    {
+      "source": "sp-ident-sarah-chen",
+      "target": "sp-idp-privileged-admins",
+      "relationship": "HAS_IDENTITY_PROFILE",
+      "nature": "CONFIGURED",
+      "explanation": "CISO identity is governed under the high-assurance Privileged Administrators identity profile."
+    },
+    {
+      "source": "sp-ident-emily-watson",
+      "target": "sp-idp-corporate-employees",
+      "relationship": "HAS_IDENTITY_PROFILE",
+      "nature": "CONFIGURED",
+      "explanation": "Senior Treasury Analyst governed under the Corporate Full-Time Employees identity profile."
+    },
+    {
+      "source": "sp-ident-david-kim",
+      "target": "sp-idp-privileged-admins",
+      "relationship": "HAS_IDENTITY_PROFILE",
+      "nature": "CONFIGURED",
+      "explanation": "Network security engineer identity governed under Privileged Administrators profile."
+    },
+    {
+      "source": "sp-ident-alex-morgan",
+      "target": "sp-idp-privileged-admins",
+      "relationship": "HAS_IDENTITY_PROFILE",
+      "nature": "CONFIGURED",
+      "explanation": "Cloud platform lead governed under Privileged Administrators profile."
+    },
+    {
+      "source": "sp-ident-sophia-alvarez",
+      "target": "sp-idp-external-contractors",
+      "relationship": "HAS_IDENTITY_PROFILE",
+      "nature": "CONFIGURED",
+      "explanation": "Contract cloud consultant governed under Third-Party Contractors identity profile."
+    },
+    {
+      "source": "sp-ident-emily-watson",
+      "target": "sp-acct-apps-emily-watson",
+      "relationship": "OWNS_ACCOUNT",
+      "nature": "CONFIGURED",
+      "explanation": "Identity Emily Watson owns the enterprise application account e_watson_finance."
+    },
+    {
+      "source": "sp-ident-david-kim",
+      "target": "sp-acct-pan-david-kim",
+      "relationship": "OWNS_ACCOUNT",
+      "nature": "CONFIGURED",
+      "explanation": "Identity David Kim owns the Panorama firewall administration account pan_admin_david."
+    },
+    {
+      "source": "sp-ident-alex-morgan",
+      "target": "sp-acct-aws-prod-alex-morgan",
+      "relationship": "OWNS_ACCOUNT",
+      "nature": "CONFIGURED",
+      "explanation": "Identity Alex Morgan owns the privileged AWS Production IAM account."
+    },
+    {
+      "source": "sp-acct-apps-emily-watson",
+      "target": "sp-src-enterprise-apps",
+      "relationship": "CONNECTED_TO_SOURCE",
+      "nature": "CONFIGURED",
+      "explanation": "Application account resides within the Enterprise Applications connected source."
+    },
+    {
+      "source": "sp-acct-pan-david-kim",
+      "target": "sp-src-firewall-mgmt",
+      "relationship": "CONNECTED_TO_SOURCE",
+      "nature": "CONFIGURED",
+      "explanation": "Firewall admin account is linked to the Panorama Management connected source."
+    },
+    {
+      "source": "sp-acct-aws-prod-alex-morgan",
+      "target": "sp-src-aws-prod",
+      "relationship": "CONNECTED_TO_SOURCE",
+      "nature": "CONFIGURED",
+      "explanation": "AWS production account belongs to the AWS Production connected source."
+    },
+    {
+      "source": "sp-ident-emily-watson",
+      "target": "sp-role-finance-analyst",
+      "relationship": "MEMBER_OF_ROLE",
+      "nature": "CONFIGURED",
+      "explanation": "Emily Watson is assigned the Finance Analyst business role."
+    },
+    {
+      "source": "sp-ident-david-kim",
+      "target": "sp-role-network-security-engineer",
+      "relationship": "MEMBER_OF_ROLE",
+      "nature": "CONFIGURED",
+      "explanation": "David Kim is assigned the Network Security Engineer IT role."
+    },
+    {
+      "source": "sp-ident-alex-morgan",
+      "target": "sp-role-cloud-administrator",
+      "relationship": "MEMBER_OF_ROLE",
+      "nature": "CONFIGURED",
+      "explanation": "Alex Morgan is assigned the Cloud Administrator privileged role."
+    },
+    {
+      "source": "sp-ident-rachel-green",
+      "target": "sp-role-developer",
+      "relationship": "MEMBER_OF_ROLE",
+      "nature": "CONFIGURED",
+      "explanation": "Rachel Green is assigned the Software Application Developer role."
+    },
+    {
+      "source": "sp-role-finance-analyst",
+      "target": "sp-ap-aws-prod-s3-read",
+      "relationship": "HAS_ACCESS_PROFILE",
+      "nature": "CONFIGURED",
+      "explanation": "Finance Analyst role groups the AWS Production S3 CUI Vault Read access profile."
+    },
+    {
+      "source": "sp-role-network-security-engineer",
+      "target": "sp-ap-paloalto-firewall-admin",
+      "relationship": "HAS_ACCESS_PROFILE",
+      "nature": "CONFIGURED",
+      "explanation": "Network Security Engineer role groups the Palo Alto Firewall Admin access profile."
+    },
+    {
+      "source": "sp-role-cloud-administrator",
+      "target": "sp-ap-aws-prod-admin",
+      "relationship": "HAS_ACCESS_PROFILE",
+      "nature": "CONFIGURED",
+      "explanation": "Cloud Administrator role groups the AWS Production Cloud Full Admin access profile."
+    },
+    {
+      "source": "sp-role-developer",
+      "target": "sp-ap-aws-dev-poweruser",
+      "relationship": "HAS_ACCESS_PROFILE",
+      "nature": "CONFIGURED",
+      "explanation": "Developer role groups the Development Cloud PowerUser access profile."
+    },
+    {
+      "source": "sp-ap-aws-prod-s3-read",
+      "target": "sp-ent-aws-s3-cui-read",
+      "relationship": "CONTAINS_ENTITLEMENT",
+      "nature": "CONFIGURED",
+      "explanation": "Access profile bundles entitlement granting s3:GetObject on the CUI financial vault."
+    },
+    {
+      "source": "sp-ap-paloalto-firewall-admin",
+      "target": "sp-ent-panos-admin-write",
+      "relationship": "CONTAINS_ENTITLEMENT",
+      "nature": "CONFIGURED",
+      "explanation": "Access profile bundles entitlement granting Panorama Superuser write access."
+    },
+    {
+      "source": "sp-ap-aws-prod-admin",
+      "target": "sp-ent-aws-prod-root-admin",
+      "relationship": "CONTAINS_ENTITLEMENT",
+      "nature": "CONFIGURED",
+      "explanation": "Access profile bundles entitlement granting AWS AdministratorAccess."
+    },
+    {
+      "source": "sp-ap-aws-dev-poweruser",
+      "target": "sp-ent-aws-dev-poweruser",
+      "relationship": "CONTAINS_ENTITLEMENT",
+      "nature": "CONFIGURED",
+      "explanation": "Access profile bundles entitlement granting AWS Dev PowerUserAccess."
+    },
+    {
+      "source": "sp-ident-emily-watson",
+      "target": "sp-ent-aws-s3-cui-read",
+      "relationship": "HAS_ENTITLEMENT",
+      "nature": "CONFIGURED",
+      "explanation": "Identity holds effective entitlement via role and access profile membership."
+    },
+    {
+      "source": "sp-ident-david-kim",
+      "target": "sp-ent-panos-admin-write",
+      "relationship": "HAS_ENTITLEMENT",
+      "nature": "CONFIGURED",
+      "explanation": "Identity holds effective entitlement via Network Security Engineer role."
+    },
+    {
+      "source": "sp-req-1001-approved-s3-read",
+      "target": "sp-ident-emily-watson",
+      "relationship": "REQUESTED_ACCESS",
+      "nature": "CONFIGURED",
+      "explanation": "Access request initiated for identity Emily Watson."
+    },
+    {
+      "source": "sp-req-1001-approved-s3-read",
+      "target": "sp-appr-1001",
+      "relationship": "APPROVED_BY",
+      "nature": "CONFIGURED",
+      "explanation": "Access request approved via workflow approval record sp-appr-1001."
+    },
+    {
+      "source": "sp-cert-2026-q1-privileged-access",
+      "target": "sp-ident-alex-morgan",
+      "relationship": "REVIEWED_IN_CERTIFICATION",
+      "nature": "CONFIGURED",
+      "explanation": "Privileged access campaign reviewed and certified identity Alex Morgan."
+    },
+    {
+      "source": "sp-ent-aws-s3-cui-read",
+      "target": "sp-acct-apps-emily-watson",
+      "relationship": "PROVISIONED_TO_ACCOUNT",
+      "nature": "CONFIGURED",
+      "explanation": "Entitlement confirmed synchronized and provisioned to target user account."
+    },
+    {
+      "source": "sp-ent-panos-admin-write",
+      "target": "sp-acct-pan-david-kim",
+      "relationship": "PROVISIONED_TO_ACCOUNT",
+      "nature": "CONFIGURED",
+      "explanation": "Panorama Superuser entitlement provisioned to network admin account."
+    },
+    {
+      "source": "sp-src-aws-prod",
+      "target": "111122223333",
+      "relationship": "GOVERNED_BY_SAILPOINT",
+      "nature": "CONFIGURED",
+      "explanation": "AWS Production account is governed as a connected target source by SailPoint ISC."
+    },
+    {
+      "source": "sp-src-aws-dev",
+      "target": "222233334444",
+      "relationship": "GOVERNED_BY_SAILPOINT",
+      "nature": "CONFIGURED",
+      "explanation": "AWS Development account is governed as a connected target source by SailPoint ISC."
+    },
+    {
+      "source": "sp-src-aws-secops",
+      "target": "333344445555",
+      "relationship": "GOVERNED_BY_SAILPOINT",
+      "nature": "CONFIGURED",
+      "explanation": "AWS Security account is governed as a connected target source by SailPoint ISC."
+    },
+    {
+      "source": "sp-src-firewall-mgmt",
+      "target": "pan-mgmt-01",
+      "relationship": "GOVERNED_BY_SAILPOINT",
+      "nature": "CONFIGURED",
+      "explanation": "Panorama management plane is governed as a network security target source by SailPoint ISC."
+    },
+    {
+      "source": "sp-ent-aws-s3-cui-read",
+      "target": "s3-enterprise-cui-vault",
+      "relationship": "CAN_ACCESS_RESOURCE",
+      "nature": "CONFIGURED",
+      "blast_condition": "Governed read entitlement targets the Restricted CUI Financial Vault.",
+      "explanation": "SailPoint entitlement authorizes read access to the S3 CUI Financial Vault."
+    },
+    {
+      "source": "sp-ent-panos-admin-write",
+      "target": "pan-mgmt-01",
+      "relationship": "CAN_ACCESS_RESOURCE",
+      "nature": "CONFIGURED",
+      "explanation": "SailPoint entitlement authorizes administrative commits on the Panorama management server."
+    },
+    {
+      "source": "sp-ent-db-core-read",
+      "target": "rds-postgres-core-prod",
+      "relationship": "CAN_ACCESS_RESOURCE",
+      "nature": "CONFIGURED",
+      "explanation": "SailPoint database entitlement authorizes SQL SELECT on the core customer PostgreSQL instance."
+    },
+    {
+      "source": "sp-ent-db-pci-token-access",
+      "target": "rds-pci-token-vault-prod",
+      "relationship": "CAN_ACCESS_RESOURCE",
+      "nature": "CONFIGURED",
+      "explanation": "SailPoint database entitlement authorizes token operator queries on the PCI tokenization database."
+    }
+  ]
+}

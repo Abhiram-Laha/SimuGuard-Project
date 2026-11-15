@@ -1,0 +1,126 @@
+flowchart TD
+    %% Apex Global Technologies - Complete Enterprise Architecture (Phase 3.7)
+    
+    subgraph External_Plane ["External Traffic & Users"]
+        INTERNET["Public Internet / Untrusted Traffic"]
+        CORP_REMOTE["Corporate Remote Users / GlobalProtect VPN"]
+    end
+
+    subgraph Perimeter_Security ["Perimeter Network Security Layer (PAN-OS 11.1 Nebula)"]
+        PANORAMA["Panorama Management Server<br/>pan-mgmt-01 (M-600 Virtual)"]
+        
+        subgraph Edge_HA ["Internet Perimeter Firewall HA Pair (PA-5450)"]
+            FW_EDGE_1["fw-edge-01-primary (Active)"]
+            FW_EDGE_2["fw-edge-02-secondary (Passive)"]
+            FW_EDGE_1 <-->|HA1 Control / HA2 Data Sync| FW_EDGE_2
+        end
+
+        PANORAMA -.->|Device Group: DG-Internet-Perimeter| FW_EDGE_1
+        PANORAMA -.->|Device Group: DG-Internet-Perimeter| FW_EDGE_2
+    end
+
+    INTERNET -->|Untrust Ingress| FW_EDGE_1
+    CORP_REMOTE -->|SSL VPN Ingress| FW_EDGE_1
+
+    subgraph Perimeter_Zones ["Perimeter & Corporate Zones"]
+        ZONE_DMZ["Zone: Trust-DMZ<br/>Subnet 10.100.4.0/24"]
+        ZONE_CORP["Zone: Corp-Users<br/>Subnet 10.10.0.0/16"]
+        ZONE_TRANSIT["Zone: Transit-Internal<br/>Subnet 10.255.0.0/30 Interconnect"]
+    end
+
+    FW_EDGE_1 -->|App-ID Inbound DNAT| ZONE_DMZ
+    FW_EDGE_1 -->|User-ID Inspection| ZONE_CORP
+    FW_EDGE_1 -->|Inter-Firewall Route| ZONE_TRANSIT
+
+    subgraph Internal_Security ["Internal Segmentation Layer (PAN-OS 11.1 Nebula)"]
+        subgraph Core_HA ["Internal Segmentation Firewall HA Pair (PA-3440)"]
+            FW_INT_1["fw-internal-01-primary (Active)"]
+            FW_INT_2["fw-internal-02-secondary (Passive)"]
+            FW_INT_1 <-->|HA1 Control / HA2 Data Sync| FW_INT_2
+        end
+
+        PANORAMA -.->|Device Group: DG-Internal-Segmentation| FW_INT_1
+        PANORAMA -.->|Device Group: DG-Internal-Segmentation| FW_INT_2
+    end
+
+    ZONE_TRANSIT -->|High-Speed Interconnect| FW_INT_1
+
+    subgraph Internal_Zones ["Internal Security Zones"]
+        ZONE_PROD["Zone: Prod-App-Workloads<br/>Subnet 10.100.10.0/23"]
+        ZONE_DEV["Zone: Dev-App-Workloads<br/>Subnet 10.200.10.0/23"]
+        ZONE_DB["Zone: Database-Backend<br/>Subnet 10.100.20.0/24"]
+        ZONE_PCI["Zone: PCI-Cardholder-Data<br/>Subnet 10.100.30.0/24"]
+        ZONE_VAULT["Zone: Restricted-Data-Vault<br/>Subnet 10.100.40.0/24"]
+    end
+
+    FW_INT_1 -->|Enforces Zero-Trust Policy| ZONE_PROD
+    FW_INT_1 -->|Dev/Sandbox Policy| ZONE_DEV
+    FW_INT_1 -->|Strict SQL Inspection| ZONE_DB
+    FW_INT_1 -->|PCI DSS Enclave Policy| ZONE_PCI
+    FW_INT_1 -->|NIST 800-171 Microsegmentation| ZONE_VAULT
+
+    subgraph SailPoint_Governance ["SailPoint Identity Security Cloud (Identity Governance Plane)"]
+        SP_TENANT["SailPoint ISC Tenant<br/>sp-tenant-apexglobal-01"]
+        SP_ROLES["Business & IT Roles (9 Roles)<br/>Finance, SecOps, NetSec, CloudAdmin"]
+        SP_POLICIES["Access Profiles & Entitlements<br/>11 Profiles / 13 Entitlements"]
+        SP_LIFECYCLE["Governance Lifecycle Engine<br/>Approvals, Certifications, Provisioning Gate"]
+        
+        SP_TENANT --> SP_ROLES
+        SP_ROLES --> SP_POLICIES
+        SP_TENANT --> SP_LIFECYCLE
+    end
+
+    subgraph AWS_Cloud ["AWS Organization: o-apexglobal01 (Runtime Authorization Enforcement)"]
+        subgraph Prod_Account ["Account: 111122223333 (Apex-Production)"]
+            VPC_PROD["VPC: vpc-prod-us-east-1 (10.100.0.0/16)"]
+            
+            EKS_PORTAL["EKS Customer Portal<br/>eks-customer-portal-cluster"]
+            EKS_ANALYTICS["EKS Analytics Workers<br/>eks-analytics-worker-pool"]
+            EKS_PCI["EKS Payment Processor<br/>eks-payment-processor-pool"]
+            
+            RDS_CORE["RDS PostgreSQL Core<br/>rds-postgres-core-prod"]
+            RDS_PCI["RDS PCI Token Vault<br/>rds-pci-token-vault-prod"]
+            
+            S3_CUI["S3 CUI Financial Vault<br/>s3-enterprise-cui-vault"]
+            S3_PII["S3 Customer PII Lake<br/>s3-customer-pii-lake-prod"]
+            
+            KMS_PROD["KMS Encryption Keys<br/>kms-cui-vault / kms-pci-token"]
+        end
+
+        subgraph Dev_Account ["Account: 222233334444 (Apex-Development)"]
+            VPC_DEV["VPC: vpc-dev-us-east-1 (10.200.0.0/16)"]
+            EKS_DEV["EKS Dev Cluster<br/>eks-dev-cluster"]
+            S3_TELEMETRY["S3 Dev Staging Telemetry<br/>s3-dev-staging-telemetry"]
+        end
+
+        subgraph Sec_Account ["Account: 333344445555 (Apex-Security)"]
+            VPC_SEC["VPC: vpc-sec-us-east-1 (10.250.0.0/16)"]
+            SIEM["EC2 SIEM Forwarder<br/>ec2-sec-siem-forwarder"]
+            S3_AUDIT["S3 Security CloudTrail<br/>s3-central-security-cloudtrail-sec"]
+        end
+    end
+
+    ZONE_DMZ --> EKS_ANALYTICS
+    ZONE_PROD --> EKS_PORTAL
+    ZONE_PCI --> EKS_PCI
+    ZONE_DB --> RDS_CORE
+    ZONE_PCI --> RDS_PCI
+    ZONE_VAULT --> S3_CUI
+    ZONE_DEV --> EKS_DEV
+
+    SP_TENANT ==>|GOVERNED_BY_SAILPOINT| Prod_Account
+    SP_TENANT ==>|GOVERNED_BY_SAILPOINT| Dev_Account
+    SP_TENANT ==>|GOVERNED_BY_SAILPOINT| Sec_Account
+    SP_TENANT ==>|GOVERNED_BY_SAILPOINT| PANORAMA
+
+    subgraph Data_Assets ["Classified Enterprise Data Assets"]
+        DATA_CUI["DATA-01: CUI Financial Vault<br/>RESTRICTED_CUI_PII"]
+        DATA_PCI["DATA-02: PCI Token Vault<br/>PCI_CARDHOLDER_DATA"]
+        DATA_PII["DATA-03: Customer PII DB<br/>CONFIDENTIAL_PII"]
+        DATA_LOGS["DATA-05: Central Security Logs<br/>RESTRICTED_CUI_PII"]
+    end
+
+    S3_CUI --> DATA_CUI
+    RDS_PCI --> DATA_PCI
+    RDS_CORE --> DATA_PII
+    S3_AUDIT --> DATA_LOGS

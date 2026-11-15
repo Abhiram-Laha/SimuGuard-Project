@@ -1,0 +1,85 @@
+{
+  "virtual_routers": [
+    {
+      "name": "vr-default-edge",
+      "firewall_id": "fw-edge-01-primary",
+      "static_routes": [
+        {
+          "name": "route-default-internet",
+          "destination": "0.0.0.0/0",
+          "next_hop": "203.0.113.1",
+          "interface": "ethernet1/1",
+          "metric": 10
+        },
+        {
+          "name": "route-dmz-local",
+          "destination": "10.100.4.0/24",
+          "interface": "ethernet1/2",
+          "metric": 10
+        },
+        {
+          "name": "route-corp-users",
+          "destination": "10.10.0.0/16",
+          "interface": "ethernet1/3",
+          "metric": 10
+        },
+        {
+          "name": "route-to-internal-core",
+          "destination": "10.100.0.0/16",
+          "next_hop": "10.255.0.2",
+          "interface": "ethernet1/4",
+          "metric": 20
+        }
+      ]
+    },
+    {
+      "name": "vr-internal-core",
+      "firewall_id": "fw-internal-01-primary",
+      "static_routes": [
+        {
+          "name": "route-default-to-edge",
+          "destination": "0.0.0.0/0",
+          "next_hop": "10.255.0.1",
+          "interface": "ethernet1/1",
+          "metric": 10
+        },
+        {
+          "name": "route-prod-apps",
+          "destination": "10.100.10.0/23",
+          "interface": "ethernet1/2",
+          "metric": 10
+        },
+        {
+          "name": "route-dev-apps",
+          "destination": "10.200.10.0/23",
+          "interface": "ethernet1/3",
+          "metric": 10
+        },
+        {
+          "name": "route-database-tier",
+          "destination": "10.100.20.0/24",
+          "interface": "ethernet1/4",
+          "metric": 10
+        },
+        {
+          "name": "route-pci-tier",
+          "destination": "10.100.30.0/24",
+          "interface": "ethernet1/5",
+          "metric": 10
+        },
+        {
+          "name": "route-cui-vault-tier",
+          "destination": "10.100.40.0/24",
+          "interface": "ethernet1/6",
+          "metric": 10
+        },
+        {
+          "name": "route-mgmt-oob",
+          "destination": "10.254.0.0/24",
+          "interface": "ethernet1/7",
+          "metric": 10
+        }
+      ]
+    }
+  ]
+}

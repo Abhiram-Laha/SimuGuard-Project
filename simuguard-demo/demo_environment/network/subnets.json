@@ -1,0 +1,85 @@
+{
+  "subnets": [
+    {
+      "id": "subnet-trust-dmz",
+      "name": "DMZ Public Web & Ingestion Subnet",
+      "cidr_block": "10.100.4.0/24",
+      "zone": "Trust-DMZ",
+      "gateway": "10.100.4.1",
+      "vlan_id": 104,
+      "description": "Public analytics workers, web ingress proxies, and edge ALBs"
+    },
+    {
+      "id": "subnet-corp-users",
+      "name": "Corporate Office & Employee LAN",
+      "cidr_block": "10.10.0.0/16",
+      "zone": "Corp-Users",
+      "gateway": "10.10.0.1",
+      "vlan_id": 10,
+      "description": "Employee workstations and corporate VPN clients"
+    },
+    {
+      "id": "subnet-prod-app-private",
+      "name": "Production App Tier Private Subnet",
+      "cidr_block": "10.100.10.0/23",
+      "zone": "Prod-App-Workloads",
+      "gateway": "10.100.10.1",
+      "vlan_id": 110,
+      "description": "Kubernetes core clusters and internal business logic microservices"
+    },
+    {
+      "id": "subnet-dev-app-private",
+      "name": "Development & Sandbox Private Subnet",
+      "cidr_block": "10.200.10.0/23",
+      "zone": "Dev-App-Workloads",
+      "gateway": "10.200.10.1",
+      "vlan_id": 210,
+      "description": "Developer sandbox workloads, dev Kubernetes cluster, and CI runners"
+    },
+    {
+      "id": "subnet-database-backend",
+      "name": "Production Database & Storage Subnet",
+      "cidr_block": "10.100.20.0/24",
+      "zone": "Database-Backend",
+      "gateway": "10.100.20.1",
+      "vlan_id": 120,
+      "description": "Transactional PostgreSQL, Redis, and internal database replicas"
+    },
+    {
+      "id": "subnet-pci-cardholder",
+      "name": "PCI Cardholder Data Environment Subnet",
+      "cidr_block": "10.100.30.0/24",
+      "zone": "PCI-Cardholder-Data",
+      "gateway": "10.100.30.1",
+      "vlan_id": 130,
+      "description": "PCI DSS scoped tokenization service and payment HSM gateways"
+    },
+    {
+      "id": "subnet-restricted-cui-vault",
+      "name": "Restricted Financial & CUI Data Subnet",
+      "cidr_block": "10.100.40.0/24",
+      "zone": "Restricted-Data-Vault",
+      "gateway": "10.100.40.1",
+      "vlan_id": 140,
+      "description": "NIST SP 800-171 controlled data vault, financial ledger DBs, and ERP"
+    },
+    {
+      "id": "subnet-mgmt-oob",
+      "name": "Out-of-Band Management & SIEM Subnet",
+      "cidr_block": "10.254.0.0/24",
+      "zone": "Mgmt-OOB",
+      "gateway": "10.254.0.1",
+      "vlan_id": 254,
+      "description": "Panorama management, firewall interfaces, bastion hosts, and SIEM forwarders"
+    },
+    {
+      "id": "subnet-public-isp-primary",
+      "name": "Public Documentation Uplink Primary",
+      "cidr_block": "203.0.113.0/28",
+      "zone": "Untrust-Internet",
+      "gateway": "203.0.113.1",
+      "vlan_id": 991,
+      "description": "Public documentation CIDR (RFC 5737) for synthetic internet perimeter"
+    }
+  ]
+}

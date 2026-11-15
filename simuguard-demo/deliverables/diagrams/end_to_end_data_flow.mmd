@@ -1,0 +1,36 @@
+sequenceDiagram
+    autonumber
+    %% Apex Global Technologies - End-to-End Network-to-IAM Data Flow
+    %% Tracing actual identifiers from the demo environment
+
+    actor Client as External Internet User / Compromised Client
+    participant EdgeFW as Palo Alto Perimeter NGFW<br/>(fw-edge-01-primary)
+    participant DMZ as Zone: Trust-DMZ<br/>(subnet-trust-dmz 10.100.4.0/24)
+    participant IntFW as Internal Core NGFW<br/>(fw-internal-01-primary)
+    participant ALB as Ingress Load Balancer<br/>(alb-customer-portal-ext)
+    participant EKS as Analytics Compute Pool<br/>(eks-analytics-worker-pool)
+    participant App as Customer Analytics App<br/>(APP-003-CUSTOMER-ANALYTICS)
+    participant IAM as Analytics Service Role<br/>(role-analytics-ingestion-svc)
+    participant S3 as Restricted CUI S3 Bucket<br/>(s3-enterprise-cui-vault)
+    participant Data as CUI Financial Ledger<br/>(DATA-01-CUI-FINANCIAL-VAULT)
+
+    Note over Client,EdgeFW: Phase 1: Ingress & Perimeter Policy Enforcement
+    Client->>EdgeFW: Inbound HTTPS request to Public VIP (203.0.113.20:443)
+    Note over EdgeFW: Evaluates Pre-Rulebase RULE-PAN-001 (Drop RFC1918 Spoofing)<br/>Matches RULE-PAN-004 (Allow-Public-Customer-Portal-HTTPS)<br/>Applies NAT Policy NAT-01 (DNAT to 10.100.4.20)
+    EdgeFW->>DMZ: Routes inspected traffic into Trust-DMZ
+    DMZ->>ALB: Forwards traffic to Application Load Balancer
+
+    Note over DMZ,IntFW: Phase 2: Inter-Zone Routing & Microservice Execution
+    ALB->>EKS: Distributes load to analytics ingestion pods in DMZ
+    EKS->>App: Executes clickstream and telemetry ingestion logic
+    
+    Note over App,IAM: Phase 3: Workload Identity Federation (IRSA)
+    App->>IAM: Binds to OIDC provider to assume role credentials<br/>(sa: analytics-ingestion-sa)
+    Note over IAM: In baseline state: Scoped to S3TelemetryWriteOnly.<br/>In simulated PR change: Overprivileged AmazonS3FullAccess is attached!
+
+    Note over IAM,S3: Phase 4: Cross-Zone IAM Authorization & Data Access
+    IAM->>S3: Initiates cross-zone S3 GetObject / PutObject request<br/>(Target: corp-restricted-cui-financial-vault)
+    Note over S3: Bucket policy evaluates IAM principal ARN & KMS encryption.<br/>Without SimuGuard AI detection: Overprivileged policy allows access!
+    S3->>Data: Reads/writes NIST SP 800-171 CUI financial records
+    
+    Note over S3,Data: ⚠️ Simulated Blast Radius Realized: Data asset potentially exposed to exfiltration

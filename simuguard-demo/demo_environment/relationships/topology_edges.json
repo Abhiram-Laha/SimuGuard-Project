@@ -1,0 +1,270 @@
+{
+  "edges": [
+    {
+      "source": "pan-mgmt-01",
+      "target": "fw-edge-01-primary",
+      "relationship": "MANAGED_BY",
+      "nature": "CONFIGURED",
+      "explanation": "Panorama management plane pushes device group 'DG-Internet-Perimeter' policy commits to edge firewall."
+    },
+    {
+      "source": "pan-mgmt-01",
+      "target": "fw-internal-01-primary",
+      "relationship": "MANAGED_BY",
+      "nature": "CONFIGURED",
+      "explanation": "Panorama management plane pushes device group 'DG-Internal-Segmentation' policy commits to core internal firewall."
+    },
+    {
+      "source": "fw-edge-01-primary",
+      "target": "fw-edge-02-secondary",
+      "relationship": "HA_PEER_SYNC",
+      "nature": "OBSERVED",
+      "explanation": "Active/Passive stateful synchronization over dedicated HA1 (control) and HA2 (session table) links."
+    },
+    {
+      "source": "fw-edge-01-primary",
+      "target": "zone-trust-dmz",
+      "relationship": "ENFORCES_ZONE_POLICY",
+      "nature": "CONFIGURED",
+      "blast_condition": "Allowing destination 'any' with application 'any' on perimeter firewall bypasses App-ID deep inspection and permits arbitrary non-SSL tunneling into Trust-DMZ.",
+      "explanation": "Perimeter firewall terminates Untrust-Internet ingress and applies Layer 7 threat policies onto Trust-DMZ."
+    },
+    {
+      "source": "fw-edge-01-primary",
+      "target": "zone-corp-users",
+      "relationship": "ENFORCES_ZONE_POLICY",
+      "nature": "CONFIGURED",
+      "explanation": "Perimeter firewall terminates corporate outbound Internet traffic, performing URL filtering and dynamic NAT."
+    },
+    {
+      "source": "fw-edge-01-primary",
+      "target": "fw-internal-01-primary",
+      "relationship": "CONNECTS_TO",
+      "nature": "CONFIGURED",
+      "explanation": "Internal transit interconnect (10.255.0.0/30) routing traffic between edge DMZ and internal core firewalls."
+    },
+    {
+      "source": "fw-internal-01-primary",
+      "target": "zone-restricted-data-vault",
+      "relationship": "ZONE_INTERCONNECT_ROUTING",
+      "nature": "CONFIGURED",
+      "blast_condition": "Removing Security Profile Groups exposes inter-zone traffic to uninspected command-and-control (C2) payloads and lateral evasion.",
+      "explanation": "Internal segmentation firewall strictly regulates all traffic entering the Restricted CUI Data Vault zone."
+    },
+    {
+      "source": "fw-internal-01-primary",
+      "target": "zone-pci-cardholder-data",
+      "relationship": "ZONE_INTERCONNECT_ROUTING",
+      "nature": "CONFIGURED",
+      "blast_condition": "Opening inbound protocols or omitting PCI threat profile allows lateral breach of cardholder enclave.",
+      "explanation": "Internal firewall establishes isolated PCI DSS network boundary enforcing tokenization requirements."
+    },
+    {
+      "source": "fw-internal-01-primary",
+      "target": "zone-database-backend",
+      "relationship": "ZONE_INTERCONNECT_ROUTING",
+      "nature": "CONFIGURED",
+      "explanation": "Internal segmentation firewall restricts database queries strictly to authenticated app microservices."
+    },
+    {
+      "source": "zone-trust-dmz",
+      "target": "subnet-trust-dmz",
+      "relationship": "CONTAINS_SUBNET",
+      "nature": "CONFIGURED",
+      "explanation": "Security zone Trust-DMZ encapsulates subnet 10.100.4.0/24 on interface ethernet1/2."
+    },
+    {
+      "source": "subnet-trust-dmz",
+      "target": "eks-analytics-worker-pool",
+      "relationship": "CONTAINS_WORKLOAD",
+      "nature": "CONFIGURED",
+      "blast_condition": "Workloads residing in subnet-trust-dmz inherit zone egress and perimeter threat inspection profiles.",
+      "explanation": "EKS Analytics worker pool compute nodes reside within DMZ subnet 10.100.4.0/24."
+    },
+    {
+      "source": "subnet-trust-dmz",
+      "target": "alb-customer-portal-ext",
+      "relationship": "CONTAINS_WORKLOAD",
+      "nature": "CONFIGURED",
+      "explanation": "Public-facing ALB endpoint is hosted across DMZ subnet 10.100.4.0/24."
+    },
+    {
+      "source": "zone-prod-app-workloads",
+      "target": "subnet-prod-app-private",
+      "relationship": "CONTAINS_SUBNET",
+      "nature": "CONFIGURED",
+      "explanation": "Prod-App-Workloads zone encapsulates private application subnet 10.100.10.0/23."
+    },
+    {
+      "source": "subnet-prod-app-private",
+      "target": "eks-customer-portal-cluster",
+      "relationship": "CONTAINS_WORKLOAD",
+      "nature": "CONFIGURED",
+      "explanation": "Customer portal backend microservice pods run in private production subnet 10.100.10.0/23."
+    },
+    {
+      "source": "zone-pci-cardholder-data",
+      "target": "subnet-pci-cardholder",
+      "relationship": "CONTAINS_SUBNET",
+      "nature": "CONFIGURED",
+      "explanation": "PCI Cardholder zone encapsulates isolated payment processing subnet 10.100.30.0/24."
+    },
+    {
+      "source": "subnet-pci-cardholder",
+      "target": "eks-payment-processor-pool",
+      "relationship": "CONTAINS_WORKLOAD",
+      "nature": "CONFIGURED",
+      "explanation": "PCI payment tokenization pods reside inside isolated cardholder subnet 10.100.30.0/24."
+    },
+    {
+      "source": "zone-database-backend",
+      "target": "subnet-database-backend",
+      "relationship": "CONTAINS_SUBNET",
+      "nature": "CONFIGURED",
+      "explanation": "Database-Backend zone encapsulates relational database subnet 10.100.20.0/24."
+    },
+    {
+      "source": "subnet-database-backend",
+      "target": "rds-postgres-core-prod",
+      "relationship": "CONTAINS_WORKLOAD",
+      "nature": "CONFIGURED",
+      "explanation": "Production PostgreSQL database cluster resides in dedicated database subnet 10.100.20.0/24."
+    },
+    {
+      "source": "zone-restricted-data-vault",
+      "target": "subnet-restricted-cui-vault",
+      "relationship": "CONTAINS_SUBNET",
+      "nature": "CONFIGURED",
+      "explanation": "Restricted-Data-Vault zone encapsulates restricted storage and CUI subnet 10.100.40.0/24."
+    },
+    {
+      "source": "eks-analytics-worker-pool",
+      "target": "APP-003-CUSTOMER-ANALYTICS",
+      "relationship": "HOSTS_APPLICATION",
+      "nature": "CONFIGURED",
+      "explanation": "Public analytics cluster runs the Customer Analytics and Clickstream processing application."
+    },
+    {
+      "source": "eks-customer-portal-cluster",
+      "target": "APP-001-CUSTOMER-PORTAL",
+      "relationship": "HOSTS_APPLICATION",
+      "nature": "CONFIGURED",
+      "explanation": "Customer portal EKS cluster executes customer banking web services."
+    },
+    {
+      "source": "eks-payment-processor-pool",
+      "target": "APP-002-PAYMENT-PROCESSING",
+      "relationship": "HOSTS_APPLICATION",
+      "nature": "CONFIGURED",
+      "explanation": "PCI EKS worker pool executes the PCI Payment Processing application."
+    },
+    {
+      "source": "eks-analytics-worker-pool",
+      "target": "role-analytics-ingestion-svc",
+      "relationship": "ASSUMES_ROLE",
+      "nature": "CONFIGURED",
+      "blast_condition": "Compute pods in eks-analytics-worker-pool assume role-analytics-ingestion-svc for AWS API operations.",
+      "explanation": "Pods bind via EKS IRSA OIDC federation to acquire role-analytics-ingestion-svc credentials."
+    },
+    {
+      "source": "eks-customer-portal-cluster",
+      "target": "role-customer-portal-backend",
+      "relationship": "ASSUMES_ROLE",
+      "nature": "CONFIGURED",
+      "explanation": "Portal backend pods assume role-customer-portal-backend via IRSA."
+    },
+    {
+      "source": "eks-payment-processor-pool",
+      "target": "role-payment-processor-pci",
+      "relationship": "ASSUMES_ROLE",
+      "nature": "CONFIGURED",
+      "explanation": "PCI tokenization pods assume role-payment-processor-pci via IRSA."
+    },
+    {
+      "source": "role-analytics-ingestion-svc",
+      "target": "s3-enterprise-cui-vault",
+      "relationship": "CROSS_ZONE_IAM_PATH",
+      "nature": "CONFIGURED",
+      "blast_condition": "Granting AmazonS3FullAccess gives pods in Trust-DMZ unrestricted read and write privileges over the Restricted CUI Vault.",
+      "explanation": "Potential IAM exfiltration path: If wildcard S3 privileges are attached to this role, DMZ pods can reach restricted vault."
+    },
+    {
+      "source": "role-analytics-ingestion-svc",
+      "target": "s3-dev-staging-telemetry",
+      "relationship": "CAN_ACCESS",
+      "nature": "CONFIGURED",
+      "explanation": "Legitimate baseline write-only path for analytics telemetry into unclassified staging bucket."
+    },
+    {
+      "source": "role-customer-portal-backend",
+      "target": "rds-postgres-core-prod",
+      "relationship": "CAN_ACCESS",
+      "nature": "CONFIGURED",
+      "explanation": "Customer portal backend reads and writes customer account records."
+    },
+    {
+      "source": "role-payment-processor-pci",
+      "target": "rds-pci-token-vault-prod",
+      "relationship": "CAN_ACCESS",
+      "nature": "CONFIGURED",
+      "explanation": "PCI processor role holds exclusive access to tokenize and detokenize payment cards."
+    },
+    {
+      "source": "s3-enterprise-cui-vault",
+      "target": "DATA-01-CUI-FINANCIAL-VAULT",
+      "relationship": "STORES_DATA",
+      "nature": "CONFIGURED",
+      "explanation": "S3 bucket physically stores the NIST 800-171 Restricted CUI Financial Ledger objects."
+    },
+    {
+      "source": "rds-pci-token-vault-prod",
+      "target": "DATA-02-PCI-TOKEN-VAULT",
+      "relationship": "STORES_DATA",
+      "nature": "CONFIGURED",
+      "explanation": "RDS PostgreSQL instance stores PCI DSS cardholder data tokens."
+    },
+    {
+      "source": "rds-postgres-core-prod",
+      "target": "DATA-03-CUSTOMER-PII-DATABASE",
+      "relationship": "STORES_DATA",
+      "nature": "CONFIGURED",
+      "explanation": "RDS database stores production customer profile and identity PII records."
+    },
+    {
+      "source": "s3-central-security-cloudtrail-sec",
+      "target": "DATA-05-CENTRAL-SECURITY-LOGS",
+      "relationship": "STORES_DATA",
+      "nature": "CONFIGURED",
+      "explanation": "Central security bucket stores immutable CloudTrail and enterprise SIEM telemetry."
+    },
+    {
+      "source": "s3-dev-staging-telemetry",
+      "target": "DATA-06-DEV-STAGING-TELEMETRY",
+      "relationship": "STORES_DATA",
+      "nature": "CONFIGURED",
+      "explanation": "Dev S3 bucket stores ephemeral non-sensitive test telemetry."
+    },
+    {
+      "source": "s3-enterprise-cui-vault",
+      "target": "kms-cui-vault",
+      "relationship": "ENCRYPTED_BY",
+      "nature": "CONFIGURED",
+      "explanation": "CUI financial vault is encrypted with dedicated Customer Managed KMS Key."
+    },
+    {
+      "source": "rds-pci-token-vault-prod",
+      "target": "kms-pci-token",
+      "relationship": "ENCRYPTED_BY",
+      "nature": "CONFIGURED",
+      "explanation": "PCI database is encrypted at rest with dedicated PCI token KMS Key."
+    },
+    {
+      "source": "role-dev-developer-sandbox",
+      "target": "role-ci-cd-deployment-pipeline",
+      "relationship": "CROSS_ACCOUNT_TRUST",
+      "nature": "INFERRED",
+      "blast_condition": "Excessive cross-account trust allows development account actors to assume production CI/CD role.",
+      "explanation": "Insecure cross-account trust path linking Development account to Production deployment role."
+    }
+  ]
+}

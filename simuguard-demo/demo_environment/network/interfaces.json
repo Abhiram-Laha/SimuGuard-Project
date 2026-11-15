@@ -1,0 +1,103 @@
+{
+  "interfaces": [
+    {
+      "id": "if-edge01-eth1-1",
+      "firewall_id": "fw-edge-01-primary",
+      "interface_name": "ethernet1/1",
+      "zone": "Untrust-Internet",
+      "ip_address": "203.0.113.10/28",
+      "virtual_router": "vr-default-edge",
+      "comment": "External ISP Uplink Primary"
+    },
+    {
+      "id": "if-edge01-eth1-2",
+      "firewall_id": "fw-edge-01-primary",
+      "interface_name": "ethernet1/2",
+      "zone": "Trust-DMZ",
+      "ip_address": "10.100.4.1/24",
+      "virtual_router": "vr-default-edge",
+      "comment": "DMZ Gateway Interface"
+    },
+    {
+      "id": "if-edge01-eth1-3",
+      "firewall_id": "fw-edge-01-primary",
+      "interface_name": "ethernet1/3",
+      "zone": "Corp-Users",
+      "ip_address": "10.10.0.1/16",
+      "virtual_router": "vr-default-edge",
+      "comment": "Corporate User Network Transit"
+    },
+    {
+      "id": "if-edge01-eth1-4",
+      "firewall_id": "fw-edge-01-primary",
+      "interface_name": "ethernet1/4",
+      "zone": "Internal-Transit",
+      "ip_address": "10.255.0.1/30",
+      "virtual_router": "vr-default-edge",
+      "comment": "Transit Link to Internal Firewall"
+    },
+    {
+      "id": "if-internal01-eth1-1",
+      "firewall_id": "fw-internal-01-primary",
+      "interface_name": "ethernet1/1",
+      "zone": "Internal-Transit",
+      "ip_address": "10.255.0.2/30",
+      "virtual_router": "vr-internal-core",
+      "comment": "Transit Link from Edge Firewall"
+    },
+    {
+      "id": "if-internal01-eth1-2",
+      "firewall_id": "fw-internal-01-primary",
+      "interface_name": "ethernet1/2",
+      "zone": "Prod-App-Workloads",
+      "ip_address": "10.100.10.1/23",
+      "virtual_router": "vr-internal-core",
+      "comment": "Production Applications Gateway"
+    },
+    {
+      "id": "if-internal01-eth1-3",
+      "firewall_id": "fw-internal-01-primary",
+      "interface_name": "ethernet1/3",
+      "zone": "Dev-App-Workloads",
+      "ip_address": "10.200.10.1/23",
+      "virtual_router": "vr-internal-core",
+      "comment": "Development Sandbox Gateway"
+    },
+    {
+      "id": "if-internal01-eth1-4",
+      "firewall_id": "fw-internal-01-primary",
+      "interface_name": "ethernet1/4",
+      "zone": "Database-Backend",
+      "ip_address": "10.100.20.1/24",
+      "virtual_router": "vr-internal-core",
+      "comment": "Database Tier Gateway"
+    },
+    {
+      "id": "if-internal01-eth1-5",
+      "firewall_id": "fw-internal-01-primary",
+      "interface_name": "ethernet1/5",
+      "zone": "PCI-Cardholder-Data",
+      "ip_address": "10.100.30.1/24",
+      "virtual_router": "vr-internal-core",
+      "comment": "PCI Enclave Isolation Gateway"
+    },
+    {
+      "id": "if-internal01-eth1-6",
+      "firewall_id": "fw-internal-01-primary",
+      "interface_name": "ethernet1/6",
+      "zone": "Restricted-Data-Vault",
+      "ip_address": "10.100.40.1/24",
+      "virtual_router": "vr-internal-core",
+      "comment": "Restricted CUI Vault Gateway"
+    },
+    {
+      "id": "if-internal01-eth1-7",
+      "firewall_id": "fw-internal-01-primary",
+      "interface_name": "ethernet1/7",
+      "zone": "Mgmt-OOB",
+      "ip_address": "10.254.0.1/24",
+      "virtual_router": "vr-internal-core",
+      "comment": "Out-of-Band Management Network Gateway"
+    }
+  ]
+}

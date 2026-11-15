@@ -1,0 +1,143 @@
+{
+  "identities": [
+    {
+      "id": "ident-role-analytics-ingestion-svc",
+      "name": "role-analytics-ingestion-svc",
+      "type": "IAM_Role",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/role-analytics-ingestion-svc",
+      "assigned_to": ["eks-analytics-worker-pool"],
+      "criticality": "High"
+    },
+    {
+      "id": "ident-role-customer-portal-backend",
+      "name": "role-customer-portal-backend",
+      "type": "IAM_Role",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/role-customer-portal-backend",
+      "assigned_to": ["eks-customer-portal-cluster"],
+      "criticality": "Critical"
+    },
+    {
+      "id": "ident-role-payment-processor-pci",
+      "name": "role-payment-processor-pci",
+      "type": "IAM_Role",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/role-payment-processor-pci",
+      "assigned_to": ["eks-payment-processor-pool"],
+      "criticality": "Critical"
+    },
+    {
+      "id": "ident-role-db-maintenance-lambda",
+      "name": "role-db-maintenance-lambda",
+      "type": "IAM_Role",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/role-db-maintenance-lambda",
+      "assigned_to": ["lambda-db-maintenance"],
+      "criticality": "High"
+    },
+    {
+      "id": "ident-role-secops-incident-responder",
+      "name": "role-secops-incident-responder",
+      "type": "IAM_Role",
+      "account_id": "333344445555",
+      "arn": "arn:aws:iam::333344445555:role/role-secops-incident-responder",
+      "assigned_to": ["ec2-sec-siem-forwarder"],
+      "criticality": "Critical"
+    },
+    {
+      "id": "ident-role-dev-developer-sandbox",
+      "name": "role-dev-developer-sandbox",
+      "type": "IAM_Role",
+      "account_id": "222233334444",
+      "arn": "arn:aws:iam::222233334444:role/role-dev-developer-sandbox",
+      "assigned_to": ["eks-dev-cluster"],
+      "criticality": "Medium"
+    },
+    {
+      "id": "ident-role-ci-cd-deployment-pipeline",
+      "name": "role-ci-cd-deployment-pipeline",
+      "type": "IAM_Role",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/role-ci-cd-deployment-pipeline",
+      "assigned_to": ["svc-github-actions-runner"],
+      "criticality": "Critical"
+    },
+    {
+      "id": "ident-role-compliance-auditor",
+      "name": "role-compliance-auditor",
+      "type": "IAM_Role",
+      "account_id": "333344445555",
+      "arn": "arn:aws:iam::333344445555:role/role-compliance-auditor",
+      "assigned_to": ["user-grc-lead-auditor"],
+      "criticality": "High"
+    },
+    {
+      "id": "ident-user-lead-secops-engineer",
+      "name": "user-lead-secops-engineer",
+      "type": "IAM_User",
+      "account_id": "333344445555",
+      "arn": "arn:aws:iam::333344445555:user/secops-lead",
+      "mfa_enabled": true,
+      "criticality": "High"
+    },
+    {
+      "id": "ident-user-devops-automation-bot",
+      "name": "user-devops-automation-bot",
+      "type": "Service_Identity",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:user/automation-bot",
+      "mfa_enabled": false,
+      "criticality": "Critical"
+    },
+    {
+      "id": "ident-user-lead-data-scientist",
+      "name": "user-lead-data-scientist",
+      "type": "IAM_User",
+      "account_id": "222233334444",
+      "arn": "arn:aws:iam::222233334444:user/lead-data-scientist",
+      "mfa_enabled": true,
+      "criticality": "Medium"
+    },
+    {
+      "id": "ident-group-platform-engineers",
+      "name": "group-platform-engineers",
+      "type": "IAM_Group",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:group/platform-engineers",
+      "criticality": "High"
+    },
+    {
+      "id": "ident-group-security-auditors",
+      "name": "group-security-auditors",
+      "type": "IAM_Group",
+      "account_id": "333344445555",
+      "arn": "arn:aws:iam::333344445555:group/security-auditors",
+      "criticality": "Medium"
+    },
+    {
+      "id": "ident-svc-splunk-siem-ingestion",
+      "name": "svc-splunk-siem-ingestion",
+      "type": "Service_Identity",
+      "account_id": "333344445555",
+      "arn": "arn:aws:iam::333344445555:role/svc-splunk-siem-ingestion",
+      "criticality": "High"
+    },
+    {
+      "id": "ident-svc-backup-automation-agent",
+      "name": "svc-backup-automation-agent",
+      "type": "Service_Identity",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/svc-backup-automation-agent",
+      "criticality": "High"
+    },
+    {
+      "id": "ident-svc-billing-reconciliation-job",
+      "name": "svc-billing-reconciliation-job",
+      "type": "Service_Identity",
+      "account_id": "111122223333",
+      "arn": "arn:aws:iam::111122223333:role/svc-billing-reconciliation-job",
+      "criticality": "Medium"
+    }
+  ]
+}

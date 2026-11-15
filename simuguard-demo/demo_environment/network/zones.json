@@ -1,0 +1,93 @@
+{
+  "zones": [
+    {
+      "id": "zone-untrust-internet",
+      "name": "Untrust-Internet",
+      "type": "Layer3_Security_Zone",
+      "trust_level": "UNTRUSTED",
+      "description": "Public Internet and untrusted external ingress/egress",
+      "criticality": "Critical",
+      "enforced_by": ["fw-edge-01-primary", "fw-edge-02-secondary"]
+    },
+    {
+      "id": "zone-trust-dmz",
+      "name": "Trust-DMZ",
+      "type": "Layer3_Security_Zone",
+      "trust_level": "SEMI_TRUSTED",
+      "description": "Public-facing DMZ containing ALBs, API reverse proxies, and ingestion workers",
+      "subnet_cidrs": ["10.100.4.0/24"],
+      "criticality": "High",
+      "enforced_by": ["fw-edge-01-primary", "fw-edge-02-secondary", "fw-internal-01-primary"]
+    },
+    {
+      "id": "zone-corp-users",
+      "name": "Corp-Users",
+      "type": "Layer3_Security_Zone",
+      "trust_level": "INTERNAL_TRUSTED",
+      "description": "Internal employee workstations, corporate VPN, and enterprise branch offices",
+      "subnet_cidrs": ["10.10.0.0/16"],
+      "criticality": "High",
+      "enforced_by": ["fw-edge-01-primary", "fw-edge-02-secondary"]
+    },
+    {
+      "id": "zone-prod-app-workloads",
+      "name": "Prod-App-Workloads",
+      "type": "Layer3_Security_Zone",
+      "trust_level": "INTERNAL_RESTRICTED",
+      "description": "Production Kubernetes (EKS) worker pools and microservices applications",
+      "subnet_cidrs": ["10.100.10.0/23"],
+      "criticality": "High",
+      "enforced_by": ["fw-internal-01-primary", "fw-internal-02-secondary"]
+    },
+    {
+      "id": "zone-dev-app-workloads",
+      "name": "Dev-App-Workloads",
+      "type": "Layer3_Security_Zone",
+      "trust_level": "INTERNAL_LOW_TRUST",
+      "description": "Non-production sandbox, dev clusters, and CI/CD test runners",
+      "subnet_cidrs": ["10.200.10.0/23"],
+      "criticality": "Medium",
+      "enforced_by": ["fw-internal-01-primary", "fw-internal-02-secondary"]
+    },
+    {
+      "id": "zone-database-backend",
+      "name": "Database-Backend",
+      "type": "Layer3_Security_Zone",
+      "trust_level": "INTERNAL_RESTRICTED",
+      "description": "Production transactional databases, Redis caching clusters, and replica storage",
+      "subnet_cidrs": ["10.100.20.0/24"],
+      "criticality": "Critical",
+      "enforced_by": ["fw-internal-01-primary", "fw-internal-02-secondary"]
+    },
+    {
+      "id": "zone-pci-cardholder-data",
+      "name": "PCI-Cardholder-Data",
+      "type": "Layer3_Security_Zone",
+      "trust_level": "PCI_COMPLIANT_ISOLATED",
+      "description": "Isolated PCI-DSS Cardholder Data Environment (CDE) for payment processing",
+      "subnet_cidrs": ["10.100.30.0/24"],
+      "criticality": "Critical",
+      "enforced_by": ["fw-internal-01-primary", "fw-internal-02-secondary"]
+    },
+    {
+      "id": "zone-restricted-data-vault",
+      "name": "Restricted-Data-Vault",
+      "type": "Layer3_Security_Zone",
+      "trust_level": "MAXIMUM_SECURITY_VAULT",
+      "description": "Restricted Controlled Unclassified Information (CUI), PII, and financial ledgers",
+      "subnet_cidrs": ["10.100.40.0/24"],
+      "criticality": "Critical",
+      "enforced_by": ["fw-internal-01-primary", "fw-internal-02-secondary"]
+    },
+    {
+      "id": "zone-mgmt-oob",
+      "name": "Mgmt-OOB",
+      "type": "Layer3_Security_Zone",
+      "trust_level": "MANAGEMENT_ISOLATED",
+      "description": "Out-of-band management network for Panorama, bastion hosts, and security sensors",
+      "subnet_cidrs": ["10.254.0.0/24"],
+      "criticality": "Critical",
+      "enforced_by": ["fw-internal-01-primary", "fw-internal-02-secondary"]
+    }
+  ]
+}

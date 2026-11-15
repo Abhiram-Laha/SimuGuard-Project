@@ -1,0 +1,41 @@
+{
+  "trust_relationships": [
+    {
+      "id": "trust-eks-analytics-oidc",
+      "role_id": "role-analytics-ingestion-svc",
+      "trusted_entity_type": "Federated_OIDC",
+      "principal": "arn:aws:iam::111122223333:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED5594F3D61DF8373E",
+      "condition": {
+        "StringEquals": {
+          "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED5594F3D61DF8373E:sub": "system:serviceaccount:analytics-ns:analytics-ingestion-sa"
+        }
+      },
+      "description": "IAM Roles for Service Accounts (IRSA) trust binding for analytics pods"
+    },
+    {
+      "id": "trust-secops-cross-account-prod",
+      "role_id": "role-secops-incident-responder",
+      "trusted_entity_type": "AWS_Account",
+      "principal": "arn:aws:iam::333344445555:root",
+      "target_account": "111122223333",
+      "assumes_role": "arn:aws:iam::111122223333:role/role-secops-audit-agent",
+      "condition": {
+        "Bool": {
+          "aws:MultiFactorAuthPresent": "true"
+        }
+      },
+      "description": "Cross-account SecOps incident response assume role policy with enforced MFA"
+    },
+    {
+      "id": "trust-excessive-dev-to-prod",
+      "role_id": "role-dev-developer-sandbox",
+      "trusted_entity_type": "AWS_Account",
+      "principal": "arn:aws:iam::222233334444:root",
+      "target_account": "111122223333",
+      "assumes_role": "arn:aws:iam::111122223333:role/role-ci-cd-deployment-pipeline",
+      "condition": {},
+      "security_posture": "INSECURE_EXCESSIVE_CROSS_ACCOUNT_TRUST",
+      "description": "⚠️ Insecure cross-account trust: Development account users can assume production CI/CD role without MFA or external ID"
+    }
+  ]
+}

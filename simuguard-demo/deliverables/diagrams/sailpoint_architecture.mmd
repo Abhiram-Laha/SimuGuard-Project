@@ -1,0 +1,96 @@
+flowchart TD
+    %% Apex Global Technologies - SailPoint Identity Security Cloud Architecture
+
+    subgraph SailPoint_Cloud ["SailPoint Identity Security Cloud (Governance Plane)"]
+        TENANT["SailPoint Tenant: sp-tenant-apexglobal-01<br/>Domain: apexglobal.identitynow.example (AWS us-east-1)"]
+
+        subgraph IDP_Layer ["Authoritative Identity Profiles"]
+            IDP_EMP["sp-idp-corporate-employees<br/>(Full-Time Personnel)"]
+            IDP_CON["sp-idp-external-contractors<br/>(Time-Bound Vendors)"]
+            IDP_ADM["sp-idp-privileged-admins<br/>(CISO, SecOps, NetSec, Cloud)"]
+            IDP_SVC["sp-idp-service-identities<br/>(Non-Human Automated Principals)"]
+        end
+
+        subgraph Identities_Layer ["Enterprise Identities (22 Identities)"]
+            ID_SARAH["Sarah Chen (CISO)<br/>sp-ident-sarah-chen"]
+            ID_DAVID["David Kim (NetSec Eng)<br/>sp-ident-david-kim"]
+            ID_EMILY["Emily Watson (Treasury Analyst)<br/>sp-ident-emily-watson"]
+            ID_ALEX["Alex Morgan (Cloud Platform Lead)<br/>sp-ident-alex-morgan"]
+            ID_SOPHIA["Sophia Alvarez (Contractor)<br/>sp-ident-sophia-alvarez"]
+        end
+
+        subgraph RBAC_Hierarchy ["Role-Based Access Control (RBAC)"]
+            subgraph Roles_Layer ["Business & IT Roles (9 Roles)"]
+                ROLE_FINANCE["sp-role-finance-analyst<br/>Finance & Treasury Analyst"]
+                ROLE_NETSEC["sp-role-network-security-engineer<br/>Network Security Engineer"]
+                ROLE_CLOUDADM["sp-role-cloud-administrator<br/>Cloud Platform Administrator"]
+            end
+
+            subgraph Access_Profiles_Layer ["Access Profiles (11 Profiles)"]
+                AP_S3_READ["sp-ap-aws-prod-s3-read<br/>Production S3 CUI Vault Read"]
+                AP_FW_ADMIN["sp-ap-paloalto-firewall-admin<br/>Palo Alto Firewall Administrator"]
+                AP_AWS_ADMIN["sp-ap-aws-prod-admin<br/>AWS Production Cloud Full Admin"]
+            end
+
+            subgraph Entitlements_Layer ["Granular Entitlements (13 Entitlements)"]
+                ENT_S3_CUI["sp-ent-aws-s3-cui-read<br/>s3:GetObject on CUI Vault"]
+                ENT_PANOS_WRITE["sp-ent-panos-admin-write<br/>Panorama Superuser Commit"]
+                ENT_AWS_ROOT["sp-ent-aws-prod-root-admin<br/>AdministratorAccess"]
+            end
+        end
+
+        subgraph Lifecycle_Workflows ["Governance Lifecycles & Gates"]
+            REQS["Access Requests (5 Records)<br/>Approved, Rejected, Pending, Emergency"]
+            APPRS["Multi-Stage Approvals (5 Records)<br/>Manager Review, CISO Security Gate"]
+            CERTS["Certification Campaigns (5 Records)<br/>Privileged Review, PCI DSS, Contractor"]
+            PROV["Provisioning Engine<br/>PROVISIONED vs. REQUESTED_NOT_PROVISIONED"]
+        end
+    end
+
+    TENANT --> IDP_Layer
+    IDP_ADM --> ID_SARAH
+    IDP_ADM --> ID_DAVID
+    IDP_EMP --> ID_EMILY
+    IDP_ADM --> ID_ALEX
+    IDP_CON --> ID_SOPHIA
+
+    ID_EMILY -->|MEMBER_OF_ROLE| ROLE_FINANCE
+    ID_DAVID -->|MEMBER_OF_ROLE| ROLE_NETSEC
+    ID_ALEX -->|MEMBER_OF_ROLE| ROLE_CLOUDADM
+
+    ROLE_FINANCE -->|HAS_ACCESS_PROFILE| AP_S3_READ
+    ROLE_NETSEC -->|HAS_ACCESS_PROFILE| AP_FW_ADMIN
+    ROLE_CLOUDADM -->|HAS_ACCESS_PROFILE| AP_AWS_ADMIN
+
+    AP_S3_READ -->|CONTAINS_ENTITLEMENT| ENT_S3_CUI
+    AP_FW_ADMIN -->|CONTAINS_ENTITLEMENT| ENT_PANOS_WRITE
+    AP_AWS_ADMIN -->|CONTAINS_ENTITLEMENT| ENT_AWS_ROOT
+
+    subgraph Connected_Sources ["8 Connected Target Sources (Target Endpoints)"]
+        SRC_AD["sp-src-active-directory<br/>Active Directory"]
+        SRC_ENTRA["sp-src-entra-id<br/>Microsoft Entra ID (SSO)"]
+        SRC_AWS_PROD["sp-src-aws-prod<br/>AWS Production Account"]
+        SRC_AWS_DEV["sp-src-aws-dev<br/>AWS Development Account"]
+        SRC_AWS_SEC["sp-src-aws-secops<br/>AWS Security Account"]
+        SRC_PAN["sp-src-firewall-mgmt<br/>Palo Alto Panorama Mgmt"]
+        SRC_APPS["sp-src-enterprise-apps<br/>Enterprise Applications"]
+        SRC_DB["sp-src-database-platform<br/>Database Platform"]
+    end
+
+    TENANT ==>|Connected Source Connector| Connected_Sources
+
+    subgraph Governed_Targets ["Governed Infrastructure (Runtime Authorization)"]
+        AWS_PROD["AWS Account: 111122223333"]
+        AWS_DEV["AWS Account: 222233334444"]
+        AWS_SEC["AWS Account: 333344445555"]
+        PAN_MGMT["Panorama: pan-mgmt-01"]
+        S3_VAULT["S3 Bucket: s3-enterprise-cui-vault"]
+    end
+
+    SRC_AWS_PROD ==>|GOVERNED_BY_SAILPOINT| AWS_PROD
+    SRC_AWS_DEV ==>|GOVERNED_BY_SAILPOINT| AWS_DEV
+    SRC_AWS_SEC ==>|GOVERNED_BY_SAILPOINT| AWS_SEC
+    SRC_PAN ==>|GOVERNED_BY_SAILPOINT| PAN_MGMT
+
+    ENT_S3_CUI -.->|CAN_ACCESS_RESOURCE| S3_VAULT
+    ENT_PANOS_WRITE -.->|CAN_ACCESS_RESOURCE| PAN_MGMT

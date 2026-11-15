@@ -1,0 +1,58 @@
+{
+  "change_ticket_id": "PR-4082 (Palo Alto Security Rule + IAM Attachment)",
+  "overall_risk_score": 96,
+  "deployment_verdict": "BLOCK_DEPLOYMENT",
+  "executive_summary": "Proposed Palo Alto rule disables App-ID deep inspection by setting application to 'any' and destination to 'any', creating an uninspected egress tunnel while IAM changes grant access to the Restricted CUI Vault.",
+  "predicted_affected_assets": [
+    "pan-vm-core-firewall-01 (Direct: Security Rule 'Allow-Analytics-Outbound-Webhook' widened)",
+    "Trust-DMZ Zone (Direct: Egress opened to destination 'any' without Security Profile group)",
+    "Untrust-Internet Zone (Direct: Arbitrary non-SSL outbound tunneling permitted)",
+    "eks-analytics-worker-pool (Direct: Pods gain uninspected egress capabilities)",
+    "role-analytics-ingestion-svc (Direct: Overprivileged with AmazonS3FullAccess)",
+    "s3-enterprise-cui-vault (Cascading: Exposed to cross-bucket read/exfiltration)"
+  ],
+  "identified_security_gaps": [
+    {
+      "severity": "CRITICAL",
+      "gap_title": "Palo Alto App-ID & Threat Inspection Bypass",
+      "technical_impact": "Setting 'applications = any' and 'security_profile_group = none' turns off Palo Alto's Layer 7 inspection, allowing malicious actors to tunnel C2 traffic over port 443 without malware scanning.",
+      "compliance_violation": "CIS Palo Alto Firewall Benchmark v1.1.0 (Rule 4.1 - Enforce App-ID) & NIST CSF 2.0 PR.PT-04"
+    },
+    {
+      "severity": "CRITICAL",
+      "gap_title": "Wildcard IAM CUI Data Exfiltration Path",
+      "technical_impact": "Attaching AmazonS3FullAccess allows compromised analytics pods to bypass zone boundaries and exfiltrate proprietary CUI data directly to unmonitored endpoints.",
+      "compliance_violation": "NIST SP 800-171 3.1.3 (Control CUI Flow) & Least Privilege PR.AA-05"
+    },
+    {
+      "severity": "HIGH",
+      "gap_title": "Destination Zone Wildcarding ('any')",
+      "technical_impact": "Bypasses zero-trust egress filtering. Outbound connections are no longer scoped to verified external logging partners.",
+      "compliance_violation": "NIST SP 800-171 3.13.1 (Boundary Protection)"
+    }
+  ],
+  "pre_implementation_validation_plan": [
+    {
+      "step_number": 1,
+      "target_component": "Palo Alto PAN-OS Security Policy",
+      "what_to_validate": "Verify that the rule enforces explicit App-ID ('ssl') and rejects uninspected protocols.",
+      "cli_command": "test security-policy-match from Trust-DMZ to Untrust-Internet source 10.100.4.50 destination 52.84.120.5 protocol 6 port 443 application ssl",
+      "expected_pass_criteria": "Rule matched MUST show application 'ssl' and action 'allow'. Matching on application 'any' is an immediate fail."
+    },
+    {
+      "step_number": 2,
+      "target_component": "Palo Alto Threat Prevention Profile",
+      "what_to_validate": "Confirm that the Security Profile Group is attached and active before committing.",
+      "cli_command": "show running security-policy | match Allow-Analytics-Outbound-Webhook",
+      "expected_pass_criteria": "Output must contain: 'profile-group Strict-Enterprise-Security'."
+    },
+    {
+      "step_number": 3,
+      "target_component": "IAM Role Permission Boundary",
+      "what_to_validate": "Verify that analytics execution role is restricted strictly to telemetry staging.",
+      "cli_command": "aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::111122223333:role/role-analytics-ingestion-svc --action-names s3:GetObject --resource-arns arn:aws:s3:::corp-restricted-cui-financial-vault/*",
+      "expected_pass_criteria": "EvaluationDecision MUST return 'explicitDeny' or 'implicitDeny'."
+    }
+  ],
+  "safe_remediated_config": "# SIMUGUARD AUTO-REMEDIATED PALO ALTO TERRAFORM PATCH\nresource \"panos_security_policy\" \"analytics_egress_rule_safe\" {\n  rule {\n    name                  = \"Allow-Analytics-Outbound-Webhook-Safe\"\n    source_zones          = [\"Trust-DMZ\"]\n    source_addresses      = [\"10.100.4.0/24\"]\n    destination_zones     = [\"Untrust-Internet\"]\n    destination_addresses = [\"52.84.120.0/22\"] # Scoped to verified partner\n    applications          = [\"ssl\", \"web-browsing\"] # Layer-7 App-ID enforced\n    services              = [\"service-https\"]\n    action                = \"allow\"\n    security_profile_group = \"Strict-Enterprise-Security\" # Antivirus, Anti-Spyware active\n  }\n}"
+}

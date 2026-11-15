@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "organization": "Enterprise Hybrid Network Estate",
+    "firewall_vendor": "Palo Alto Networks (PAN-OS 11.1 Nebula)",
+    "perimeter_firewall": "pan-vm-core-firewall-01",
+    "compliance_frameworks": ["NIST CSF 2.0 (PR.AC, PR.PT)", "NIST SP 800-171 3.13.1", "CIS Palo Alto Firewall Benchmark v1.1.0"]
+  },
+  "nodes": [
+    {
+      "id": "pan-vm-core-firewall-01",
+      "name": "Palo Alto Next-Gen Perimeter Firewall",
+      "type": "NGFW_Palo_Alto",
+      "zones": ["Trust-DMZ", "Untrust-Internet", "Restricted-Data-Zone"],
+      "threat_prevention_profile": "Strict-Enterprise-Security",
+      "criticality": "Critical"
+    },
+    {
+      "id": "subnet-trust-dmz",
+      "name": "Zone: Trust-DMZ (10.100.4.0/24)",
+      "type": "Network_Zone",
+      "attached_workloads": ["eks-analytics-worker-pool"],
+      "criticality": "High"
+    },
+    {
+      "id": "eks-analytics-worker-pool",
+      "name": "Public Analytics Ingestion Cluster",
+      "type": "Compute_Cluster",
+      "attached_iam_role": "role-analytics-ingestion-svc",
+      "criticality": "High"
+    },
+    {
+      "id": "role-analytics-ingestion-svc",
+      "name": "Analytics Service IAM Role",
+      "type": "IAM_Role",
+      "current_policies": ["arn:aws:iam::111122223333:policy/S3TelemetryWriteOnly"],
+      "criticality": "High"
+    },
+    {
+      "id": "s3-enterprise-cui-vault",
+      "name": "s3://corp-restricted-cui-financial-vault",
+      "type": "Storage_S3_Bucket",
+      "data_classification": "Restricted / CUI / PII",
+      "compliance_controls": ["NIST SP 800-171 3.1.3 (Control CUI Flow)"],
+      "criticality": "Critical"
+    },
+    {
+      "id": "zone-restricted-financial",
+      "name": "Zone: Restricted-Data-Zone (10.200.0.0/16)",
+      "type": "Network_Zone",
+      "contains": ["Core Financial Databases & ERP"],
+      "criticality": "Critical"
+    }
+  ],
+  "edges": [
+    {
+      "source": "pan-vm-core-firewall-01",
+      "target": "subnet-trust-dmz",
+      "relationship": "ENFORCES_ZONE_POLICY",
+      "blast_condition": "Allowing destination 'any' with application 'any' on pan-vm-core-firewall-01 bypasses App-ID deep inspection and permits arbitrary non-SSL protocol tunneling out of Trust-DMZ."
+    },
+    {
+      "source": "pan-vm-core-firewall-01",
+      "target": "zone-restricted-financial",
+      "relationship": "ZONE_INTERCONNECT_ROUTING",
+      "blast_condition": "Removing Security Profile Groups exposes inter-zone traffic to uninspected command-and-control (C2) payloads and lateral evasion."
+    },
+    {
+      "source": "role-analytics-ingestion-svc",
+      "target": "s3-enterprise-cui-vault",
+      "relationship": "CROSS_ZONE_IAM_PATH",
+      "blast_condition": "Granting AmazonS3FullAccess gives pods in Trust-DMZ unrestricted read and write privileges over the Restricted CUI Vault."
+    }
+  ]
+}

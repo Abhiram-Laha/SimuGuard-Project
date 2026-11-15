@@ -1,0 +1,107 @@
+{
+  "sources": [
+    {
+      "id": "sp-src-active-directory",
+      "name": "Corporate Active Directory Domain Services",
+      "type": "Active Directory",
+      "category": "AUTHORITATIVE_DIRECTORY",
+      "owner_identity_id": "sp-ident-marcus-vance",
+      "connection_status": "CONNECTED",
+      "health": "OPTIMAL",
+      "connector": "sailpoint.connector.ActiveDirectory",
+      "managed_domain": "corp.apex-global.example",
+      "description": "Primary authoritative identity directory for employee authentication, workstation logons, and legacy group memberships."
+    },
+    {
+      "id": "sp-src-entra-id",
+      "name": "Microsoft Entra ID (Azure AD)",
+      "type": "Microsoft Entra ID",
+      "category": "CLOUD_IDENTITY_SSO",
+      "owner_identity_id": "sp-ident-marcus-vance",
+      "connection_status": "CONNECTED",
+      "health": "OPTIMAL",
+      "connector": "sailpoint.connector.AzureActiveDirectory",
+      "managed_domain": "apex-global.example",
+      "description": "Enterprise cloud single sign-on (SSO), SAML/OIDC federated access, and SaaS enterprise application assignments."
+    },
+    {
+      "id": "sp-src-aws-prod",
+      "name": "AWS Production Account (111122223333)",
+      "type": "AWS IAM / AWS Organizations",
+      "category": "CLOUD_INFRASTRUCTURE",
+      "owner_identity_id": "sp-ident-alex-morgan",
+      "connection_status": "CONNECTED",
+      "health": "OPTIMAL",
+      "connector": "sailpoint.connector.AWS",
+      "target_account_id": "111122223333",
+      "target_arn": "arn:aws:iam::111122223333:root",
+      "description": "Production cloud workload account hosting Customer Portal EKS, PCI Tokenizer EKS, Analytics EKS, and CUI Financial Vault."
+    },
+    {
+      "id": "sp-src-aws-dev",
+      "name": "AWS Development Account (222233334444)",
+      "type": "AWS IAM / AWS Organizations",
+      "category": "CLOUD_INFRASTRUCTURE",
+      "owner_identity_id": "sp-ident-priya-patel",
+      "connection_status": "CONNECTED",
+      "health": "OPTIMAL",
+      "connector": "sailpoint.connector.AWS",
+      "target_account_id": "222233334444",
+      "target_arn": "arn:aws:iam::222233334444:root",
+      "description": "Development sandbox cloud account hosting ephemeral developer microservices, test pods, and non-sensitive staging telemetry."
+    },
+    {
+      "id": "sp-src-aws-secops",
+      "name": "AWS Security Operations Account (333344445555)",
+      "type": "AWS IAM / AWS Organizations",
+      "category": "CLOUD_INFRASTRUCTURE",
+      "owner_identity_id": "sp-ident-elena-rodriguez",
+      "connection_status": "CONNECTED",
+      "health": "OPTIMAL",
+      "connector": "sailpoint.connector.AWS",
+      "target_account_id": "333344445555",
+      "target_arn": "arn:aws:iam::333344445555:root",
+      "description": "Central security audit and log aggregation account hosting multi-region CloudTrail S3 archives, GuardDuty, and SecOps responders."
+    },
+    {
+      "id": "sp-src-enterprise-apps",
+      "name": "Core Enterprise Applications Gateway",
+      "type": "Enterprise Applications",
+      "category": "BUSINESS_APPLICATIONS",
+      "owner_identity_id": "sp-ident-jessica-taylor",
+      "connection_status": "CONNECTED",
+      "health": "OPTIMAL",
+      "connector": "sailpoint.connector.OpenAPI",
+      "target_endpoint": "https://api-gateway.prod.apex-global.example",
+      "description": "Core application platform governing user authorization across Customer Portal, Order Management, and Core Financial ERP."
+    },
+    {
+      "id": "sp-src-database-platform",
+      "name": "Enterprise PostgreSQL Database Clusters",
+      "type": "Database Platform",
+      "category": "DATA_REPOSITORIES",
+      "owner_identity_id": "sp-ident-carlos-mendez",
+      "connection_status": "CONNECTED",
+      "health": "OPTIMAL",
+      "connector": "sailpoint.connector.JDBC",
+      "target_instances": [
+        "rds-postgres-core-prod",
+        "rds-pci-token-vault-prod"
+      ],
+      "description": "Relational PostgreSQL database platform governing database roles, connection privileges, and schema access rights."
+    },
+    {
+      "id": "sp-src-firewall-mgmt",
+      "name": "Palo Alto Networks Panorama Management Plane",
+      "type": "Network Security Management",
+      "category": "NETWORK_INFRASTRUCTURE",
+      "owner_identity_id": "sp-ident-david-kim",
+      "connection_status": "CONNECTED",
+      "health": "OPTIMAL",
+      "connector": "sailpoint.connector.CustomREST",
+      "target_server": "pan-mgmt-01 (10.250.1.10)",
+      "governance_note": "Synthetic governance integration modeling administrator RBAC assignments and periodic certification of firewall management privileges. Not a direct live PAN-OS API connection.",
+      "description": "Palo Alto Panorama management server governing administrator roles and device group commit privileges across perimeter and core firewalls."
+    }
+  ]
+}

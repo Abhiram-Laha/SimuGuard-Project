@@ -1,0 +1,111 @@
+{
+  "firewalls": [
+    {
+      "id": "fw-edge-01-primary",
+      "name": "Apex Internet Edge Firewall 01 (Primary Active)",
+      "role": "INTERNET_PERIMETER_HA_ACTIVE",
+      "vendor": "Palo Alto Networks",
+      "model": "PA-5450",
+      "panos_version": "PAN-OS 11.1 Nebula",
+      "serial_number": "007901000101",
+      "ha_mode": "Active-Passive",
+      "ha_pair_peer_id": "fw-edge-02-secondary",
+      "management_ip": "10.254.0.10",
+      "device_group": "DG-Internet-Perimeter",
+      "template": "TMPL-Edge-Interfaces-Routing",
+      "managed_by": "pan-mgmt-01.mgmt.apex-global.example",
+      "enforced_zones": [
+        "Untrust-Internet",
+        "Trust-DMZ",
+        "Corp-Users"
+      ],
+      "active_threat_profiles": [
+        "Strict-Enterprise-Security",
+        "Anti-Spyware-Default",
+        "Vulnerability-Protection-High"
+      ],
+      "criticality": "Critical"
+    },
+    {
+      "id": "fw-edge-02-secondary",
+      "name": "Apex Internet Edge Firewall 02 (Secondary Passive)",
+      "role": "INTERNET_PERIMETER_HA_PASSIVE",
+      "vendor": "Palo Alto Networks",
+      "model": "PA-5450",
+      "panos_version": "PAN-OS 11.1 Nebula",
+      "serial_number": "007901000102",
+      "ha_mode": "Active-Passive",
+      "ha_pair_peer_id": "fw-edge-01-primary",
+      "management_ip": "10.254.0.11",
+      "device_group": "DG-Internet-Perimeter",
+      "template": "TMPL-Edge-Interfaces-Routing",
+      "managed_by": "pan-mgmt-01.mgmt.apex-global.example",
+      "enforced_zones": [
+        "Untrust-Internet",
+        "Trust-DMZ",
+        "Corp-Users"
+      ],
+      "active_threat_profiles": [
+        "Strict-Enterprise-Security"
+      ],
+      "criticality": "Critical"
+    },
+    {
+      "id": "fw-internal-01-primary",
+      "name": "Apex Internal Segmentation Firewall 01 (Primary Active)",
+      "role": "INTERNAL_SEGMENTATION_HA_ACTIVE",
+      "vendor": "Palo Alto Networks",
+      "model": "PA-3440",
+      "panos_version": "PAN-OS 11.1 Nebula",
+      "serial_number": "007901000201",
+      "ha_mode": "Active-Passive",
+      "ha_pair_peer_id": "fw-internal-02-secondary",
+      "management_ip": "10.254.0.20",
+      "device_group": "DG-Internal-Segmentation",
+      "template": "TMPL-Internal-Segmentation",
+      "managed_by": "pan-mgmt-01.mgmt.apex-global.example",
+      "enforced_zones": [
+        "Trust-DMZ",
+        "Prod-App-Workloads",
+        "Dev-App-Workloads",
+        "Database-Backend",
+        "PCI-Cardholder-Data",
+        "Restricted-Data-Vault",
+        "Mgmt-OOB"
+      ],
+      "active_threat_profiles": [
+        "Strict-Enterprise-Security",
+        "PCI-Enclave-Protection"
+      ],
+      "criticality": "Critical"
+    },
+    {
+      "id": "fw-internal-02-secondary",
+      "name": "Apex Internal Segmentation Firewall 02 (Secondary Passive)",
+      "role": "INTERNAL_SEGMENTATION_HA_PASSIVE",
+      "vendor": "Palo Alto Networks",
+      "model": "PA-3440",
+      "panos_version": "PAN-OS 11.1 Nebula",
+      "serial_number": "007901000202",
+      "ha_mode": "Active-Passive",
+      "ha_pair_peer_id": "fw-internal-01-primary",
+      "management_ip": "10.254.0.21",
+      "device_group": "DG-Internal-Segmentation",
+      "template": "TMPL-Internal-Segmentation",
+      "managed_by": "pan-mgmt-01.mgmt.apex-global.example",
+      "enforced_zones": [
+        "Trust-DMZ",
+        "Prod-App-Workloads",
+        "Dev-App-Workloads",
+        "Database-Backend",
+        "PCI-Cardholder-Data",
+        "Restricted-Data-Vault",
+        "Mgmt-OOB"
+      ],
+      "active_threat_profiles": [
+        "Strict-Enterprise-Security"
+      ],
+      "criticality": "Critical"
+    }
+  ]
+}

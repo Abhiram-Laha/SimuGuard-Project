@@ -1,0 +1,79 @@
+flowchart TD
+    %% Apex Global Technologies - Detailed Enterprise Network Architecture
+
+    subgraph Internet_Edge ["External Edge Ingress"]
+        INET["Public Internet Users"]
+        VPN_USERS["GlobalProtect Corporate Users"]
+    end
+
+    subgraph Edge_Security ["Perimeter Firewall Layer: PA-5450 HA Pair (PAN-OS 11.1)"]
+        FW_E1["fw-edge-01-primary (Active)<br/>vr-default-edge"]
+        FW_E2["fw-edge-02-secondary (Passive)<br/>vr-default-edge"]
+        FW_E1 <==>|HA1 Control (Heartbeat) / HA2 Data (Session Sync)| FW_E2
+        
+        NAT_DNAT["Inbound Destination NAT:<br/>Public IP -> ALB 10.100.4.15"]
+        NAT_PAT["Outbound Source PAT:<br/>10.100.0.0/16 -> 198.51.100.1"]
+    end
+
+    INET -->|Ingress 198.51.100.1:443| FW_E1
+    VPN_USERS -->|IPSec/SSL VPN Ingress| FW_E1
+
+    subgraph Edge_Zones ["Perimeter Security Zones & Subnets"]
+        subgraph Zone_DMZ ["Zone: Trust-DMZ"]
+            DMZ_SUBNET["Subnet: subnet-prod-dmz-01<br/>10.100.4.0/24 (VLAN 104)<br/>ALB Ingress & Analytics Workers"]
+        end
+
+        subgraph Zone_Corp ["Zone: Corp-Users"]
+            CORP_SUBNET["Subnet: subnet-corp-campus-01<br/>10.10.0.0/16 (VLAN 10)<br/>Employee Workstations & Laptops"]
+        end
+
+        subgraph Zone_Transit ["Zone: Transit-Internal"]
+            TRANSIT_SUBNET["Interconnect Subnet: subnet-transit-interconnect<br/>10.255.0.0/30 (Point-to-Point Inter-Firewall)"]
+        end
+    end
+
+    FW_E1 -->|ethernet1/2| DMZ_SUBNET
+    FW_E1 -->|ethernet1/3| CORP_SUBNET
+    FW_E1 -->|ethernet1/4 (10.255.0.1/30)| TRANSIT_SUBNET
+
+    subgraph Internal_Security ["Internal Segmentation Layer: PA-3440 HA Pair (PAN-OS 11.1)"]
+        FW_I1["fw-internal-01-primary (Active)<br/>vr-internal-core"]
+        FW_I2["fw-internal-02-secondary (Passive)<br/>vr-internal-core"]
+        FW_I1 <==>|HA1 Control / HA2 Data (Session State)| FW_I2
+    end
+
+    TRANSIT_SUBNET -->|ethernet1/1 (10.255.0.2/30)| FW_I1
+
+    subgraph Internal_Zones ["Internal Workload & Data Zones"]
+        subgraph Zone_Prod ["Zone: Prod-App-Workloads"]
+            PROD_SUBNET["Subnet: subnet-prod-app-01<br/>10.100.10.0/23 (VLAN 110)<br/>Customer Portal EKS Pods"]
+        end
+
+        subgraph Zone_Dev ["Zone: Dev-App-Workloads"]
+            DEV_SUBNET["Subnet: subnet-dev-app-01<br/>10.200.10.0/23 (VLAN 210)<br/>Dev Sandbox Pods & Microservices"]
+        end
+
+        subgraph Zone_DB ["Zone: Database-Backend"]
+            DB_SUBNET["Subnet: subnet-prod-db-01<br/>10.100.20.0/24 (VLAN 120)<br/>PostgreSQL Core Relational Cluster"]
+        end
+
+        subgraph Zone_PCI ["Zone: PCI-Cardholder-Data"]
+            PCI_SUBNET["Subnet: subnet-prod-pci-01<br/>10.100.30.0/24 (VLAN 130)<br/>Isolated Tokenizer Enclave"]
+        end
+
+        subgraph Zone_Vault ["Zone: Restricted-Data-Vault"]
+            VAULT_SUBNET["Subnet: subnet-prod-vault-01<br/>10.100.40.0/24 (VLAN 140)<br/>NIST SP 800-171 CUI Financial Vault"]
+        end
+    end
+
+    FW_I1 -->|ethernet1/2| PROD_SUBNET
+    FW_I1 -->|ethernet1/3| DEV_SUBNET
+    FW_I1 -->|ethernet1/4| DB_SUBNET
+    FW_I1 -->|ethernet1/5 (Strict PCI NACL)| PCI_SUBNET
+    FW_I1 -->|ethernet1/6 (NIST Isolated)| VAULT_SUBNET
+
+    subgraph Central_Management ["Central Network Management (OOB-Mgmt)"]
+        PAN["Panorama Management Server: pan-mgmt-01<br/>10.254.1.10 (M-600 Virtual)<br/>Zone: Mgmt-OOB (10.254.1.0/24)"]
+        PAN -.->|SSL 3978 Dynamic Template Push| FW_E1
+        PAN -.->|SSL 3978 Dynamic Template Push| FW_I1
+    end

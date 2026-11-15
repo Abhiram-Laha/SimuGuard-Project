@@ -1,0 +1,62 @@
+flowchart TD
+    %% Apex Global Technologies - AWS Multi-Account Architecture
+
+    subgraph AWS_Org ["AWS Organization: o-apexglobal01"]
+        SCP["Service Control Policies (SCPs):<br/>Deny Leaving Org, Deny Disabling CloudTrail, Enforce Encryption"]
+
+        subgraph Account_Prod ["Production Account: 111122223333 (Apex-Production)"]
+            subgraph VPC_Prod ["VPC: vpc-prod-us-east-1 (10.100.0.0/16)"]
+                ALB["ALB: alb-customer-portal-ingress<br/>sg-customer-portal-alb"]
+                
+                subgraph EKS_Nodes ["EKS Kubernetes Workloads"]
+                    EKS_PORTAL["eks-customer-portal-cluster<br/>role-customer-portal-backend"]
+                    EKS_ANALYTICS["eks-analytics-worker-pool<br/>role-analytics-ingestion-svc<br/>sg-analytics-web-01"]
+                    EKS_PAYMENT["eks-payment-processor-pool<br/>role-payment-processor-pci<br/>sg-payment-service-pci"]
+                end
+                
+                subgraph RDS_Tier ["Relational Databases"]
+                    RDS_POSTGRES["RDS PostgreSQL Multi-AZ<br/>rds-postgres-core-prod<br/>sg-rds-postgres-prod"]
+                    RDS_TOKEN["RDS PCI Token Vault<br/>rds-pci-token-vault-prod<br/>Strict DB Isolation"]
+                end
+                
+                subgraph S3_Tier ["Enterprise S3 Storage"]
+                    S3_CUI["s3-enterprise-cui-vault<br/>(NIST SP 800-171 CUI)"]
+                    S3_PII["s3-customer-pii-lake-prod<br/>(Customer PII Data Lake)"]
+                    S3_PCI["s3-pci-audit-records-prod<br/>(PCI Cardholder Audit Records)"]
+                end
+
+                subgraph KMS_Tier ["KMS Customer Managed Keys"]
+                    KMS_CUI["kms-cui-vault"]
+                    KMS_PCI["kms-pci-token"]
+                    KMS_DB["kms-customer-db"]
+                end
+            end
+        end
+
+        subgraph Account_Dev ["Development Account: 222233334444 (Apex-Development)"]
+            subgraph VPC_Dev ["VPC: vpc-dev-us-east-1 (10.200.0.0/16)"]
+                EKS_DEV["eks-dev-cluster<br/>role-dev-developer-sandbox<br/>sg-dev-k8s-nodes"]
+                S3_DEV["s3-dev-staging-telemetry<br/>(Staging Telemetry Ingestion)"]
+            end
+        end
+
+        subgraph Account_Sec ["Security Account: 333344445555 (Apex-Security)"]
+            subgraph VPC_Sec ["VPC: vpc-sec-us-east-1 (10.250.0.0/16)"]
+                EC2_SIEM["ec2-sec-siem-forwarder<br/>role-secops-incident-responder<br/>sg-sec-siem-forwarder"]
+                S3_LOGS["s3-central-security-cloudtrail-sec<br/>(Multi-Account CloudTrail Log Vault)"]
+            end
+        end
+    end
+
+    ALB --> EKS_PORTAL
+    EKS_PORTAL --> RDS_POSTGRES
+    EKS_PAYMENT --> RDS_TOKEN
+    EKS_ANALYTICS -.->|CROSS_ZONE_IAM_PATH| S3_CUI
+
+    S3_CUI -.->|ENCRYPTED_BY| KMS_CUI
+    RDS_TOKEN -.->|ENCRYPTED_BY| KMS_PCI
+    RDS_POSTGRES -.->|ENCRYPTED_BY| KMS_DB
+
+    Account_Prod ==>|Centralized CloudTrail Logs| S3_LOGS
+    Account_Dev ==>|Centralized CloudTrail Logs| S3_LOGS
+    EC2_SIEM --> S3_LOGS

@@ -1,0 +1,37 @@
+{
+  "accounts": [
+    {
+      "id": "111122223333",
+      "name": "Apex-Production",
+      "environment": "Production",
+      "ou": "ou-apex-workloads",
+      "email": "aws-prod@apex-global.example",
+      "status": "ACTIVE",
+      "criticality": "Critical",
+      "default_region": "us-east-1",
+      "description": "Primary revenue-generating production services and restricted data vaults"
+    },
+    {
+      "id": "222233334444",
+      "name": "Apex-Development",
+      "environment": "Development",
+      "ou": "ou-apex-workloads",
+      "email": "aws-dev@apex-global.example",
+      "status": "ACTIVE",
+      "criticality": "Medium",
+      "default_region": "us-east-1",
+      "description": "Developer sandbox, staging microservices, and non-sensitive test data"
+    },
+    {
+      "id": "333344445555",
+      "name": "Apex-Security",
+      "environment": "Security",
+      "ou": "ou-apex-security",
+      "email": "aws-sec@apex-global.example",
+      "status": "ACTIVE",
+      "criticality": "Critical",
+      "default_region": "us-east-1",
+      "description": "Centralized CloudTrail log aggregation, GuardDuty, and SecOps audit vault"
+    }
+  ]
+}

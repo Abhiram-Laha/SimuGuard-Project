@@ -1,0 +1,74 @@
+{
+  "network_acls": [
+    {
+      "id": "nacl-prod-default",
+      "vpc_id": "vpc-prod-us-east-1",
+      "name": "nacl-production-default",
+      "associated_subnets": [
+        "subnet-prod-app-private",
+        "subnet-prod-db-private"
+      ],
+      "inbound_rules": [
+        {
+          "rule_number": 100,
+          "protocol": "-1",
+          "action": "allow",
+          "cidr_block": "10.100.0.0/16"
+        },
+        {
+          "rule_number": 200,
+          "protocol": "tcp",
+          "action": "allow",
+          "cidr_block": "0.0.0.0/0",
+          "port_range": { "from": 1024, "to": 65535 }
+        }
+      ],
+      "outbound_rules": [
+        {
+          "rule_number": 100,
+          "protocol": "-1",
+          "action": "allow",
+          "cidr_block": "0.0.0.0/0"
+        }
+      ]
+    },
+    {
+      "id": "nacl-pci-enclave",
+      "vpc_id": "vpc-prod-us-east-1",
+      "name": "nacl-pci-strict-enclave",
+      "associated_subnets": [
+        "subnet-prod-pci-private"
+      ],
+      "inbound_rules": [
+        {
+          "rule_number": 100,
+          "protocol": "tcp",
+          "action": "allow",
+          "cidr_block": "10.100.10.0/23",
+          "port_range": { "from": 8443, "to": 8443 }
+        },
+        {
+          "rule_number": 999,
+          "protocol": "-1",
+          "action": "deny",
+          "cidr_block": "0.0.0.0/0"
+        }
+      ],
+      "outbound_rules": [
+        {
+          "rule_number": 100,
+          "protocol": "tcp",
+          "action": "allow",
+          "cidr_block": "10.100.20.0/24",
+          "port_range": { "from": 5432, "to": 5432 }
+        },
+        {
+          "rule_number": 999,
+          "protocol": "-1",
+          "action": "deny",
+          "cidr_block": "0.0.0.0/0"
+        }
+      ]
+    }
+  ]
+}

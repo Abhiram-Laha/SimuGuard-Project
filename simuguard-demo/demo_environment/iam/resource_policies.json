@@ -1,0 +1,67 @@
+{
+  "resource_policies": [
+    {
+      "id": "policy-s3-cui-vault-strict",
+      "resource_type": "Storage_S3_Bucket",
+      "resource_id": "s3-enterprise-cui-vault",
+      "arn": "arn:aws:s3:::corp-restricted-cui-financial-vault",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "EnforceTLSRequestsOnly",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:*",
+            "Resource": [
+              "arn:aws:s3:::corp-restricted-cui-financial-vault",
+              "arn:aws:s3:::corp-restricted-cui-financial-vault/*"
+            ],
+            "Condition": {
+              "Bool": {
+                "aws:SecureTransport": "false"
+              }
+            }
+          },
+          {
+            "Sid": "RestrictCUIAccessToFinanceRoleOnly",
+            "Effect": "Deny",
+            "NotPrincipal": {
+              "AWS": [
+                "arn:aws:iam::111122223333:role/role-financial-reporting-svc",
+                "arn:aws:iam::111122223333:root"
+              ]
+            },
+            "Action": [
+              "s3:GetObject",
+              "s3:PutObject",
+              "s3:DeleteObject"
+            ],
+            "Resource": "arn:aws:s3:::corp-restricted-cui-financial-vault/*"
+          }
+        ]
+      },
+      "description": "Strict resource-based policy restricting CUI access to authorized financial reporting role"
+    },
+    {
+      "id": "policy-s3-dev-staging-public-leak",
+      "resource_type": "Storage_S3_Bucket",
+      "resource_id": "s3-dev-staging-telemetry",
+      "arn": "arn:aws:s3:::apex-dev-staging-telemetry",
+      "security_posture": "INTENTIONAL_MISCONFIG_PUBLIC_BUCKET_POLICY",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "OverlyBroadPublicRead",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::apex-dev-staging-telemetry/*"
+          }
+        ]
+      },
+      "description": "⚠️ Insecure resource policy: Unrestricted wildcard read access open to the public"
+    }
+  ]
+}

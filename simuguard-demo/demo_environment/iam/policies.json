@@ -1,0 +1,216 @@
+{
+  "policies": [
+    {
+      "id": "policy-s3-telemetry-write-only",
+      "name": "S3TelemetryWriteOnly",
+      "arn": "arn:aws:iam::111122223333:policy/S3TelemetryWriteOnly",
+      "type": "Customer_Managed",
+      "security_posture": "SECURE_LEAST_PRIVILEGE",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "AllowTelemetryStagingUploads",
+            "Effect": "Allow",
+            "Action": [
+              "s3:PutObject",
+              "s3:AbortMultipartUpload"
+            ],
+            "Resource": [
+              "arn:aws:s3:::apex-dev-staging-telemetry/incoming/*"
+            ]
+          }
+        ]
+      },
+      "description": "Scoped least-privilege policy allowing upload strictly to unclassified telemetry bucket"
+    },
+    {
+      "id": "policy-amazon-s3-full-access",
+      "name": "AmazonS3FullAccess",
+      "arn": "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+      "type": "AWS_Managed",
+      "security_posture": "INSECURE_OVERPRIVILEGED",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "FullS3WildcardAccess",
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": "*"
+          }
+        ]
+      },
+      "description": "⚠️ Dangerous managed wildcard policy: grants unrestricted access to all buckets including CUI vault"
+    },
+    {
+      "id": "policy-administrator-access",
+      "name": "AdministratorAccess",
+      "arn": "arn:aws:iam::aws:policy/AdministratorAccess",
+      "type": "AWS_Managed",
+      "security_posture": "INSECURE_CATASTROPHIC_OVERPRIVILEGED",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "FullRootWildcard",
+            "Effect": "Allow",
+            "Action": "*",
+            "Resource": "*"
+          }
+        ]
+      },
+      "description": "⚠️ Full root cloud administrative access"
+    },
+    {
+      "id": "policy-pci-token-vault-scoped",
+      "name": "PCITokenVaultAccess",
+      "arn": "arn:aws:iam::111122223333:policy/PCITokenVaultAccess",
+      "type": "Customer_Managed",
+      "security_posture": "SECURE_LEAST_PRIVILEGE",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "AllowTokenDbAccess",
+            "Effect": "Allow",
+            "Action": [
+              "rds-db:connect"
+            ],
+            "Resource": [
+              "arn:aws:rds-db:us-east-1:111122223333:dbuser:rds-pci-token-vault-prod/token_svc_user"
+            ]
+          }
+        ]
+      },
+      "description": "Strictly scoped IAM authentication to PCI database enclave"
+    },
+    {
+      "id": "policy-customer-portal-db",
+      "name": "CustomerPortalDatabaseAccess",
+      "arn": "arn:aws:iam::111122223333:policy/CustomerPortalDatabaseAccess",
+      "type": "Customer_Managed",
+      "security_posture": "SECURE_LEAST_PRIVILEGE",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "AllowCustomerDataReadWrite",
+            "Effect": "Allow",
+            "Action": [
+              "s3:GetObject",
+              "s3:PutObject"
+            ],
+            "Resource": [
+              "arn:aws:s3:::apex-customer-pii-lake-prod/portal-assets/*"
+            ]
+          }
+        ]
+      },
+      "description": "Access scoped to customer portal prefix in customer PII data lake"
+    },
+    {
+      "id": "policy-workload-boundary",
+      "name": "ApexWorkloadBoundary",
+      "arn": "arn:aws:iam::111122223333:policy/ApexWorkloadBoundary",
+      "type": "Permission_Boundary",
+      "security_posture": "GOVERNANCE_CONTROL",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "DenyAccessToRestrictedCUIVault",
+            "Effect": "Deny",
+            "Action": [
+              "s3:*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::corp-restricted-cui-financial-vault",
+              "arn:aws:s3:::corp-restricted-cui-financial-vault/*"
+            ]
+          }
+        ]
+      },
+      "description": "Permission boundary preventing workloads from ever accessing the Restricted CUI Financial Vault"
+    },
+    {
+      "id": "policy-kms-decrypt-payment-scoped",
+      "name": "KmsDecryptPaymentScoped",
+      "arn": "arn:aws:iam::111122223333:policy/KmsDecryptPaymentScoped",
+      "type": "Customer_Managed",
+      "security_posture": "SECURE_LEAST_PRIVILEGE",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "AllowScopedKmsDecrypt",
+            "Effect": "Allow",
+            "Action": ["kms:Decrypt", "kms:GenerateDataKey"],
+            "Resource": ["arn:aws:kms:us-east-1:111122223333:key/k-pci-token-encryption"]
+          }
+        ]
+      },
+      "description": "Scoped KMS decryption rights for PCI tokenization workloads"
+    },
+    {
+      "id": "policy-pci-strict-boundary",
+      "name": "ApexStrictPCIBoundary",
+      "arn": "arn:aws:iam::111122223333:policy/ApexStrictPCIBoundary",
+      "type": "Permission_Boundary",
+      "security_posture": "GOVERNANCE_CONTROL",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "EnforcePCIEnclaveIsolation",
+            "Effect": "Deny",
+            "Action": ["s3:*", "dynamodb:*"],
+            "Resource": ["*"]
+          }
+        ]
+      },
+      "description": "Strict boundary preventing PCI identities from accessing general corporate data stores"
+    },
+    {
+      "id": "policy-secops-cross-account-audit",
+      "name": "CrossAccountSecOpsAuditPolicy",
+      "arn": "arn:aws:iam::333344445555:policy/CrossAccountSecOpsAuditPolicy",
+      "type": "Customer_Managed",
+      "security_posture": "SECURE_LEAST_PRIVILEGE",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "AllowCrossAccountAuditAssume",
+            "Effect": "Allow",
+            "Action": ["sts:AssumeRole"],
+            "Resource": ["arn:aws:iam::111122223333:role/role-secops-audit-agent"]
+          }
+        ]
+      },
+      "description": "SecOps cross-account assume role policy with mandatory MFA condition"
+    },
+    {
+      "id": "policy-dev-sandbox-boundary",
+      "name": "ApexDevSandboxBoundary",
+      "arn": "arn:aws:iam::222233334444:policy/ApexDevSandboxBoundary",
+      "type": "Permission_Boundary",
+      "security_posture": "GOVERNANCE_CONTROL",
+      "document": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "DenyProductionResourceAccess",
+            "Effect": "Deny",
+            "Action": ["*"],
+            "Resource": [
+              "arn:aws:*:*:111122223333:*",
+              "arn:aws:*:*:333344445555:*"
+            ]
+          }
+        ]
+      },
+      "description": "Developer sandbox boundary preventing privilege escalation to production or security accounts"
+    }
+  ]
+}

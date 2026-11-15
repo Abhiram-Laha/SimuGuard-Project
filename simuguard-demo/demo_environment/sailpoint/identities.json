@@ -1,0 +1,377 @@
+{
+  "identities": [
+    {
+      "id": "sp-ident-sarah-chen",
+      "display_name": "Sarah Chen",
+      "email": "sarah.chen@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Information Security",
+      "job_title": "Chief Information Security Officer (CISO)",
+      "manager_id": null,
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-privileged-admins",
+      "risk_classification": "CRITICAL",
+      "source_accounts": [
+        "sp-acct-ad-sarah-chen",
+        "sp-acct-entra-sarah-chen",
+        "sp-acct-aws-secops-sarah-chen"
+      ]
+    },
+    {
+      "id": "sp-ident-marcus-vance",
+      "display_name": "Marcus Vance",
+      "email": "marcus.vance@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Platform Architecture",
+      "job_title": "Principal Enterprise Architect",
+      "manager_id": "sp-ident-sarah-chen",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-privileged-admins",
+      "risk_classification": "HIGH",
+      "source_accounts": [
+        "sp-acct-ad-marcus-vance",
+        "sp-acct-entra-marcus-vance",
+        "sp-acct-aws-prod-marcus-vance"
+      ]
+    },
+    {
+      "id": "sp-ident-elena-rodriguez",
+      "display_name": "Elena Rodriguez",
+      "email": "elena.rodriguez@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Security Operations",
+      "job_title": "Lead SecOps Incident Responder",
+      "manager_id": "sp-ident-sarah-chen",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-privileged-admins",
+      "risk_classification": "HIGH",
+      "source_accounts": [
+        "sp-acct-ad-elena-rodriguez",
+        "sp-acct-entra-elena-rodriguez",
+        "sp-acct-aws-secops-elena-rodriguez",
+        "sp-acct-pan-elena-rodriguez"
+      ]
+    },
+    {
+      "id": "sp-ident-david-kim",
+      "display_name": "David Kim",
+      "email": "david.kim@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Network Security Engineering",
+      "job_title": "Senior Network Security Engineer",
+      "manager_id": "sp-ident-elena-rodriguez",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-privileged-admins",
+      "risk_classification": "HIGH",
+      "source_accounts": [
+        "sp-acct-ad-david-kim",
+        "sp-acct-entra-david-kim",
+        "sp-acct-pan-david-kim"
+      ]
+    },
+    {
+      "id": "sp-ident-priya-patel",
+      "display_name": "Priya Patel",
+      "email": "priya.patel@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Infrastructure & Cloud DevOps",
+      "job_title": "Lead DevOps & SRE Engineer",
+      "manager_id": "sp-ident-marcus-vance",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-privileged-admins",
+      "risk_classification": "HIGH",
+      "source_accounts": [
+        "sp-acct-ad-priya-patel",
+        "sp-acct-entra-priya-patel",
+        "sp-acct-aws-dev-priya-patel",
+        "sp-acct-aws-prod-priya-patel"
+      ]
+    },
+    {
+      "id": "sp-ident-alex-morgan",
+      "display_name": "Alex Morgan",
+      "email": "alex.morgan@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Cloud Platform Operations",
+      "job_title": "Principal Cloud Administrator",
+      "manager_id": "sp-ident-marcus-vance",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-privileged-admins",
+      "risk_classification": "CRITICAL",
+      "source_accounts": [
+        "sp-acct-ad-alex-morgan",
+        "sp-acct-entra-alex-morgan",
+        "sp-acct-aws-prod-alex-morgan",
+        "sp-acct-aws-dev-alex-morgan",
+        "sp-acct-aws-secops-alex-morgan"
+      ]
+    },
+    {
+      "id": "sp-ident-rachel-green",
+      "display_name": "Rachel Green",
+      "email": "rachel.green@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "FinTech Software Engineering",
+      "job_title": "Senior Backend FinTech Developer",
+      "manager_id": "sp-ident-priya-patel",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-corporate-employees",
+      "risk_classification": "MEDIUM",
+      "source_accounts": [
+        "sp-acct-ad-rachel-green",
+        "sp-acct-entra-rachel-green",
+        "sp-acct-aws-dev-rachel-green"
+      ]
+    },
+    {
+      "id": "sp-ident-james-wilson",
+      "display_name": "James Wilson",
+      "email": "james.wilson@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Data & Analytics Engineering",
+      "job_title": "Lead Analytics Data Engineer",
+      "manager_id": "sp-ident-marcus-vance",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-corporate-employees",
+      "risk_classification": "MEDIUM",
+      "source_accounts": [
+        "sp-acct-ad-james-wilson",
+        "sp-acct-entra-james-wilson",
+        "sp-acct-aws-dev-james-wilson",
+        "sp-acct-aws-prod-james-wilson"
+      ]
+    },
+    {
+      "id": "sp-ident-ananya-rao",
+      "display_name": "Ananya Rao",
+      "email": "ananya.rao@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Payment Tokenization Operations",
+      "job_title": "PCI DSS Security & Tokenization Custodian",
+      "manager_id": "sp-ident-sarah-chen",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-privileged-admins",
+      "risk_classification": "CRITICAL",
+      "source_accounts": [
+        "sp-acct-ad-ananya-rao",
+        "sp-acct-entra-ananya-rao",
+        "sp-acct-db-ananya-rao",
+        "sp-acct-aws-prod-ananya-rao"
+      ]
+    },
+    {
+      "id": "sp-ident-carlos-mendez",
+      "display_name": "Carlos Mendez",
+      "email": "carlos.mendez@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Database Operations",
+      "job_title": "Lead PostgreSQL Database Administrator",
+      "manager_id": "sp-ident-marcus-vance",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-privileged-admins",
+      "risk_classification": "HIGH",
+      "source_accounts": [
+        "sp-acct-ad-carlos-mendez",
+        "sp-acct-entra-carlos-mendez",
+        "sp-acct-db-carlos-mendez"
+      ]
+    },
+    {
+      "id": "sp-ident-emily-watson",
+      "display_name": "Emily Watson",
+      "email": "emily.watson@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Corporate Treasury & Finance",
+      "job_title": "Senior Treasury & Financial Analyst",
+      "manager_id": "sp-ident-sarah-chen",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-corporate-employees",
+      "risk_classification": "MEDIUM",
+      "source_accounts": [
+        "sp-acct-ad-emily-watson",
+        "sp-acct-entra-emily-watson",
+        "sp-acct-apps-emily-watson"
+      ]
+    },
+    {
+      "id": "sp-ident-michael-brown",
+      "display_name": "Michael Brown",
+      "email": "michael.brown@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "GRC Compliance & Audit",
+      "job_title": "Principal Internal Compliance Auditor",
+      "manager_id": "sp-ident-sarah-chen",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-corporate-employees",
+      "risk_classification": "MEDIUM",
+      "source_accounts": [
+        "sp-acct-ad-michael-brown",
+        "sp-acct-entra-michael-brown",
+        "sp-acct-aws-secops-michael-brown"
+      ]
+    },
+    {
+      "id": "sp-ident-vikram-sharma",
+      "display_name": "Vikram Sharma",
+      "email": "vikram.sharma@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Core Banking Services",
+      "job_title": "Backend Microservices Developer",
+      "manager_id": "sp-ident-priya-patel",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-corporate-employees",
+      "risk_classification": "LOW",
+      "source_accounts": [
+        "sp-acct-ad-vikram-sharma",
+        "sp-acct-entra-vikram-sharma",
+        "sp-acct-aws-dev-vikram-sharma"
+      ]
+    },
+    {
+      "id": "sp-ident-jessica-taylor",
+      "display_name": "Jessica Taylor",
+      "email": "jessica.taylor@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Digital Banking Products",
+      "job_title": "Product Owner - Customer Web Portal",
+      "manager_id": "sp-ident-marcus-vance",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-corporate-employees",
+      "risk_classification": "MEDIUM",
+      "source_accounts": [
+        "sp-acct-ad-jessica-taylor",
+        "sp-acct-entra-jessica-taylor",
+        "sp-acct-apps-jessica-taylor"
+      ]
+    },
+    {
+      "id": "sp-ident-kevin-lee",
+      "display_name": "Kevin Lee",
+      "email": "kevin.lee@apex-global.example",
+      "employment_type": "EMPLOYEE",
+      "department": "Application Security (AppSec)",
+      "job_title": "Senior Application Security Engineer",
+      "manager_id": "sp-ident-elena-rodriguez",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-corporate-employees",
+      "risk_classification": "MEDIUM",
+      "source_accounts": [
+        "sp-acct-ad-kevin-lee",
+        "sp-acct-entra-kevin-lee",
+        "sp-acct-aws-dev-kevin-lee"
+      ]
+    },
+    {
+      "id": "sp-ident-sophia-alvarez",
+      "display_name": "Sophia Alvarez",
+      "email": "sophia.alvarez@vendor.apex-global.example",
+      "employment_type": "CONTRACTOR",
+      "department": "Cloud Platform Operations (Contract)",
+      "job_title": "External Cloud Infrastructure Consultant",
+      "manager_id": "sp-ident-alex-morgan",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-external-contractors",
+      "risk_classification": "HIGH",
+      "source_accounts": [
+        "sp-acct-ad-sophia-alvarez",
+        "sp-acct-entra-sophia-alvarez",
+        "sp-acct-aws-dev-sophia-alvarez"
+      ]
+    },
+    {
+      "id": "sp-ident-liam-oconnor",
+      "display_name": "Liam O'Connor",
+      "email": "liam.oconnor@vendor.apex-global.example",
+      "employment_type": "CONTRACTOR",
+      "department": "Database Optimization (Contract)",
+      "job_title": "External PostgreSQL Performance Specialist",
+      "manager_id": "sp-ident-carlos-mendez",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-external-contractors",
+      "risk_classification": "MEDIUM",
+      "source_accounts": [
+        "sp-acct-ad-liam-oconnor",
+        "sp-acct-entra-liam-oconnor"
+      ]
+    },
+    {
+      "id": "sp-ident-olivia-smith",
+      "display_name": "Olivia Smith",
+      "email": "olivia.smith@vendor.apex-global.example",
+      "employment_type": "CONTRACTOR",
+      "department": "QA Automation (Contract)",
+      "job_title": "Contract QA Testing Engineer",
+      "manager_id": "sp-ident-priya-patel",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-external-contractors",
+      "risk_classification": "LOW",
+      "source_accounts": [
+        "sp-acct-ad-olivia-smith",
+        "sp-acct-entra-olivia-smith",
+        "sp-acct-aws-dev-olivia-smith"
+      ]
+    },
+    {
+      "id": "sp-ident-svc-analytics-ingest",
+      "display_name": "Service: Analytics Ingestion Workload",
+      "email": "svc-analytics-ingest@service.apex-global.example",
+      "employment_type": "SERVICE",
+      "department": "Data & Analytics Engineering",
+      "job_title": "Automated Analytics Pod Workload Identity",
+      "manager_id": "sp-ident-james-wilson",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-service-identities",
+      "risk_classification": "HIGH",
+      "source_accounts": [
+        "sp-acct-aws-prod-svc-analytics"
+      ]
+    },
+    {
+      "id": "sp-ident-svc-portal-backend",
+      "display_name": "Service: Customer Portal Backend",
+      "email": "svc-portal-backend@service.apex-global.example",
+      "employment_type": "SERVICE",
+      "department": "FinTech Digital Banking",
+      "job_title": "Automated Customer Banking Pod Identity",
+      "manager_id": "sp-ident-jessica-taylor",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-service-identities",
+      "risk_classification": "HIGH",
+      "source_accounts": [
+        "sp-acct-aws-prod-svc-portal",
+        "sp-acct-db-svc-portal"
+      ]
+    },
+    {
+      "id": "sp-ident-svc-payment-processor",
+      "display_name": "Service: PCI Payment Processor",
+      "email": "svc-payment-processor@service.apex-global.example",
+      "employment_type": "SERVICE",
+      "department": "Payment Security & Compliance",
+      "job_title": "Automated PCI Payment Tokenizer Identity",
+      "manager_id": "sp-ident-ananya-rao",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-service-identities",
+      "risk_classification": "CRITICAL",
+      "source_accounts": [
+        "sp-acct-aws-prod-svc-payment",
+        "sp-acct-db-svc-payment"
+      ]
+    },
+    {
+      "id": "sp-ident-svc-cicd-pipeline",
+      "display_name": "Service: Production CI/CD Deployment Pipeline",
+      "email": "svc-cicd-pipeline@service.apex-global.example",
+      "employment_type": "SERVICE",
+      "department": "Infrastructure & Cloud DevOps",
+      "job_title": "Automated Production Release Pipeline Identity",
+      "manager_id": "sp-ident-priya-patel",
+      "lifecycle_state": "ACTIVE",
+      "identity_profile_id": "sp-idp-service-identities",
+      "risk_classification": "CRITICAL",
+      "source_accounts": [
+        "sp-acct-aws-prod-svc-cicd"
+      ]
+    }
+  ]
+}

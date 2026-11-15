@@ -1,0 +1,70 @@
+{
+  "certifications": [
+    {
+      "id": "sp-cert-2026-q1-privileged-access",
+      "campaign_name": "Q1 2026 Executive Review: Privileged Cloud & Firewall Access",
+      "campaign_type": "PRIVILEGED_ACCESS_REVIEW",
+      "target_identity_id": "sp-ident-alex-morgan",
+      "reviewer_identity_id": "sp-ident-sarah-chen",
+      "reviewed_item_type": "ACCESS_PROFILE",
+      "reviewed_item_id": "sp-ap-aws-prod-admin",
+      "decision": "APPROVED",
+      "certification_status": "COMPLETED",
+      "decision_timestamp": "2026-03-31T17:00:00Z",
+      "comments": "Re-certified root AWS Production administration for Cloud Platform Lead."
+    },
+    {
+      "id": "sp-cert-2026-q1-pci-cde-review",
+      "campaign_name": "Q1 2026 PCI-DSS Req 7.1 Semi-Annual User Review",
+      "campaign_type": "COMPLIANCE_CERTIFICATION",
+      "target_identity_id": "sp-ident-ananya-rao",
+      "reviewer_identity_id": "sp-ident-sarah-chen",
+      "reviewed_item_type": "ACCESS_PROFILE",
+      "reviewed_item_id": "sp-ap-db-token-admin",
+      "decision": "APPROVED",
+      "certification_status": "COMPLETED",
+      "decision_timestamp": "2026-03-30T14:30:00Z",
+      "comments": "Confirmed exclusive tokenization custodian role in PCI enclave."
+    },
+    {
+      "id": "sp-cert-2026-q2-contractor-review",
+      "campaign_name": "Q2 2026 Third-Party Contractor Access Certification",
+      "campaign_type": "MANAGER_REVIEW",
+      "target_identity_id": "sp-ident-sophia-alvarez",
+      "reviewer_identity_id": "sp-ident-alex-morgan",
+      "reviewed_item_type": "ACCESS_PROFILE",
+      "reviewed_item_id": "sp-ap-aws-dev-poweruser",
+      "decision": "PENDING_REVIEW",
+      "certification_status": "ACTIVE_CAMPAIGN",
+      "decision_timestamp": null,
+      "governance_note": "A certification decision of REVOCATION is not proof of deprovisioning until downstream provisioning reconciliation confirms removal.",
+      "comments": "Review in progress; contract extension pending HR confirmation."
+    },
+    {
+      "id": "sp-cert-2025-q4-dormant-revoked",
+      "campaign_name": "Q4 2025 Dormant Account & Stale Entitlement Cleanup",
+      "campaign_type": "AUTOMATED_INACTIVITY_REVIEW",
+      "target_identity_id": "sp-ident-liam-oconnor",
+      "reviewer_identity_id": "sp-ident-carlos-mendez",
+      "reviewed_item_type": "ENTITLEMENT",
+      "reviewed_item_id": "sp-ent-db-core-read",
+      "decision": "REVOKED",
+      "certification_status": "COMPLETED",
+      "decision_timestamp": "2025-12-31T23:59:00Z",
+      "comments": "Dormant entitlement revoked due to 90 days inactivity on database source."
+    },
+    {
+      "id": "sp-cert-2026-q1-expired-emergency",
+      "campaign_name": "Q1 2026 Time-Bound Access Expiration Audit",
+      "campaign_type": "EXPIRATION_AUDIT",
+      "target_identity_id": "sp-ident-david-kim",
+      "reviewer_identity_id": "sp-ident-elena-rodriguez",
+      "reviewed_item_type": "ACCESS_PROFILE",
+      "reviewed_item_id": "sp-ap-paloalto-firewall-admin",
+      "decision": "EXPIRED",
+      "certification_status": "COMPLETED",
+      "decision_timestamp": "2026-11-14T06:00:00Z",
+      "comments": "Emergency break-glass access expired automatically after 4-hour window."
+    }
+  ]
+}

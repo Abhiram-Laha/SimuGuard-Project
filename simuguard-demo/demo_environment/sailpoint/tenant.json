@@ -1,0 +1,22 @@
+{
+  "tenant": {
+    "id": "sp-tenant-apexglobal-01",
+    "name": "Apex Global Technologies Identity Security Cloud",
+    "domain": "apexglobal.identitynow.example",
+    "organization": "Apex Global Technologies Inc.",
+    "cloud_provider": "AWS",
+    "region": "us-east-1",
+    "version": "2026.1",
+    "deployment_mode": "CLOUD_FEDERATED",
+    "description": "Central identity governance and administration (IGA) tenant for Apex Global Technologies.",
+    "governance_scope": [
+      "Identity Lifecycle Management (Joiner, Mover, Leaver)",
+      "Access Request and Multi-Stage Approval Workflows",
+      "Periodic Access Review and Certification Campaigns",
+      "Automated Provisioning and Deprovisioning to Connected Sources",
+      "Role-Based and Attribute-Based Access Control (RBAC/ABAC)",
+      "Separation of Duties (SoD) Enforcement"
+    ],
+    "notice": "Synthetic demonstration dataset for SimuGuard AI digital twin modeling. Contains no real API keys, production credentials, or real employee records."
+  }
+}

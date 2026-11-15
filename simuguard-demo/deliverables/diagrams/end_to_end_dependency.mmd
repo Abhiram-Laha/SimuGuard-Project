@@ -1,0 +1,45 @@
+flowchart LR
+    %% Apex Global Technologies - End-to-End Multi-Hop Dependency & Attack Path
+
+    subgraph Layer1_Network ["1. Network Ingress & Perimeter"]
+        USER["External User / Ingress Traffic"]
+        NGFW["Perimeter NGFW: fw-edge-01-primary<br/>(PAN-OS 11.1 App-ID / Threat Profile)"]
+        DMZ["Subnet: subnet-prod-dmz-01<br/>(10.100.4.0/24 / Zone: Trust-DMZ)"]
+        USER -->|Configured: Inbound DNAT| NGFW
+        NGFW -->|Configured: ENFORCES_ZONE_POLICY| DMZ
+    end
+
+    subgraph Layer2_Compute ["2. Workload & Business Application"]
+        WORKLOAD["EKS Workload: eks-analytics-worker-pool<br/>(Kubernetes Analytics Pod)"]
+        APP["Application: APP-003-CUSTOMER-ANALYTICS<br/>(Customer Telemetry & Analytics)"]
+        DMZ -->|Inferred: CONTAINS_WORKLOAD| WORKLOAD
+        WORKLOAD -->|Configured: HOSTS_APPLICATION| APP
+    end
+
+    subgraph Layer3_SailPoint ["3. SailPoint Identity Governance Plane"]
+        IDENTITY["Identity: sp-ident-emily-watson<br/>(Senior Treasury Analyst)"]
+        ROLE["Role: sp-role-finance-analyst<br/>(Finance & Treasury Analyst)"]
+        AP["Access Profile: sp-ap-aws-prod-s3-read<br/>(Production S3 CUI Vault Read)"]
+        ENT["Entitlement: sp-ent-aws-s3-cui-read<br/>(Action: s3:GetObject)"]
+        
+        IDENTITY -->|Configured: MEMBER_OF_ROLE| ROLE
+        ROLE -->|Configured: HAS_ACCESS_PROFILE| AP
+        AP -->|Configured: CONTAINS_ENTITLEMENT| ENT
+    end
+
+    subgraph Layer4_AWS_IAM ["4. AWS Runtime Authorization & Workload Identity"]
+        IRSA_ROLE["IAM Role: role-analytics-ingestion-svc<br/>(IRSA OIDC Trust Binding)"]
+        IAM_POLICY["IAM Policy: S3CUIFinancialVaultRestrictedAccess<br/>(Customer-Managed Least Privilege)"]
+        
+        WORKLOAD -->|Inferred: ASSUMES_ROLE via IRSA| IRSA_ROLE
+        IRSA_ROLE -->|Configured: ATTACH_POLICY| IAM_POLICY
+    end
+
+    subgraph Layer5_Storage ["5. Cloud Storage & Sensitive Data Asset"]
+        S3_VAULT["Storage Bucket: s3-enterprise-cui-vault<br/>(AWS Production S3 Bucket)"]
+        DATA["Data Asset: DATA-01-CUI-FINANCIAL-VAULT<br/>(NIST SP 800-171 / RESTRICTED_CUI_PII)"]
+        
+        ENT -.->|Governed Target: CAN_ACCESS_RESOURCE| S3_VAULT
+        IRSA_ROLE ==>|Runtime Path: CROSS_ZONE_IAM_PATH| S3_VAULT
+        S3_VAULT -->|Configured: STORES_DATA| DATA
+    end
