@@ -62,13 +62,30 @@ class ComparisonEngine:
                 # Issue is absent from post-remediation report -> Check if valid resolution evidence exists
                 evidence = self._generate_resolution_evidence(gap, pre_ident, overlay_result)
                 
-                # If overlay flagged manual review or residual risk for this resource
-                if overlay_result and overlay_result.requires_manual_review:
+                # Resource-specific residual risk and operational dependency evaluation
+                res_lower = pre_ident.affected_resource.lower()
+                has_residual_exposure = (
+                    overlay_result is not None
+                    and any(res_lower in exp.lower() for exp in overlay_result.residual_sensitive_exposures)
+                )
+                has_op_warning = (
+                    overlay_result is not None
+                    and any(res_lower in w.lower() for w in overlay_result.operational_warnings)
+                )
+
+                if has_residual_exposure:
                     res_status = FindingResolutionStatus.NEEDS_MANUAL_REVIEW
                     manual_review_cnt += 1
+                    residual = "Residual sensitive data exposure detected on candidate overlay"
+                elif has_op_warning and "iam" in pre_ident.rule_id.lower():
+                    # Security gap resolved, but multi-app operational review recommended
+                    res_status = FindingResolutionStatus.PARTIALLY_RESOLVED
+                    partially_cnt += 1
+                    residual = "Broad policy detached; verify secondary application dependencies"
                 else:
                     res_status = FindingResolutionStatus.RESOLVED
                     resolved_cnt += 1
+                    residual = "None identified"
 
                 resolution_details.append(
                     FindingResolutionDetail(
@@ -77,7 +94,7 @@ class ComparisonEngine:
                         original_severity=gap.severity,
                         resolution_status=res_status,
                         validation_evidence=evidence,
-                        residual_risk="None identified" if res_status == FindingResolutionStatus.RESOLVED else "Requires operational dependency review",
+                        residual_risk=residual,
                     )
                 )
             else:

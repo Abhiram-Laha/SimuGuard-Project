@@ -82,7 +82,8 @@ class TestEndToEndBeforeAfterComparison:
         assert comparison.risk_score_delta == 100
         assert comparison.verdict_before == DeploymentVerdict.BLOCK_DEPLOYMENT
         assert comparison.verdict_after == DeploymentVerdict.ALLOW
-        assert comparison.resolved_count >= 2
+        assert comparison.resolved_count >= 1
+        assert comparison.resolved_count + comparison.partially_resolved_count >= 2
         assert comparison.unresolved_count == 0
         assert comparison.regression_count == 0
 
