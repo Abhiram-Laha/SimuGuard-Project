@@ -37,12 +37,42 @@ class RecommendationEngine:
     ):
         self.loader = loader or EnterpriseDatasetLoader()
 
-        # Load enterprise context if not explicitly provided
-        network_data = self.loader.load_network_topology()
-        iam_data = self.loader.load_iam_governance()
-        app_data = self.loader.load_applications_and_dependencies()
-        data_assets = self.loader.load_data_assets()
-        sailpoint_data = self.loader.load_sailpoint_governance()
+        # Load enterprise context safely via dataset loader
+        network_data: Dict[str, Any] = {}
+        iam_data: Dict[str, Any] = {}
+        app_data: Dict[str, Any] = {}
+        data_assets: Dict[str, Any] = {}
+        sailpoint_data: Dict[str, Any] = {}
+
+        try:
+            network_data = {
+                "address_objects": self.loader._read_json("network/address_objects.json").get("address_objects", []),
+                "policies": self.loader._read_json("network/security_policies.json").get("policies", []),
+            }
+        except Exception:
+            pass
+
+        try:
+            iam_data = self.loader._read_json("iam/policies.json")
+            roles_json = self.loader._read_json("iam/roles.json")
+            iam_data["roles"] = roles_json.get("roles", [])
+        except Exception:
+            pass
+
+        try:
+            app_data = self.loader._read_json("applications/applications.json")
+        except Exception:
+            pass
+
+        try:
+            data_assets = self.loader._read_json("data_assets/assets.json")
+        except Exception:
+            pass
+
+        try:
+            sailpoint_data = self.loader.load_sailpoint_governance()
+        except Exception:
+            pass
 
         self.firewall_remediator = firewall_remediator or FirewallRemediator(
             modeled_network_data=network_data
@@ -120,6 +150,25 @@ class RecommendationEngine:
             rtype = res.resource_type.lower()
             if rname in title or rname in impact or f"{rtype}.{rname}" in title:
                 return res
+
+            from simuguard.parsers.resource_models import (
+                AwsIamRolePolicyAttachmentResource,
+                AwsSecurityGroupRuleResource,
+                PanosSecurityPolicyResource,
+            )
+
+            if isinstance(res, PanosSecurityPolicyResource):
+                for rule in res.rules:
+                    if rule.name.lower() in title or rule.name.lower() in impact:
+                        return res
+
+            elif isinstance(res, AwsIamRolePolicyAttachmentResource):
+                if res.role.lower() in title or res.role.lower() in impact:
+                    return res
+
+            elif isinstance(res, AwsSecurityGroupRuleResource):
+                if (res.security_group_id or "").lower() in title or (res.security_group_id or "").lower() in impact:
+                    return res
 
         # If only one resource exists in the file, associate it
         if len(resources) == 1:

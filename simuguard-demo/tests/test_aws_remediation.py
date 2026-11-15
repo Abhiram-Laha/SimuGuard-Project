@@ -94,3 +94,28 @@ class TestAwsRemediator:
         assert rec is not None
         assert rec.requires_manual_review is True
         assert "shared by multiple applications" in rec.operational_impact
+
+    def test_recommendation_engine_orchestration(self):
+        from simuguard.remediation.recommendation_engine import RecommendationEngine
+        engine = RecommendationEngine()
+        gaps = [
+            SecurityGap(
+                rule_id="FW-01",
+                severity=Severity.CRITICAL,
+                gap_title="PAN-OS App-ID Deep Inspection Bypass: Rule 'test'",
+                technical_impact="applications set to any",
+                compliance_violation="CIS 4.1",
+            ),
+            SecurityGap(
+                rule_id="SP-03",
+                severity=Severity.CRITICAL,
+                gap_title="Separation of Duties (SoD) Conflict",
+                technical_impact="SoD conflict",
+                compliance_violation="SOX 404",
+            ),
+        ]
+        recs = engine.generate_recommendations(gaps, [])
+        assert len(recs) == 2
+        rule_ids = {r.rule_id for r in recs}
+        assert "FW-01" in rule_ids
+        assert "SP-03" in rule_ids
