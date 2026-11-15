@@ -1,0 +1,343 @@
+"""SailPoint Identity Security Cloud governance remediation engine.
+
+Strict Governance Boundary Adherence:
+- Produces governance recommendations (approval, revocation, certification, connector sync).
+- NEVER falsely claims SailPoint or runtime access was altered directly.
+- NEVER bypasses multi-tier managerial or security approval workflows.
+- NEVER treats approved requests as proof that downstream provisioning is completed.
+- Preserves explicit boundary between identity governance and cloud runtime authorization.
+"""
+
+from typing import Any, Dict, List, Optional
+from simuguard.models.enums import Severity
+from simuguard.models.security_gap import SecurityGap
+from simuguard.parsers.resource_models import NormalizedResource
+from simuguard.remediation.models import (
+    FindingIdentity,
+    RemediationRecommendation,
+    RemediationStatus,
+)
+from simuguard.rules.base_rule import RuleEvaluationContext
+
+
+class SailPointRemediator:
+    """Generates technically accurate, lifecycle-compliant identity governance recommendations."""
+
+    def __init__(self, sailpoint_data: Optional[Dict[str, Any]] = None):
+        self.sailpoint_data = sailpoint_data or {}
+
+    def remediate_gap(
+        self,
+        gap: SecurityGap,
+        resource: Optional[NormalizedResource],
+        context: RuleEvaluationContext,
+    ) -> Optional[RemediationRecommendation]:
+        """Generate governance remediation recommendations for SP-01 through SP-06 and SP-CORR."""
+        rule_id = (gap.rule_id or "").upper().strip()
+
+        if rule_id == "SP-01":
+            return self._remediate_sp01_in_flight(gap, resource, context)
+        elif rule_id == "SP-02":
+            return self._remediate_sp02_unprovisioned(gap, resource, context)
+        elif rule_id == "SP-03":
+            return self._remediate_sp03_sod(gap, resource, context)
+        elif rule_id == "SP-04":
+            return self._remediate_sp04_contractor(gap, resource, context)
+        elif rule_id == "SP-05":
+            return self._remediate_sp05_dormant(gap, resource, context)
+        elif rule_id == "SP-06":
+            return self._remediate_sp06_creep(gap, resource, context)
+
+        # Check for unmapped entity finding
+        if "unmapped governance entity" in (gap.gap_title or "").lower():
+            return self._remediate_sp_corr(gap, resource, context)
+
+        return None
+
+    def _remediate_sp01_in_flight(
+        self,
+        gap: SecurityGap,
+        resource: Optional[NormalizedResource],
+        context: RuleEvaluationContext,
+    ) -> RemediationRecommendation:
+        """Remediate SP-01: Enforce PENDING_IS_NOT_ACCESS boundary."""
+        res_name = resource.resource_name if resource else "access_request"
+        finding_ident = FindingIdentity(
+            rule_id="SP-01",
+            affected_resource=res_name,
+            relevant_attribute="approval_status",
+            original_finding_ref=gap.gap_title,
+        )
+
+        return RemediationRecommendation(
+            remediation_id=f"REM-SP01-{res_name[:12]}",
+            original_finding_id="SP-01",
+            finding_identity=finding_ident,
+            rule_id="SP-01",
+            affected_resource=finding_ident.affected_resource,
+            current_config_snippet="# Configuration assumes pending or unapproved access request grants effective access",
+            recommended_config_snippet=(
+                "# GOVERNANCE RECOMMENDATION:\n"
+                "# 1. Halt deployment gate until access request reaches 'APPROVED' lifecycle state in SailPoint ISC.\n"
+                "# 2. Multi-tier approval required: Identity Manager + Resource Business Owner.\n"
+                "# 3. Note: In-flight requests convey ZERO valid permissions under corporate policy."
+            ),
+            explanation=(
+                "Access requests pending approval convey ZERO effective permissions. "
+                "Infrastructure changes must not pre-provision permissions prior to formal executive sign-off in SailPoint."
+            ),
+            security_benefit="Guarantees that unapproved or rejected access cannot be prematurely deployed to cloud infrastructure.",
+            operational_impact="Deployment gate remains blocked until formal approval workflow completes.",
+            dependencies=["Managerial and Security approval in SailPoint Identity Security Cloud"],
+            validation_steps=[
+                "curl -X GET https://apex-global.identitynow.com/v3/access-requests/<req_id> -H 'Authorization: Bearer <token>'",
+                "Verify response status is 'APPROVED' before re-running pipeline",
+            ],
+            confidence_score=0.98,
+            status=RemediationStatus.PROPOSED,
+        )
+
+    def _remediate_sp02_unprovisioned(
+        self,
+        gap: SecurityGap,
+        resource: Optional[NormalizedResource],
+        context: RuleEvaluationContext,
+    ) -> RemediationRecommendation:
+        """Remediate SP-02: Require target connector reconciliation verification."""
+        res_name = resource.resource_name if resource else "provisioning_event"
+        finding_ident = FindingIdentity(
+            rule_id="SP-02",
+            affected_resource=res_name,
+            relevant_attribute="reconciliation_status",
+            original_finding_ref=gap.gap_title,
+        )
+
+        return RemediationRecommendation(
+            remediation_id=f"REM-SP02-{res_name[:12]}",
+            original_finding_id="SP-02",
+            finding_identity=finding_ident,
+            rule_id="SP-02",
+            affected_resource=finding_ident.affected_resource,
+            current_config_snippet="# Provisioning event is in REQUESTED_NOT_PROVISIONED or unconfirmed state",
+            recommended_config_snippet=(
+                "# GOVERNANCE RECOMMENDATION:\n"
+                "# 1. Trigger SailPoint connector aggregation/reconciliation for target source:\n"
+                "#    POST /v3/sources/<source_id>/load-accounts\n"
+                "# 2. Confirm reconciliation_status transitions to 'VERIFIED_ON_SOURCE' prior to runtime usage."
+            ),
+            explanation=(
+                "Access has been approved in governance, but connector sync has not confirmed that target account "
+                "entitlements have been created on the endpoint system. Dependent tasks will fail if deployed prematurely."
+            ),
+            security_benefit="Prevents orphaned runtime references and broken downstream dependencies.",
+            operational_impact="Requires waiting for target connector synchronization.",
+            dependencies=["Active SailPoint Virtual Appliance (VA) connector connectivity to target system"],
+            validation_steps=[
+                "Check SailPoint Event Log for provisioning event ID and status == 'VERIFIED_ON_SOURCE'",
+            ],
+            confidence_score=0.95,
+            status=RemediationStatus.PROPOSED,
+        )
+
+    def _remediate_sp03_sod(
+        self,
+        gap: SecurityGap,
+        resource: Optional[NormalizedResource],
+        context: RuleEvaluationContext,
+    ) -> RemediationRecommendation:
+        """Remediate SP-03: Resolve toxic Separation of Duties conflict."""
+        res_name = resource.resource_name if resource else "identity"
+        finding_ident = FindingIdentity(
+            rule_id="SP-03",
+            affected_resource=res_name,
+            relevant_attribute="toxic_role_combination",
+            original_finding_ref=gap.gap_title,
+        )
+
+        return RemediationRecommendation(
+            remediation_id=f"REM-SP03-{res_name[:12]}",
+            original_finding_id="SP-03",
+            finding_identity=finding_ident,
+            rule_id="SP-03",
+            affected_resource=finding_ident.affected_resource,
+            current_config_snippet="# Identity holds mutually exclusive roles (e.g. Software Dev + Prod Admin)",
+            recommended_config_snippet=(
+                "# GOVERNANCE RECOMMENDATION:\n"
+                "# 1. Enforce Segregation of Duties: Revoke conflicting production administration role in SailPoint.\n"
+                "# 2. If business necessity requires dual capability, submit formal SoD Exception Request with:\n"
+                "#    - Compensatory controls (independent code review, mandatory session recording)\n"
+                "#    - Maximum 90-day expiration date signed by CISO."
+            ),
+            explanation=(
+                "The identity possesses a toxic combination of roles violating Segregation of Duties (SOX 404 / NIST AC-5). "
+                "A developer cannot possess production administrator rights enabling unilateral modification of production code."
+            ),
+            security_benefit="Restores dual-control integrity and complies with financial and compliance controls.",
+            operational_impact="Identity loses direct production administrative access; must use gated change management.",
+            dependencies=["Manager and CISO approval for role revocation or SoD exception waiver"],
+            validation_steps=[
+                "Verify identity entitlements in SailPoint: confirm conflicting role is detached",
+            ],
+            confidence_score=0.97,
+            status=RemediationStatus.PROPOSED,
+        )
+
+    def _remediate_sp04_contractor(
+        self,
+        gap: SecurityGap,
+        resource: Optional[NormalizedResource],
+        context: RuleEvaluationContext,
+    ) -> RemediationRecommendation:
+        """Remediate SP-04: Revoke privileged profiles/entitlements from contractor."""
+        res_name = resource.resource_name if resource else "contractor_identity"
+        finding_ident = FindingIdentity(
+            rule_id="SP-04",
+            affected_resource=res_name,
+            relevant_attribute="privileged_access_profile",
+            original_finding_ref=gap.gap_title,
+        )
+
+        return RemediationRecommendation(
+            remediation_id=f"REM-SP04-{res_name[:12]}",
+            original_finding_id="SP-04",
+            finding_identity=finding_ident,
+            rule_id="SP-04",
+            affected_resource=finding_ident.affected_resource,
+            current_config_snippet="# Contractor identity assigned root/privileged profile",
+            recommended_config_snippet=(
+                "# GOVERNANCE RECOMMENDATION:\n"
+                "# 1. Immediately revoke privileged profile ('sp-ap-aws-prod-admin') from contractor identity.\n"
+                "# 2. Reassign to contractor-scoped development profile ('sp-ap-dev-contractor').\n"
+                "# 3. Enforce MFA-gated bastion access for any authorized sandbox work."
+            ),
+            explanation=(
+                "Third-party contractors must never hold production root or administrative credentials. "
+                "Enforces third-party vendor isolation per NIST SP 800-171 3.1.1."
+            ),
+            security_benefit="Eliminates third-party supply chain risk and unauthorized production compromise.",
+            operational_impact="Contractor loses production access; restricted to isolated development sandbox.",
+            dependencies=["SailPoint Access Profile re-assignment workflow"],
+            validation_steps=["Verify contractor identity profile reflects non-privileged access in ISC"],
+            confidence_score=0.99,
+            status=RemediationStatus.PROPOSED,
+        )
+
+    def _remediate_sp05_dormant(
+        self,
+        gap: SecurityGap,
+        resource: Optional[NormalizedResource],
+        context: RuleEvaluationContext,
+    ) -> RemediationRecommendation:
+        """Remediate SP-05: Trigger deprovisioning for certified revoked entitlements."""
+        res_name = resource.resource_name if resource else "revoked_entitlement"
+        finding_ident = FindingIdentity(
+            rule_id="SP-05",
+            affected_resource=res_name,
+            relevant_attribute="revoked_status",
+            original_finding_ref=gap.gap_title,
+        )
+
+        return RemediationRecommendation(
+            remediation_id=f"REM-SP05-{res_name[:12]}",
+            original_finding_id="SP-05",
+            finding_identity=finding_ident,
+            rule_id="SP-05",
+            affected_resource=finding_ident.affected_resource,
+            current_config_snippet="# Entitlement revoked in certification review but remains active on target",
+            recommended_config_snippet=(
+                "# GOVERNANCE RECOMMENDATION:\n"
+                "# 1. Dispatch automated deprovisioning order to target connector.\n"
+                "# 2. Verify account entitlement revocation on AWS/Palo Alto target endpoint.\n"
+                "# 3. Complete certification campaign remediation loop."
+            ),
+            explanation=(
+                "Quarterly access review revoked this entitlement, but reconciliation indicates it is still active on the target. "
+                "Represents a dormant access liability subject to lateral unauthorized use."
+            ),
+            security_benefit="Purges dormant and certified-revoked permissions from operational endpoints.",
+            operational_impact="Target account loses the revoked permission immediately upon deprovisioning.",
+            dependencies=["SailPoint deprovisioning workflow engine and connector write access"],
+            validation_steps=["Confirm deprovisioning event status is SUCCESS on target source"],
+            confidence_score=0.96,
+            status=RemediationStatus.PROPOSED,
+        )
+
+    def _remediate_sp06_creep(
+        self,
+        gap: SecurityGap,
+        resource: Optional[NormalizedResource],
+        context: RuleEvaluationContext,
+    ) -> RemediationRecommendation:
+        """Remediate SP-06: Prune accumulated entitlements back to departmental baseline."""
+        res_name = resource.resource_name if resource else "identity"
+        finding_ident = FindingIdentity(
+            rule_id="SP-06",
+            affected_resource=res_name,
+            relevant_attribute="entitlement_count",
+            original_finding_ref=gap.gap_title,
+        )
+
+        return RemediationRecommendation(
+            remediation_id=f"REM-SP06-{res_name[:12]}",
+            original_finding_id="SP-06",
+            finding_identity=finding_ident,
+            rule_id="SP-06",
+            affected_resource=finding_ident.affected_resource,
+            current_config_snippet="# Identity holds entitlements exceeding departmental baseline",
+            recommended_config_snippet=(
+                "# GOVERNANCE RECOMMENDATION:\n"
+                "# 1. Initiate targeted micro-certification for identity manager.\n"
+                "# 2. Revoke historical entitlements no longer required for current job duties.\n"
+                "# 3. Restore entitlement count to approved departmental baseline."
+            ),
+            explanation=(
+                "Identity has accumulated excessive entitlements across departmental transfers, exceeding corporate baseline. "
+                "Violates NIST SP 800-53 least-privilege standards."
+            ),
+            security_benefit="Constrains excessive accumulated privilege footprint across employee lifecycle.",
+            operational_impact="Identity retains only active role-relevant permissions.",
+            dependencies=["Managerial micro-certification campaign in SailPoint"],
+            validation_steps=["Verify identity total active entitlements align with departmental baseline"],
+            confidence_score=0.91,
+            status=RemediationStatus.PROPOSED,
+        )
+
+    def _remediate_sp_corr(
+        self,
+        gap: SecurityGap,
+        resource: Optional[NormalizedResource],
+        context: RuleEvaluationContext,
+    ) -> RemediationRecommendation:
+        """Remediate SP-CORR: Register unmapped IAM role into SailPoint account catalog."""
+        res_name = resource.resource_name if resource else "iam_role"
+        finding_ident = FindingIdentity(
+            rule_id="SP-CORR",
+            affected_resource=res_name,
+            relevant_attribute="account_correlation",
+            original_finding_ref=gap.gap_title,
+        )
+
+        return RemediationRecommendation(
+            remediation_id=f"REM-SPCORR-{res_name[:12]}",
+            original_finding_id="SP-CORR",
+            finding_identity=finding_ident,
+            rule_id="SP-CORR",
+            affected_resource=finding_ident.affected_resource,
+            current_config_snippet="# IAM Role or resource has no correlated identity in SailPoint",
+            recommended_config_snippet=(
+                "# GOVERNANCE RECOMMENDATION:\n"
+                "# 1. In SailPoint ISC, add correlation rule on AWS Source to match IAM role ARN to service identity.\n"
+                "# 2. Execute account aggregation: POST /v3/sources/<aws_source_id>/load-accounts.\n"
+                "# 3. Ensure role is governed and audited under enterprise access certification."
+            ),
+            explanation=(
+                f"Resource '{res_name}' has no correlated identity in SailPoint Identity Security Cloud. "
+                "Unmapped resources represent ungoverned shadow infrastructure that cannot be verified for authorization."
+            ),
+            security_benefit="Brings 100% of cloud infrastructure roles under centralized identity governance.",
+            operational_impact="Role is cataloged and assigned to a designated service account owner.",
+            dependencies=["SailPoint AWS Source Administrator access"],
+            validation_steps=["Search SailPoint Accounts catalog for IAM role name"],
+            confidence_score=0.94,
+            status=RemediationStatus.PROPOSED,
+        )
