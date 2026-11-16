@@ -208,40 +208,50 @@ def render_new_change_page(repository: ChangeRepository) -> None:
                 index=0,
             )
 
-        # Scenario or Upload Source
-        st.markdown("#### Configuration Payload Source")
-        scenario_mode = st.radio(
-            "Configuration Payload Source:",
-            options=["Existing Enterprise Demo Scenario", "Upload Custom Terraform (.tf)"],
-            index=0,
-            horizontal=True,
-        )
+        is_identity_gov = "Identity" in domain_choice
 
+        # Scenario or Upload Source
         selected_scenario_key: Optional[str] = None
-        if scenario_mode == "Existing Enterprise Demo Scenario":
-            scenario_options = list(scenarios.keys())
-            if scenario_options:
-                selected_scenario_key = st.selectbox(
-                    "Select Verified Scenario *",
-                    options=scenario_options,
-                    format_func=lambda k: scenarios[k]["label"],
-                )
-                sc_info = scenarios[selected_scenario_key]
-                st.info(
-                    f"**Scenario Context:** {sc_info['description']}  \n"
-                    f"**Target:** {sc_info['ci']} | **Platform:** {sc_info['platform']}"
-                )
-            else:
-                st.warning("No verified scenario files found in changes/ directory.")
-        else:
-            st.markdown(
-                """
-                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 6px;">
-                    Upload a valid <code>.tf</code> Terraform configuration file (Max 1MB, plain text only).
-                </div>
-                """,
-                unsafe_allow_html=True,
+        if is_identity_gov:
+            st.markdown("#### Configuration Payload Source")
+            st.info(
+                "ℹ️ **SailPoint Identity Governance:** Access changes evaluate directory identities, roles, entitlements, "
+                "and SoD conflict policies configured in Section F2 below. Uploading a Terraform file is optional."
             )
+            scenario_mode = "SailPoint Identity Governance Parameters"
+        else:
+            st.markdown("#### Configuration Payload Source")
+            scenario_mode = st.radio(
+                "Configuration Payload Source:",
+                options=["Existing Enterprise Demo Scenario", "Upload Custom Terraform (.tf)"],
+                index=0,
+                horizontal=True,
+            )
+
+            if scenario_mode == "Existing Enterprise Demo Scenario":
+                scenario_options = list(scenarios.keys())
+                if scenario_options:
+                    selected_scenario_key = st.selectbox(
+                        "Select Verified Scenario *",
+                        options=scenario_options,
+                        format_func=lambda k: scenarios[k]["label"],
+                    )
+                    sc_info = scenarios[selected_scenario_key]
+                    st.info(
+                        f"**Scenario Context:** {sc_info['description']}  \n"
+                        f"**Target:** {sc_info['ci']} | **Platform:** {sc_info['platform']}"
+                    )
+                else:
+                    st.warning("No verified scenario files found in changes/ directory.")
+            else:
+                st.markdown(
+                    """
+                    <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 6px;">
+                        Upload a valid <code>.tf</code> Terraform configuration file (Max 1MB, plain text only).
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
         st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
 
@@ -662,12 +672,19 @@ def render_new_change_page(repository: ChangeRepository) -> None:
                 missing_fields.append("Business Justification")
 
             # Check scenario or upload
-            if scenario_mode == "Existing Enterprise Demo Scenario":
-                if not selected_scenario_key or selected_scenario_key not in scenarios:
-                    missing_fields.append("Valid Enterprise Demo Scenario")
+            if not is_identity_gov:
+                if scenario_mode == "Existing Enterprise Demo Scenario":
+                    if not selected_scenario_key or selected_scenario_key not in scenarios:
+                        missing_fields.append("Valid Enterprise Demo Scenario")
+                else:
+                    if not uploaded_file_path:
+                        missing_fields.append("Valid Staged Terraform (.tf) File")
             else:
-                if not uploaded_file_path:
-                    missing_fields.append("Valid Staged Terraform (.tf) File")
+                # Validate Identity Governance Fields
+                if not sp_details.identity_name or not sp_details.identity_name.strip():
+                    missing_fields.append("Target Identity")
+                if not (sp_details.requested_role or sp_details.access_profile or sp_details.entitlement):
+                    missing_fields.append("At least one Access Grant (Role, Access Profile, or Entitlement)")
 
             if missing_fields:
                 st.error(f"Cannot submit request. Please fill in mandatory fields: {', '.join(missing_fields)}")
@@ -678,7 +695,7 @@ def render_new_change_page(repository: ChangeRepository) -> None:
         source_content: Optional[str] = None
         sc_name: Optional[str] = None
 
-        if scenario_mode == "Existing Enterprise Demo Scenario" and selected_scenario_key:
+        if not is_identity_gov and scenario_mode == "Existing Enterprise Demo Scenario" and selected_scenario_key:
             sc_info = scenarios[selected_scenario_key]
             source_path = sc_info["path"]
             sc_name = selected_scenario_key
@@ -690,6 +707,10 @@ def render_new_change_page(repository: ChangeRepository) -> None:
             source_path = uploaded_file_path
             sc_name = Path(uploaded_file_path).name
             source_content = uploaded_content or ""
+        elif is_identity_gov:
+            source_path = None
+            sc_name = f"sailpoint_access_{sp_details.identity_name[:25]}"
+            source_content = json.dumps(sp_details.model_dump(), indent=2)
 
         # Map domain
         dom_enum = (

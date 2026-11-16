@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone
 import json
+from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional, Tuple
 import sqlite3
 
@@ -73,24 +75,27 @@ class ChangeRepository:
         return get_db_connection(self.db_path)
 
     def generate_next_request_number(self, conn: Optional[sqlite3.Connection] = None) -> str:
-        """Generate a sequential enterprise change request identifier (e.g. SIM-CHG-000001)."""
+        """Generate a monotonic, sequential enterprise change request identifier (e.g. SIM-CHG-000001)."""
         close_after = conn is None
         c = self._get_conn(conn)
         try:
             cursor = c.cursor()
-            cursor.execute("SELECT request_number FROM change_requests ORDER BY rowid DESC LIMIT 1")
-            row = cursor.fetchone()
-            if not row:
-                return "SIM-CHG-000001"
-            last_num_str = row["request_number"]
-            try:
-                parts = last_num_str.split("-")
-                num = int(parts[-1])
-                return f"SIM-CHG-{num + 1:06d}"
-            except (ValueError, IndexError):
-                cursor.execute("SELECT COUNT(*) as count FROM change_requests")
-                count = cursor.fetchone()["count"]
-                return f"SIM-CHG-{count + 1:06d}"
+            cursor.execute(
+                "SELECT request_number FROM change_requests WHERE request_number LIKE 'SIM-CHG-%'"
+            )
+            rows = cursor.fetchall()
+            max_num = 0
+            for row in rows:
+                val = row["request_number"]
+                m = re.match(r"^SIM-CHG-(\d+)$", str(val))
+                if m:
+                    try:
+                        num = int(m.group(1))
+                        if num > max_num:
+                            max_num = num
+                    except ValueError:
+                        pass
+            return f"SIM-CHG-{max_num + 1:06d}"
         finally:
             if close_after:
                 c.close()
@@ -98,43 +103,64 @@ class ChangeRepository:
     def create_change_request(
         self, record: ChangeRequestRecord, conn: Optional[sqlite3.Connection] = None
     ) -> ChangeRequestRecord:
-        """Insert a new change request into the database."""
+        """Insert a new change request into the database with concurrency conflict handling."""
         close_after = conn is None
         c = self._get_conn(conn)
-        try:
-            now = datetime.now(timezone.utc).isoformat()
-            if not record.created_at:
-                record.created_at = now
-            record.updated_at = now
+        max_retries = 5 if record.request_number.startswith("SIM-CHG-") else 1
+        last_error = None
 
-            # Fetch existing columns in change_requests
-            cursor = c.cursor()
-            cursor.execute("PRAGMA table_info(change_requests);")
-            valid_cols = {row["name"] for row in cursor.fetchall()}
+        for attempt in range(max_retries):
+            try:
+                now = datetime.now(timezone.utc).isoformat()
+                if not record.created_at:
+                    record.created_at = now
+                record.updated_at = now
 
-            record_dict = record.model_dump()
-            cols_to_insert = [col for col in ALL_CHANGE_REQUEST_COLUMNS if col in valid_cols]
-            placeholders = ", ".join(["?"] * len(cols_to_insert))
-            col_names = ", ".join(cols_to_insert)
-            values = [record_dict.get(col) for col in cols_to_insert]
+                # If retrying a sequential request after collision, generate next number
+                if attempt > 0 and record.request_number.startswith("SIM-CHG-"):
+                    record.request_number = self.generate_next_request_number(conn=c)
 
-            query = f"INSERT INTO change_requests ({col_names}) VALUES ({placeholders})"
-            c.execute(query, values)
-            c.commit()
+                # Fetch existing columns in change_requests
+                cursor = c.cursor()
+                cursor.execute("PRAGMA table_info(change_requests);")
+                valid_cols = {row["name"] for row in cursor.fetchall()}
 
-            # Record initial activity log
-            action_name = "DRAFT_SAVED" if record.status == WorkflowState.DRAFT.value else "REQUEST_CREATED"
-            self.log_activity(
-                request_number=record.request_number,
-                action=action_name,
-                actor=record.submitted_by,
-                details=f"Change request created with status '{record.status}' and priority '{record.priority}'",
-                conn=c,
-            )
-            return record
-        finally:
-            if close_after:
-                c.close()
+                record_dict = record.model_dump()
+                cols_to_insert = [col for col in ALL_CHANGE_REQUEST_COLUMNS if col in valid_cols]
+                placeholders = ", ".join(["?"] * len(cols_to_insert))
+                col_names = ", ".join(cols_to_insert)
+                values = [record_dict.get(col) for col in cols_to_insert]
+
+                query = f"INSERT INTO change_requests ({col_names}) VALUES ({placeholders})"
+                c.execute(query, values)
+
+                # Record initial activity log inside the same transaction
+                action_name = "DRAFT_SAVED" if record.status == WorkflowState.DRAFT.value else "REQUEST_CREATED"
+                self.log_activity(
+                    request_number=record.request_number,
+                    action=action_name,
+                    actor=record.submitted_by,
+                    details=f"Change request created with status '{record.status}' and priority '{record.priority}'",
+                    conn=c,
+                )
+
+                c.commit()
+                return record
+            except sqlite3.IntegrityError as e:
+                c.rollback()
+                last_error = e
+                if not record.request_number.startswith("SIM-CHG-"):
+                    raise
+                continue
+            finally:
+                if close_after and attempt == max_retries - 1:
+                    c.close()
+
+        if close_after:
+            c.close()
+        if last_error:
+            raise last_error
+        return record
 
     def update_change_request(
         self, record: ChangeRequestRecord, conn: Optional[sqlite3.Connection] = None
@@ -227,6 +253,45 @@ class ChangeRepository:
             if not row:
                 return None
             return ChangeRequestRecord(**dict(row))
+        finally:
+            if close_after:
+                c.close()
+
+    def get_all_referenced_source_files(
+        self, conn: Optional[sqlite3.Connection] = None
+    ) -> set[str]:
+        """Collect all canonical source file paths referenced by active requests or assessments."""
+        close_after = conn is None
+        c = self._get_conn(conn)
+        referenced: set[str] = set()
+        try:
+            cursor = c.cursor()
+            cursor.execute(
+                "SELECT source_file_path FROM change_requests WHERE source_file_path IS NOT NULL AND source_file_path != ''"
+            )
+            for row in cursor.fetchall():
+                p = row["source_file_path"]
+                if p:
+                    try:
+                        referenced.add(str(Path(p).resolve()))
+                        referenced.add(Path(p).name)
+                    except Exception:
+                        referenced.add(str(p))
+
+            cursor.execute(
+                "SELECT raw_json FROM assessment_records WHERE raw_json IS NOT NULL"
+            )
+            for row in cursor.fetchall():
+                try:
+                    data = json.loads(row["raw_json"])
+                    ef = data.get("evaluated_file")
+                    if ef:
+                        referenced.add(str(Path(ef).resolve()))
+                        referenced.add(Path(ef).name)
+                except Exception:
+                    pass
+
+            return referenced
         finally:
             if close_after:
                 c.close()

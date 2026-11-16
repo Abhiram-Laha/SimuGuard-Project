@@ -16,6 +16,7 @@ from config.settings import (
 from storage.repository import ChangeRepository
 from ui.layout import render_page_header
 from ui.pages.comparison import render_comparison_page
+from ui.pages.diagnostics import render_diagnostics_page
 from ui.pages.digital_twin import render_digital_twin_page
 from ui.pages.history import render_history_page
 from ui.pages.new_change import render_new_change_page
@@ -92,12 +93,7 @@ def route_page(active_page: str, repository: ChangeRepository) -> None:
         render_reports_page(repository)
 
     elif active_page == PAGE_ABOUT:
-        _render_placeholder_page(
-            title="Settings & System Information",
-            description=f"SimuGuard AI Engine v{APP_VERSION} operational metadata.",
-            milestone_phase="Milestone F",
-            details="System diagnostic settings, local database path inspection, digital twin dataset status, and rule engine configuration.",
-        )
+        render_diagnostics_page(repository)
 
     else:
         # Fallback to Overview
