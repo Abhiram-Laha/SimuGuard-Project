@@ -12,42 +12,49 @@ By evaluating proposed changes against an internal **Digital Twin** (220 active 
 
 ---
 
-## 2. Navigating the Enterprise Dashboard
+## 2. Navigating the Streamlined Enterprise Workspace
 
-The application interface is inspired by enterprise ITSM platforms (ServiceNow) and organized into nine primary navigation views accessible via the dark navy sidebar:
+The application features a simplified single-workspace architecture designed so Network Security Operations and Identity Governance engineers can complete their entire assessment lifecycle from one central screen without navigating through complex sub-menus.
+
+The sidebar contains four primary entries:
 
 | Navigation Item | Purpose | Key Actions |
 | :--- | :--- | :--- |
-| **📊 Overview** | Executive summary of recent change requests, gate verdicts, and risk trends. | View KPI metrics; inspect recent changes; review guided demo script. |
-| **➕ New Change Request** | Pre-flight intake form for Firewall and SailPoint access changes. | Select demo scenarios; upload Terraform `.tf` files; save drafts or submit. |
-| **📋 Assessment History** | Complete historical ledger of change requests and audit activity logs. | Filter by domain, priority, status; search tickets; paginate records. |
-| **🔍 Assessment Results** | In-depth breakdown of simulation results for the active change request. | Inspect composite risk score, severity counts, and identified security gaps. |
-| **🛠️ Remediation Center** | Automated least-privilege remediation recommendations and HCL patch. | Review policy recommendations; inspect candidate synthesized HCL. |
-| **⚖️ Before & After Comparison** | Differential risk validation comparing original vs candidate state. | Inspect risk score reduction delta, severed blast paths, and resolved gaps. |
-| **🌐 Digital Twin Explorer** | Interactive topological graph inspection and blast radius explorer. | Search assets, inspect dependency degrees, view candidate graph overlay. |
-| **📄 Reports & Exports** | Publication-grade PDF and structured JSON export artifacts. | Download executive audit PDFs and machine-readable JSON exports. |
-| **⚙️ Settings / About** | System diagnostics, platform health, and schema validation. | Run diagnostic checks on Python runtime, SQLite schema, and engines. |
+| **⚡ New Assessment** *(Default Landing Page)* | The primary unified assessment workspace. Centers the entire change-risk workflow on one screen. | Paste change requests; extract configurations; review fields; execute simulation; inspect inline results, blast radius, remediation patches, and download reports. |
+| **📋 Assessment History** | Complete historical ledger of change requests and audit activity logs. | Filter by domain, priority, status; search tickets; open historical changes directly into the primary workspace. |
+| **📄 Reports** | Publication-grade compliance reports and compliance export hub. | View KPI metrics across all assessments; download executive audit PDFs and machine-readable JSON exports. |
+| **⚙️ Settings & Diagnostics** | Administrative environment controls and platform health diagnostics. | Toggle between Demo Sandbox and Production; reset demo scenarios safely; inspect system health and runtime integrity. |
 
 ---
 
-## 3. Creating & Submitting Change Requests
+## 3. The Single Assessment Workspace Workflow
 
-### A. Creating a Firewall Policy Change
-1. Click **➕ New Change Request** in the sidebar.
-2. Select **Change Domain**: `Network Security (Firewall & Perimeter)`.
-3. Choose a configuration source:
-   - **Load Certified Scenario**: Select one of the pre-loaded enterprise scenarios from the dropdown:
-     - `PR #4083 — Palo Alto NGFW Webhook Egress & S3 CUI Exposure` (Dangerous)
-     - `PR #4082 — Analytics Egress Webhook & S3 FullAccess` (Excessive IAM)
-     - `PR #4085 — Scoped SIEM Log Egress` (Safe Scoped Rule)
-     - `PR #4101 — Allow Guest Network Netflix Streaming` (Unmapped SG)
-   - **Upload Custom Terraform**: Upload a valid `.tf` configuration file (maximum 5MB).
-4. Review the auto-populated ServiceNow fields (Short Description, Priority, Configuration Item, Assignment Group, Maintenance Window).
-5. Choose your action:
-   - **Save as Draft**: Stores the request in `DRAFT` status in the local database without triggering simulation.
-   - **Submit & Run Pre-Flight Simulation**: Promotes request to `SUBMITTED` and triggers immediate deterministic risk evaluation.
+The primary assessment workflow follows four seamless inline steps:
 
-### B. Creating a SailPoint Identity Governance Change
+### Step 1: Paste Change Request
+1. Enter or paste your complete ServiceNow change ticket into the large text input area.
+2. Alternatively, click any of the **Quick Demo Scenarios** buttons (`PR-4082`, `PR-4083`, `Netflix`, `Safe Rule`, `SailPoint`) to populate an authentic enterprise request in one click.
+3. Click **🔍 Extract Configuration**. SimuGuard's intelligent text extractor automatically parses the domain, change parameters, rule specifications, or SailPoint identity attributes.
+
+### Step 2: Review Configuration
+1. Inspect the extracted fields (Short Description, Priority, Rule Name, Zones, CIDRs, App-ID, Port, Action, or SailPoint Identity details).
+2. All values are editable directly in-place.
+3. SimuGuard automatically flags missing mandatory parameters in red and highlights high-risk configuration ambiguities (e.g., wildcard CIDRs, `applications = any`, unapproved contractor access) in amber alert boxes.
+
+### Step 3: Run Pre-Flight Assessment
+1. Click the prominent **🚀 Run Pre-Flight Assessment** button.
+2. SimuGuard AI models the change against the enterprise Digital Twin topology, evaluates deterministic security rules, computes quantitative risk scores, and generates candidate least-privilege remediation patches.
+
+### Step 4: Inline Results & Verification
+All assessment results render immediately on the same page below the intake form:
+- **Executive Decision Banner**: Unambiguous verdict badge (`BLOCK_DEPLOYMENT`, `WARN_MANUAL_REVIEW`, or `ALLOW`) with summary rationale.
+- **Risk Score KPI Cards**: Baseline risk score, security gaps count, affected assets count, candidate risk score, and risk reduction delta.
+- **Structured Workspace Tabs**:
+  - `🔍 Security Findings & Assets`: Detailed table of identified security gaps, rule IDs, compliance violations (PCI-DSS, NIST SP 800-53), and impacted infrastructure assets.
+  - `🌐 Digital Twin Blast Radius`: Topological traversal reach, direct entrypoints, and transitive database/workload dependencies.
+  - `🛠️ Remediation & Candidate Patch`: Actionable recommendations, synthesized candidate HCL patch, and closed-loop validation checks.
+  - `⚖️ Before & After Comparison`: Differential score reduction (e.g. `100 → 0 pts`), verdict progression, and gap resolution tracking.
+  - `📄 Export Compliance Report`: One-click download buttons for publication-grade Executive PDF reports and audit-ready JSON exports.
 1. Navigate to **➕ New Change Request**.
 2. Select **Change Domain**: `Identity Governance (SailPoint ISC)`.
 3. Fill in the Identity and Governance fields:

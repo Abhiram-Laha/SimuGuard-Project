@@ -213,17 +213,22 @@ class ServiceNowExtractor:
         """Extract SailPoint identity governance attributes."""
         cfg.identity_name = cls._extract_field(
             text,
-            [r"(?:target identity|identity name|identity|user)\s*[:=]\s*(.+)"],
+            [r"(?:target identity|identity name)\s*[:=]\s*(.+)", r"^identity\s*[:=]\s*(.+)"],
             default="Sarah Chen (sp-ident-sarah-chen)",
+        )
+        cfg.identity_profile = cls._extract_field(
+            text,
+            [r"(?:identity profile)\s*[:=]\s*(.+)"],
+            default="Corporate Full-Time Employees",
         )
         cfg.requested_role = cls._extract_field(
             text,
-            [r"(?:requested role|role name|role)\s*[:=]\s*(.+)"],
+            [r"(?:requested role|role name)\s*[:=]\s*(.+)", r"^role\s*[:=]\s*(.+)"],
             default="Finance & Treasury Analyst",
         )
         cfg.access_profile = cls._extract_field(
             text,
-            [r"(?:access profile|profile)\s*[:=]\s*(.+)"],
+            [r"(?:access profile)\s*[:=]\s*(.+)"],
             default="Production S3 CUI Vault Read Access",
         )
         cfg.entitlement = cls._extract_field(
@@ -238,7 +243,7 @@ class ServiceNowExtractor:
         )
         cfg.identity_source = cls._extract_field(
             text,
-            [r"(?:authoritative source|identity source|source)\s*[:=]\s*(.+)"],
+            [r"(?:authoritative source|identity source)\s*[:=]\s*(.+)", r"^source\s*[:=]\s*(.+)"],
             default="Corporate Active Directory",
         )
 

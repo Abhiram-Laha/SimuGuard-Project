@@ -9,57 +9,59 @@ This guide provides an end-to-end, scripted demonstration flow designed for ente
 
 | Segment | Duration | Focus Area | Key Takeaway |
 | :--- | :---: | :--- | :--- |
-| **1. Introduction & Problem Statement** | 1.0 min | Dashboard Overview & Context | Shift-left security for network & IAM changes. |
-| **2. Scenario Walkthrough (PR-4083)** | 3.0 min | New Change Intake & Simulation | Deterministic risk scoring and `BLOCK_DEPLOYMENT`. |
-| **3. Digital Twin & Blast Radius** | 1.5 min | Topology Explorer | Visualizing CUI Vault exposure through graph traversal. |
-| **4. Automated Remediation** | 2.0 min | Remediation & Comparison | Closed-loop candidate overlay and 100-point risk drop. |
-| **5. Executive Reporting & Audit** | 1.0 min | PDF & JSON Exports | Audit-ready artifacts for CAB and compliance teams. |
-| **6. Identity Governance & Diagnostics** | 1.5 min | SailPoint & Self-Diagnostics | Multi-domain governance and air-gapped system health. |
+| **1. Introduction & Single Workspace** | 1.0 min | Unified Assessment Workspace | Shift-left security with zero multi-page navigation. |
+| **2. ServiceNow Intake & Extraction** | 2.0 min | Paste & Extract (PR-4082) | Intelligent ticket extraction and ambiguity alerts. |
+| **3. Pre-Flight Assessment Execution** | 1.5 min | Simulation & Risk Scoring | Deterministic scoring and `BLOCK_DEPLOYMENT` verdict. |
+| **4. Digital Twin & Blast Radius** | 1.5 min | Topology & Asset Traversal | Visualizing PCI Database & CUI Vault reachability. |
+| **5. Automated Remediation & Patch** | 2.0 min | Candidate Patch & Verification | Closed-loop least-privilege overlay and 100-point drop. |
+| **6. Compliance Exports & Multi-Domain** | 2.0 min | PDF Report & SailPoint Intake | Publication-grade CAB PDFs and Identity Governance. |
 
 ---
 
 ## 🎬 Step-by-Step Scripted Demonstration
 
-### Segment 1: Introduction & Executive Dashboard (1.0 min)
-1. **Action**: Open the SimuGuard AI application (`streamlit run app.py`).
+### Segment 1: Introduction & Single Workspace (1.0 min)
+1. **Action**: Launch the application (`streamlit run app.py`).
 2. **Spoken Narration**:
-   > *"Good morning. Today, network and cloud security teams face a critical challenge: Terraform pipelines and access change requests frequently introduce severe security flaws—such as uninspected egress tunnels or overprivileged IAM roles—that are only caught after deployment or during an audit.*
+   > *"Good morning. Today, network and cloud security teams face a critical challenge: Terraform changes and access requests often introduce severe security exposures that are only discovered post-deployment or during a failed audit.*
    >
-   > *SimuGuard AI solves this by introducing a local, pre-flight simulation engine. Before any configuration is committed or pushed to production, SimuGuard models the change against an enterprise Digital Twin, calculates a deterministic risk score, identifies blast radius, and generates automated remediation patches."*
-3. **Action**: Point out the **Executive KPI Row** (Total Changes, Blocked, Manual Review, Approved, Auto-Remediated, Avg Score) and the **Gate Verdict Distribution** chart on the Overview page.
+   > *SimuGuard AI introduces a streamlined, single-workspace pre-flight change risk platform. A Network Security Operations Engineer can paste an entire ServiceNow change ticket, review extracted parameters, run deep pre-flight simulation against an enterprise Digital Twin, inspect blast radius, review automated remediation patches, and export CAB reports—all on one screen without navigating across disparate menus."*
+3. **Action**: Highlight the clean 4-item sidebar (**⚡ New Assessment**, **📋 Assessment History**, **📄 Reports**, **⚙️ Settings & Diagnostics**).
 
 ---
 
-### Segment 2: Scenario Walkthrough — Dangerous Firewall Policy (3.0 min)
-1. **Action**: Click **➕ New Change Request** in the sidebar.
-2. **Action**: In the **Scenario Selector**, choose:
-   `PR #4083 — Palo Alto NGFW Webhook Egress & S3 CUI Exposure`
-3. **Spoken Narration**:
-   > *"Here an engineer has submitted a pull request intended to allow outbound webhook traffic from our DMZ to an external analytics provider. Let's inspect what happens when we submit this ticket for pre-flight simulation."*
-4. **Action**: Click **🚀 Submit Change Request & Run Simulation**.
-5. **Action**: The dashboard automatically navigates to **Assessment Results**.
-6. **Spoken Narration**:
-   > *"Notice the immediate result: **Deployment Verdict: BLOCK_DEPLOYMENT** with a maximum composite risk score of **100/100**.*
-   >
-   > *SimuGuard didn't just check port numbers—it performed deep semantic analysis and identified 5 distinct security violations:*
-   > 1. *`FW-01 (CRITICAL)`: App-ID bypass setting `applications = any`, turning off Layer 7 packet inspection.*
-   > 2. *`FW-02 (HIGH)`: Unrestricted Internet egress to `0.0.0.0/0`.*
-   > 3. *`FW-03 (HIGH)`: Missing Threat Prevention profile group.*
-   > 4. *`FW-04 (MEDIUM)`: Cleartext service protocol exposure.*
-   > 5. *`IAM-01 (CRITICAL)`: Cloud privilege escalation attaching `AmazonS3FullAccess` to the ingestion role.*
-   >
-   > *Under SimuGuard's deterministic precedence rules, any CRITICAL finding triggers an unconditional BLOCK, overriding any manual exceptions."*
-
----
-
-### Segment 3: Digital Twin & Blast Radius Analysis (1.5 min)
-1. **Action**: Click **🌐 Digital Twin Explorer** in the sidebar.
-2. **Action**: Switch to the **💥 Blast-Radius & Candidate Overlay Explorer** tab.
-3. **Action**: Select `SIM-DEMO-001` from the dropdown.
+### Segment 2: ServiceNow Intake & Extraction (2.0 min)
+1. **Action**: Click the **📌 PR-4082 (DB Ingress)** quick scenario button.
+2. **Spoken Narration**:
+   > *"Let's examine a live scenario where an engineer requests direct perimeter access to a database for analytics ingestion. Notice how clicking the template populates the raw ServiceNow change ticket."*
+3. **Action**: Click **🔍 Extract Configuration**.
 4. **Spoken Narration**:
-   > *"SimuGuard models the full enterprise topology—220 active nodes across network perimeters, VPCs, compute clusters, IAM roles, and sensitive data stores.*
+   > *"In one click, SimuGuard's extractor parses the rule attributes (Source Zone, Destination Zone, CIDRs, App-ID, Port) and immediately raises an inline alert: Destination is set to a protected PCI Database and App-ID is wildcarded to 'any'."*
+
+---
+
+### Segment 3: Pre-Flight Assessment Execution (1.5 min)
+1. **Action**: Click **🚀 Run Pre-Flight Assessment**.
+2. **Spoken Narration**:
+   > *"Instantly, SimuGuard executes deterministic pre-flight simulation against the Apex Global Digital Twin (220 active enterprise nodes). Notice the verdict banner: **BLOCK_DEPLOYMENT** with a risk score of **100/100**.*
    >
-   > *Notice how the blast radius traversed 15 assets. The perimeter firewall policy widened DMZ egress, while the attached IAM policy opened a cross-zone traversal path directly into `s3-enterprise-cui-vault` and our restricted financial data asset. SimuGuard caught this cascading data exfiltration risk before a single byte of infrastructure was provisioned."*
+   > *SimuGuard identifies 3 critical security gaps: direct Internet ingress violating PCI-DSS 1.3.1, Palo Alto Layer-7 App-ID bypass, and an attached AWS AdministratorAccess policy."*
+
+---
+
+### Segment 4: Digital Twin Blast Radius & Remediation (2.0 min)
+1. **Action**: Click the **🌐 Digital Twin Blast Radius** tab. Show the 14 exposed infrastructure nodes.
+2. **Action**: Click the **🛠️ Remediation & Candidate Patch** tab.
+3. **Spoken Narration**:
+   > *"Rather than simply rejecting the change, SimuGuard synthesizes a safe candidate configuration: scoping the destination CIDR, enforcing Layer-7 App-ID inspection, and generating a least-privilege IAM policy. Closed-loop validation confirms the post-remediation score drops to 0/100, achieving an approved ALLOW status."*
+4. **Action**: Switch to the **⚖️ Before & After Comparison** tab to highlight the 100-point risk drop.
+
+---
+
+### Segment 5: Compliance Reporting & Multi-Domain Governance (2.0 min)
+1. **Action**: Click the **📄 Export Compliance Report** tab.
+2. **Action**: Click **📥 Download Executive PDF Report** to show the generated CAB audit artifact.
+3. **Action**: Load the **📌 SailPoint (S3 Access)** scenario in the workspace to demonstrate multi-domain governance simulation (evaluating contractor identity, authoritative directory correlation, and in-flight access rules).
 
 ---
 
