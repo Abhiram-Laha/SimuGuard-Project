@@ -523,7 +523,7 @@ def render_new_change_page(repository: ChangeRepository) -> None:
             "Change Dependencies",
             value="PAN-OS 11.1 Panorama management reachability; IAM role trust relationship.",
         )
-        additional_notes = st.text_area("Additional Notes", value="", height=60)
+        additional_notes = st.text_area("Additional Notes", value="", height=70)
 
         st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
 

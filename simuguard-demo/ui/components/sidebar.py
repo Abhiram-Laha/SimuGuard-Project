@@ -5,6 +5,7 @@ from config.settings import (
     APP_TITLE,
     APP_VERSION,
     NAV_PAGES,
+    PAGE_HISTORY,
     PAGE_OVERVIEW,
 )
 
