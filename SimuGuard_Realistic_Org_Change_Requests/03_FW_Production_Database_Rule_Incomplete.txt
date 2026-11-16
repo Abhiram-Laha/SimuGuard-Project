@@ -1,0 +1,42 @@
+CHANGE REQUEST: CHG0098510
+Title: Allow reporting service to connect to Finance database
+Company: Apex Global Technologies
+Environment: Production
+Service: Network Security - Palo Alto
+Requested by: Meera Iyer (Data Platforms)
+Assignment group: Network Security Operations
+Priority: 3 - Moderate
+Requested window: 24-Nov-2026, 21:00-21:30 IST
+
+Business justification:
+The reporting service is being moved to a new application host and needs database connectivity for month-end reporting.
+
+Firewall details:
+Device: PAN-DC-FW-01 (managed through Panorama)
+Rule name: REPORTING-TO-FINANCE-DB
+Source zone: DC-APP
+Source address: TBD - application team to confirm
+Destination zone: DC-DATABASE
+Destination address: TBD - DBA team to confirm
+Application: postgresql
+Service: tcp/5432
+Action: allow
+Security profiles: Standard-Internal
+Log at session end: enabled
+
+Implementation:
+Create the rule after source and destination IPs are confirmed.
+
+Validation:
+Application team to run a database connection test and confirm successful authentication.
+
+Backout:
+Disable the new rule if the connection test fails.
+
+Approvals:
+Application owner: Approved
+Database owner: Pending
+Change manager: Pending
+
+Dependencies:
+New application host build is still in progress. No confirmed host IP or database VIP is included in this request.

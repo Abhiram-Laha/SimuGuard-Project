@@ -42,6 +42,7 @@ class ImpactedNode(BaseModel):
     status: ImpactStatus = Field(default=ImpactStatus.AFFECTED, description="Explicit impact status")
     tier: BlastTier = Field(..., description="DIRECT or CASCADING blast tier")
     impact_reason: str = Field(..., description="Specific explanation of why this node is affected")
+    data_classification: Optional[str] = Field(default=None, description="Data sensitivity classification")
     path_from_trigger: List[str] = Field(
         default_factory=list,
         description="Sequence of node IDs traversed from the trigger resource",
@@ -61,6 +62,7 @@ class ImpactedNode(BaseModel):
             criticality=self.criticality,
             blast_tier=self.tier,
             impact_description=self.impact_reason,
+            data_classification=self.data_classification,
         )
 
 
@@ -665,6 +667,7 @@ class BlastRadiusAnalyzer:
                     status=ImpactStatus.AFFECTED,
                     tier=BlastTier.DIRECT,
                     impact_reason=reason,
+                    data_classification=getattr(node, "data_classification", None),
                     path_from_trigger=path,
                     relationships_traversed=relationships,
                     trigger_resource=trigger,
@@ -679,6 +682,7 @@ class BlastRadiusAnalyzer:
             status=ImpactStatus.AFFECTED,
             tier=tier,
             impact_reason=reason,
+            data_classification=getattr(node, "data_classification", None),
             path_from_trigger=path,
             relationships_traversed=relationships,
             trigger_resource=trigger,

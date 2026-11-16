@@ -17,6 +17,8 @@ ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
 DEMO_ENV_DIR = REPO_ROOT / "demo_environment"
 CHANGES_DIR = REPO_ROOT / "changes"
+DELIVERABLES_DIR = REPO_ROOT / "deliverables"
+SCREENSHOTS_DIR = DELIVERABLES_DIR / "screenshots"
 
 # Application Branding
 APP_TITLE = "SimuGuard AI"

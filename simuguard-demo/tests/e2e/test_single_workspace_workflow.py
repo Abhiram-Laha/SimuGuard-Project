@@ -200,9 +200,10 @@ def test_headless_single_workspace_rendering_via_apptest():
     assert not at.exception
     # Check that main workspace title is rendered
     assert any("Change Risk Assessment" in m.value for m in at.markdown)
-    # Check section 1 and 2 headers
+    # Check section headers
     assert any("1. Paste Change Request" in m.value for m in at.markdown)
-    assert any("2. Review Configuration" in m.value for m in at.markdown)
+    assert any("2. Change Request Summary" in m.value for m in at.markdown)
+    assert any("3. Extracted Configuration Review" in m.value for m in at.markdown)
     # Check that primary run assessment button exists
     assert any("Run Pre-Flight Assessment" in b.label for b in at.button)
 

@@ -1,0 +1,41 @@
+REQUEST: RITM0047455
+Title: Contractor offboarding and access revocation
+Company: Apex Global Technologies
+Environment: Corporate Production
+Service: Identity and Access Management - SailPoint
+Requested by: Daniel Joseph (Vendor Management)
+Assignment group: IAM Operations
+Priority: 2 - High
+Termination date: 27-Nov-2026, 18:00 IST
+
+Worker details:
+Name: Vikram Rao
+Worker ID: CTR-0924
+Worker type: External contractor
+Vendor: Northstar Technology Services
+Sponsor: Daniel Joseph
+Sponsor employee ID: EMP-0942
+Department: Infrastructure Operations
+Location: Hyderabad
+
+Requested action:
+Revoke access associated with the contractor identity, including:
+- Microsoft 365
+- AWS Production - ReadOnly
+- ServiceNow - ITSM User
+- VPN remote access
+
+Business justification:
+The contractor's engagement is ending. Access must be removed in accordance with the offboarding process.
+
+Fulfilment requirements:
+Confirm the worker ID CTR-0924 against the authoritative identity record. Identify all linked accounts and active sessions. Revoke access at the approved termination time and record each system's fulfilment result. Do not assume that disabling the primary identity automatically removes every downstream account.
+
+Approvals and confirmations:
+Vendor Management: Approved
+Contract sponsor: Pending confirmation
+HR/Vendor end-date confirmation: Approved
+IAM fulfilment: Not started
+
+Exception handling:
+If any linked account cannot be matched or revoked, record it as unresolved and escalate to the owning application team. Do not mark offboarding complete while access remains unverified.

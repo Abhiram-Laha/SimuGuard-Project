@@ -37,6 +37,20 @@ class AffectedAsset(BaseModel):
         min_length=3,
         description="Specific explanation of how this asset is affected",
     )
+    data_classification: Optional[str] = Field(
+        default=None,
+        description="Data sensitivity classification (e.g. CUI, PCI-DSS, Confidential, Internal)",
+    )
+
+    @property
+    def impact_rationale(self) -> str:
+        """Alias for impact_description for backward compatibility."""
+        return self.impact_description
+
+    @property
+    def compliance_violations(self) -> list:
+        """Default empty list for backward compatibility."""
+        return []
 
     @field_validator("asset_id", "impact_description")
     @classmethod

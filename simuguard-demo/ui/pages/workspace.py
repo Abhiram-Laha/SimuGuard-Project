@@ -14,9 +14,10 @@ import json
 from pathlib import Path
 import re
 from typing import Any, Dict, List, Optional
+import pandas as pd
 import streamlit as st
 
-from config.settings import CHANGES_DIR, PAGE_HISTORY, PAGE_SETTINGS
+from config.settings import CHANGES_DIR, PAGE_HISTORY, PAGE_SETTINGS, SCREENSHOTS_DIR
 from storage.models import (
     AssessmentRecord,
     ChangeDomain,
@@ -43,7 +44,12 @@ from ui.services.report_export_service import (
     build_executive_pdf,
     get_safe_export_filename,
 )
-from ui.services.servicenow_extractor import ExtractedConfig, ServiceNowExtractor
+from simuguard.models.enums import AssetCriticality, BlastTier
+from ui.services.servicenow_extractor import (
+    ChangeRequestSummary,
+    ExtractedConfig,
+    ServiceNowExtractor,
+)
 
 
 def render_single_workspace_page(repository: ChangeRepository) -> None:
@@ -232,13 +238,18 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================================================================
-    # SECTION 2: CONFIGURATION REVIEW
+    # SECTION 2: CHANGE REQUEST SUMMARY (PLAIN-ENGLISH)
+    # =========================================================================
+    _render_change_request_summary(cfg)
+
+    # =========================================================================
+    # SECTION 3: EXTRACTED CONFIGURATION REVIEW
     # =========================================================================
     st.markdown(
         """
         <div class="sg-card" style="margin-bottom: 1.25rem;">
             <div class="sg-card-header">
-                <span>2. Review Configuration</span>
+                <span>3. Extracted Configuration Review</span>
                 <span class="sg-badge sg-badge-neutral">Editable Extracted Fields</span>
             </div>
         """,
@@ -363,13 +374,13 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================================================================
-    # SECTION 3: RUN ASSESSMENT
+    # SECTION 4: RUN PRE-FLIGHT ASSESSMENT
     # =========================================================================
     st.markdown(
         """
         <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
             <div style="font-size: 0.95rem; font-weight: 600; color: #0f172a; margin-bottom: 0.5rem;">
-                3. Run Pre-Flight Assessment
+                4. Run Pre-Flight Assessment
             </div>
             <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;">
                 Simulates change against Digital Twin topology, evaluates security rules, predicts blast-radius impact,
@@ -396,7 +407,7 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
         st.rerun()
 
     # =========================================================================
-    # SECTION 4: INLINE RESULTS
+    # SECTION 5: ASSESSMENT RESULTS
     # =========================================================================
     active_result: Optional[AssessmentExecutionResult] = st.session_state.get("current_assessment_result")
     active_req: Optional[ChangeRequestRecord] = st.session_state.get("current_change_request")
@@ -406,7 +417,7 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
             """
             <div style="border-top: 2px solid #0f62fe; padding-top: 1rem; margin-top: 1rem;">
                 <h2 style="font-size: 1.4rem; font-weight: 700; color: #0f172a; margin: 0 0 1rem 0;">
-                    4. Pre-Flight Assessment Results & Remediation
+                    5. Assessment Results & Remediation
                 </h2>
             </div>
             """,
@@ -490,6 +501,172 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
 # =============================================================================
 # WORKSPACE HELPER FUNCTIONS & SECTIONS
 # =============================================================================
+
+def _get_screenshot_path(filename: str) -> Optional[Path]:
+    """Resolve screenshot file path defensively across different execution contexts."""
+    candidates = [
+        SCREENSHOTS_DIR / filename,
+        Path(__file__).resolve().parent.parent.parent / "deliverables" / "screenshots" / filename,
+        Path("deliverables/screenshots") / filename,
+        Path("simuguard-demo/deliverables/screenshots") / filename,
+        Path(__file__).resolve().parent.parent / "deliverables" / "screenshots" / filename,
+    ]
+    for p in candidates:
+        try:
+            if p.exists() and p.is_file():
+                return p.resolve()
+        except Exception:
+            continue
+    return None
+
+
+def _render_embedded_screenshot(filename: str, caption: str) -> None:
+    """Render an inline screenshot image responsively with defensive fallback."""
+    img_path = _get_screenshot_path(filename)
+    if img_path and img_path.is_file():
+        try:
+            st.image(str(img_path), caption=caption, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Visual asset '{filename}' could not be displayed: {e}")
+    else:
+        st.warning(f"Visual reference asset '{filename}' is currently unavailable.")
+
+
+def _render_change_request_summary(cfg: ExtractedConfig) -> None:
+    """Render plain-English business & SecOps summary of the extracted change request."""
+    summary: ChangeRequestSummary = ServiceNowExtractor.generate_summary(cfg)
+
+    st.markdown(
+        """
+        <div class="sg-card" style="margin-bottom: 1.25rem;">
+            <div class="sg-card-header">
+                <span>2. Change Request Summary</span>
+                <span class="sg-badge sg-badge-info">Plain-English Review</span>
+            </div>
+            <div style="font-size: 0.85rem; color: #475569; margin: 0.5rem 0 0.75rem 0;">
+                High-level business summary, technical modifications, and pre-assessment perimeter risk observations synthesized from the ingested change ticket.
+            </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 1. What is being requested?
+    st.markdown(
+        f"""
+        <div style="margin-bottom: 0.9rem;">
+            <div style="font-weight: 700; color: #0f172a; font-size: 0.92rem; margin-bottom: 4px;">
+                1. What is being requested?
+            </div>
+            <div style="font-size: 0.88rem; color: #334155; line-height: 1.5; background: #f8fafc; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #0f62fe;">
+                {html.escape(summary.what_is_requested)}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 2. Why is this change requested?
+    st.markdown(
+        f"""
+        <div style="margin-bottom: 0.9rem;">
+            <div style="font-weight: 700; color: #0f172a; font-size: 0.92rem; margin-bottom: 4px;">
+                2. Why is this change requested?
+            </div>
+            <div style="font-size: 0.88rem; color: #334155; line-height: 1.5; background: #f8fafc; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #10b981;">
+                {html.escape(summary.why_requested)}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 3. Key configuration changes
+    st.markdown(
+        """
+        <div style="margin-bottom: 0.6rem;">
+            <div style="font-weight: 700; color: #0f172a; font-size: 0.92rem; margin-bottom: 6px;">
+                3. Key configuration changes
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if cfg.domain == "NETWORK_SECURITY":
+        display_params = [
+            ("Target Firewall", cfg.target_firewall or "Not specified"),
+            ("Security Policy", f"Modify '{cfg.existing_rule_name}' -> '{cfg.rule_name}'" if cfg.existing_rule_name else (cfg.rule_name or "Not specified")),
+            ("Source Zone", cfg.source_zone or "Not specified"),
+            ("Source CIDR", cfg.source_addresses or "Not specified"),
+            ("Destination Zone", cfg.destination_zone or "Not specified"),
+            ("Destination CIDR", cfg.destination_addresses or "Not specified"),
+            ("Application", cfg.applications or "Not specified"),
+            ("Service / Port", cfg.services or (f"TCP/{cfg.destination_port}" if cfg.destination_port else "Not specified")),
+            ("Action", (cfg.action or "allow").upper()),
+            ("Security Profile Group", cfg.security_profile or "Not specified"),
+            ("Session Logging", cfg.logging or "Not specified"),
+        ]
+        if getattr(cfg, "is_nat_change", False):
+            pub_t = f"{cfg.nat_original_destination_address}:{cfg.nat_original_destination_port}" if cfg.nat_original_destination_address else "Not specified"
+            priv_t = f"{cfg.nat_translated_destination_address}:{cfg.nat_translated_destination_port}" if cfg.nat_translated_destination_address else "Not specified"
+            display_params.append(("Destination NAT", f"{pub_t} -> {priv_t} ({cfg.nat_rule_name or 'NAT-Rule'})"))
+    else:
+        display_params = [
+            ("Target Identity", cfg.identity_name or "Not specified"),
+            ("Identity Profile", cfg.identity_profile or "Not specified"),
+            ("Authoritative Source", cfg.identity_source or "Not specified"),
+            ("Account ID", cfg.account_id or "Not specified"),
+            ("Requested Role", cfg.requested_role or "Not specified"),
+            ("Access Profile", cfg.access_profile or "Not specified"),
+            ("Entitlement", cfg.entitlement or "Not specified"),
+        ]
+
+    df_config = pd.DataFrame(
+        [{"Parameter": p[0], "Extracted Value": p[1]} for p in display_params]
+    )
+    st.dataframe(
+        df_config,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Parameter": st.column_config.TextColumn("Parameter", width="medium"),
+            "Extracted Value": st.column_config.TextColumn("Extracted Value", width="large"),
+        },
+    )
+
+    # 4. Initial observations
+    st.markdown(
+        """
+        <div style="margin-bottom: 0.6rem;">
+            <div style="font-weight: 700; color: #0f172a; font-size: 0.92rem; margin-bottom: 6px;">
+                4. Initial observations
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    obs_cards = []
+    for obs in summary.initial_observations:
+        is_warn = obs.startswith("⚠️")
+        bg_col = "#fffbeb" if is_warn else "#f0fdf4"
+        bd_col = "#fde68a" if is_warn else "#bbf7d0"
+        txt_col = "#92400e" if is_warn else "#166534"
+        obs_cards.append(
+            f"""
+            <div style="background-color: {bg_col}; border: 1px solid {bd_col}; border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; color: {txt_col}; font-size: 0.84rem;">
+                {html.escape(obs)}
+            </div>
+            """
+        )
+    st.markdown("".join(obs_cards), unsafe_allow_html=True)
+
+    _render_embedded_screenshot(
+        "change_request_summary.png",
+        caption="Change Request Summary — Architecture & Observation Overview",
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 def _render_executive_verdict_banner(
     record: ChangeRequestRecord,
@@ -575,23 +752,65 @@ def _render_findings_tab(base_rep: Any) -> None:
     st.markdown("#### 🏢 Directly Affected Infrastructure Assets")
     assets = base_rep.predicted_affected_assets
     if not assets:
-        st.info("No critical assets in direct blast radius.")
+        st.info("No directly affected infrastructure assets were identified from the available Digital Twin data.")
     else:
         rows = []
         for a in assets:
-            tier = a.blast_tier.value if hasattr(a.blast_tier, "value") else str(a.blast_tier)
-            tier_badge = f'<span class="sg-badge sg-badge-{"block" if "DIRECT" in tier else "warn"}">{tier}</span>'
-            rows.append(
-                f"""
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 8px; font-weight: 600; color: #1e293b;">{html.escape(a.asset_name)}</td>
-                    <td style="padding: 8px; font-size: 0.84rem; color: #475569;">{html.escape(a.asset_type)}</td>
-                    <td style="padding: 8px;">{tier_badge}</td>
-                    <td style="padding: 8px; font-size: 0.84rem; color: #0f62fe;">{html.escape(a.data_classification or 'Standard')}</td>
-                    <td style="padding: 8px; font-size: 0.8rem; color: #64748b;">{html.escape(a.impact_rationale or '')}</td>
-                </tr>
-                """
-            )
+            try:
+                asset_name = getattr(a, "asset_name", None) or getattr(a, "asset_id", "Unknown Asset")
+                asset_id = getattr(a, "asset_id", "N/A")
+                asset_type = getattr(a, "asset_type", None) or "Infrastructure Node"
+
+                crit = getattr(a, "criticality", AssetCriticality.HIGH)
+                crit_val = crit.value if hasattr(crit, "value") else str(crit)
+
+                tier = getattr(a, "blast_tier", BlastTier.DIRECT)
+                tier_val = tier.value if hasattr(tier, "value") else str(tier)
+                impact_nature = "Direct Impact" if "DIRECT" in tier_val.upper() else "Indirect Impact"
+                badge_type = "block" if "DIRECT" in tier_val.upper() else "warn"
+                tier_badge = f'<span class="sg-badge sg-badge-{badge_type}">{html.escape(tier_val)} ({impact_nature})</span>'
+
+                data_class = getattr(a, "data_classification", None)
+                if data_class:
+                    data_class_display = f'<span style="color: #0f62fe; font-weight: 600;">{html.escape(str(data_class))}</span>'
+                else:
+                    data_class_display = '<span style="color: #94a3b8; font-style: italic;">Not available</span>'
+
+                rel_desc = (
+                    getattr(a, "impact_description", None)
+                    or getattr(a, "impact_rationale", None)
+                    or "Impacted by network/identity policy change"
+                )
+
+                rows.append(
+                    f"""
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 10px 8px;">
+                            <div style="font-weight: 600; color: #1e293b;">{html.escape(str(asset_name))}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; font-family: monospace;">ID: {html.escape(str(asset_id))}</div>
+                        </td>
+                        <td style="padding: 10px 8px; font-size: 0.84rem; color: #475569;">{html.escape(str(asset_type))}</td>
+                        <td style="padding: 10px 8px; font-size: 0.84rem; font-weight: 600; color: #0f172a;">{html.escape(crit_val)}</td>
+                        <td style="padding: 10px 8px;">{tier_badge}</td>
+                        <td style="padding: 10px 8px; font-size: 0.84rem;">{data_class_display}</td>
+                        <td style="padding: 10px 8px; font-size: 0.82rem; color: #334155;">{html.escape(str(rel_desc))}</td>
+                    </tr>
+                    """
+                )
+            except Exception:
+                asset_id_fallback = getattr(a, "asset_id", "Unknown")
+                rows.append(
+                    f"""
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 10px 8px; font-weight: 600; color: #1e293b;">{html.escape(str(asset_id_fallback))}</td>
+                        <td style="padding: 10px 8px; font-size: 0.84rem; color: #475569;">Unknown Type</td>
+                        <td style="padding: 10px 8px; font-size: 0.84rem;">MEDIUM</td>
+                        <td style="padding: 10px 8px;"><span class="sg-badge sg-badge-warn">INDIRECT</span></td>
+                        <td style="padding: 10px 8px; font-size: 0.84rem; color: #94a3b8;">Not available</td>
+                        <td style="padding: 10px 8px; font-size: 0.82rem; color: #64748b;">Impacted asset</td>
+                    </tr>
+                    """
+                )
 
         st.markdown(
             f"""
@@ -599,11 +818,12 @@ def _render_findings_tab(base_rep: Any) -> None:
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
                     <thead>
                         <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 0.75rem; text-transform: uppercase;">
-                            <th style="padding: 8px;">Asset Name</th>
+                            <th style="padding: 8px;">Asset Name & ID</th>
                             <th style="padding: 8px;">Asset Type</th>
-                            <th style="padding: 8px;">Blast Tier</th>
+                            <th style="padding: 8px;">Criticality</th>
+                            <th style="padding: 8px;">Impact Nature</th>
                             <th style="padding: 8px;">Data Classification</th>
-                            <th style="padding: 8px;">Impact Rationale</th>
+                            <th style="padding: 8px;">Relationship / Impact</th>
                         </tr>
                     </thead>
                     <tbody>{"".join(rows)}</tbody>
@@ -613,6 +833,11 @@ def _render_findings_tab(base_rep: Any) -> None:
             unsafe_allow_html=True,
         )
 
+    _render_embedded_screenshot(
+        "directly_affected_infrastructure_assets.png",
+        caption="Directly Affected Infrastructure Assets — Topology Impact & Blast Scope",
+    )
+
 
 def _render_blast_radius_tab(base_rep: Any) -> None:
     """Render Digital Twin Blast Radius analysis and traversed nodes."""
@@ -620,7 +845,7 @@ def _render_blast_radius_tab(base_rep: Any) -> None:
 
     assets = base_rep.predicted_affected_assets
     total_assets = len(assets)
-    direct_assets = sum(1 for a in assets if "DIRECT" in (a.blast_tier.value if hasattr(a.blast_tier, "value") else str(a.blast_tier)))
+    direct_assets = sum(1 for a in assets if "DIRECT" in (getattr(a.blast_tier, "value", str(a.blast_tier))))
     indirect_assets = total_assets - direct_assets
 
     col_t1, col_t2, col_t3 = st.columns(3)
@@ -651,12 +876,34 @@ def _render_blast_radius_tab(base_rep: Any) -> None:
     # Detailed table of affected nodes
     if assets:
         for a in assets:
-            with st.expander(f"📍 {a.asset_name} ({a.asset_type}) — Classification: {a.data_classification or 'Standard'}"):
-                st.write(f"**Asset ID:** `{a.asset_id}`")
-                st.write(f"**Blast Tier:** `{a.blast_tier.value if hasattr(a.blast_tier, 'value') else a.blast_tier}`")
-                st.write(f"**Impact Rationale:** {a.impact_rationale}")
-                if a.compliance_violations:
-                    st.write(f"**Direct Violations:** {', '.join(a.compliance_violations)}")
+            try:
+                asset_name = getattr(a, "asset_name", None) or getattr(a, "asset_id", "Unknown Asset")
+                asset_type = getattr(a, "asset_type", "Infrastructure Node")
+                asset_id = getattr(a, "asset_id", "N/A")
+                blast_tier = getattr(a, "blast_tier", BlastTier.DIRECT)
+                tier_val = blast_tier.value if hasattr(blast_tier, "value") else str(blast_tier)
+                impact_nature = "Direct Impact" if "DIRECT" in tier_val.upper() else "Indirect Impact"
+                crit = getattr(a, "criticality", AssetCriticality.HIGH)
+                crit_val = crit.value if hasattr(crit, "value") else str(crit)
+                data_class = getattr(a, "data_classification", None) or "Not available"
+                impact_desc = (
+                    getattr(a, "impact_description", None)
+                    or getattr(a, "impact_rationale", None)
+                    or "Downstream dependency reach"
+                )
+                violations = getattr(a, "compliance_violations", None) or []
+
+                with st.expander(f"📍 {asset_name} ({asset_type}) — Classification: {data_class}"):
+                    st.write(f"**Asset ID:** `{asset_id}`")
+                    st.write(f"**Criticality:** `{crit_val}`")
+                    st.write(f"**Blast Tier:** `{tier_val}` ({impact_nature})")
+                    st.write(f"**Relationship to Proposed Change:** {impact_desc}")
+                    if violations:
+                        st.write(f"**Direct Violations:** {', '.join(violations)}")
+            except Exception:
+                continue
+    else:
+        st.info("No directly affected infrastructure assets were identified from the available Digital Twin data.")
 
 
 def _render_remediation_tab(result: AssessmentExecutionResult) -> None:
@@ -722,9 +969,14 @@ def _render_remediation_tab(result: AssessmentExecutionResult) -> None:
         checks = post_rep.pre_implementation_validation_plan or []
         if checks:
             for c in checks:
-                status_icon = "✅" if c.expected_outcome == "PASS" else "⚠️"
+                step_no = getattr(c, "step_number", 1) if not isinstance(c, dict) else c.get("step_number", 1)
+                target = getattr(c, "target_component", "") if not isinstance(c, dict) else c.get("target_component", "")
+                what = getattr(c, "what_to_validate", "") if not isinstance(c, dict) else c.get("what_to_validate", "")
+                cmd = getattr(c, "cli_command", "") if not isinstance(c, dict) else c.get("cli_command", "")
+                crit = getattr(c, "expected_pass_criteria", "") if not isinstance(c, dict) else c.get("expected_pass_criteria", "")
+                desc = what or target or f"Step {step_no}"
                 st.markdown(
-                    f"- {status_icon} **{c.check_id}** — {c.check_description} (*Method: {c.validation_method}*)"
+                    f"- ✅ **Step {step_no}: {target}** — {desc} (Run: `{cmd}`, Expected: `{crit}`)"
                 )
 
 

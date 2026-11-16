@@ -84,6 +84,16 @@ class ExtractedConfig:
     missing_fields: List[str] = field(default_factory=list)
 
 
+@dataclass
+class ChangeRequestSummary:
+    """Plain-English business and operational summary of a change request."""
+
+    what_is_requested: str = ""
+    why_requested: str = ""
+    key_configuration_changes: Dict[str, str] = field(default_factory=dict)
+    initial_observations: List[str] = field(default_factory=list)
+
+
 class ServiceNowExtractor:
     """Intelligent text parser and configuration extractor for ServiceNow tickets."""
 
@@ -195,7 +205,13 @@ class ServiceNowExtractor:
             [r"^Assignment Group\s*[:=]\s*(.+)"],
             default="Network Security Operations",
         )
-        cfg.justification = cls._extract_multiline_section(clean_text, "Business Justification")
+        cfg.justification = (
+            cls._extract_multiline_section(clean_text, "Business Justification")
+            or cls._extract_multiline_section(clean_text, "Justification")
+            or cls._extract_multiline_section(clean_text, "Business Reason")
+            or cls._extract_multiline_section(clean_text, "Reason")
+            or cls._extract_field(clean_text, [r"^Justification\s*[:=]\s*(.+)", r"^Business Justification\s*[:=]\s*(.+)"])
+        )
         cfg.implementation_plan = cls._extract_multiline_section(clean_text, "Implementation Plan")
         cfg.validation_plan = cls._extract_multiline_section(clean_text, "Validation Plan")
         cfg.backout_plan = cls._extract_multiline_section(clean_text, "Backout Plan")
@@ -537,6 +553,141 @@ resource "panos_security_policy" "{rule_ident}" {{
             if "contractor" in cfg.identity_name.lower() and ("admin" in cfg.requested_role.lower() or "cui" in cfg.entitlement.lower()):
                 cfg.warnings.append("Contractor identity requesting privileged CUI/Admin access (Potential SoD violation)")
 
+    @classmethod
+    def generate_summary(cls, cfg: ExtractedConfig) -> ChangeRequestSummary:
+        """Generate a structured, plain-English summary of the change request for business & SecOps reviewers."""
+        summary = ChangeRequestSummary()
+
+        # 1. What is being requested?
+        if cfg.domain == "NETWORK_SECURITY":
+            fw_target = cfg.target_firewall or "Palo Alto Enterprise Firewall"
+            if cfg.is_nat_change:
+                pub_ep = f"{cfg.nat_original_destination_address}:{cfg.nat_original_destination_port}" if cfg.nat_original_destination_address else "public perimeter endpoint"
+                priv_ep = f"{cfg.nat_translated_destination_address}:{cfg.nat_translated_destination_port}" if cfg.nat_translated_destination_address else "private host"
+                rule_n = cfg.rule_name or "inbound security policy"
+                app_n = cfg.applications or "specified"
+                summary.what_is_requested = (
+                    f"Configure an inbound Destination NAT rule ('{cfg.nat_rule_name or 'NAT-Rule'}') translating external "
+                    f"public endpoint {pub_ep} to internal private target {priv_ep}, and establish accompanying security policy "
+                    f"rule '{rule_n}' to authorize {app_n} traffic on {fw_target}."
+                )
+            elif cfg.existing_rule_name:
+                src_z = cfg.source_zone or "Not specified"
+                dst_z = cfg.destination_zone or "Not specified"
+                summary.what_is_requested = (
+                    f"Modify existing firewall security policy rule '{cfg.existing_rule_name}' (renamed to '{cfg.rule_name or 'Allow-Rule'}') "
+                    f"on {fw_target}, altering network egress permissions from zone '{src_z}' to zone '{dst_z}'."
+                )
+            else:
+                op = cfg.change_operation or "Create Security Policy"
+                rule_n = cfg.rule_name or "Not specified"
+                src_z = cfg.source_zone or "Not specified"
+                src_ip = cfg.source_addresses or "Not specified"
+                dst_z = cfg.destination_zone or "Not specified"
+                dst_ip = cfg.destination_addresses or "Not specified"
+                app_n = cfg.applications or "Not specified"
+                svc_n = cfg.services or (f"port {cfg.destination_port}" if cfg.destination_port else "Not specified")
+                act_n = cfg.action or "allow"
+                summary.what_is_requested = (
+                    f"{op}: Establish security policy rule '{rule_n}' on {fw_target} to {act_n} network traffic "
+                    f"from {src_z} ({src_ip}) to {dst_z} ({dst_ip}) using application '{app_n}' over {svc_n}."
+                )
+        else:
+            ident = cfg.identity_name or "Not specified"
+            role = cfg.requested_role or "Not specified"
+            ap = cfg.access_profile or "Not specified"
+            ent = cfg.entitlement or "Not specified"
+            src = cfg.identity_source or "Not specified"
+            summary.what_is_requested = (
+                f"Identity Access Request: Grant user '{ident}' the role of '{role}' with access profile '{ap}' "
+                f"and entitlement '{ent}' within authoritative source '{src}'."
+            )
+
+        # 2. Why is this change requested?
+        if cfg.justification and cfg.justification.strip():
+            summary.why_requested = cfg.justification.strip()
+        else:
+            summary.why_requested = "Not specified in the submitted change request ticket."
+
+        # 3. Key configuration changes
+        key_changes = {}
+        if cfg.domain == "NETWORK_SECURITY":
+            key_changes["Change Operation"] = cfg.change_operation or ("Modify Existing Policy" if cfg.existing_rule_name else "Create Security Policy")
+            key_changes["Target Firewall"] = cfg.target_firewall or "Not specified"
+            pol_val = f"Modify '{cfg.existing_rule_name}' -> '{cfg.rule_name}'" if cfg.existing_rule_name else (cfg.rule_name or "Not specified")
+            key_changes["Security Policy"] = pol_val
+            key_changes["Security Policy Rule"] = pol_val
+            key_changes["Source Zone"] = cfg.source_zone or "Not specified"
+            key_changes["Source CIDR"] = cfg.source_addresses or "Not specified"
+            key_changes["Destination Zone"] = cfg.destination_zone or "Not specified"
+            key_changes["Destination CIDR"] = cfg.destination_addresses or "Not specified"
+            key_changes["Source Zone & CIDR"] = f"Zone: {cfg.source_zone or 'Not specified'} | Address: {cfg.source_addresses or 'Not specified'}"
+            key_changes["Destination Zone & CIDR"] = f"Zone: {cfg.destination_zone or 'Not specified'} | Address: {cfg.destination_addresses or 'Not specified'}"
+            key_changes["Application"] = cfg.applications or "Not specified"
+            key_changes["Application (App-ID)"] = cfg.applications or "Not specified"
+            key_changes["Service / Port"] = cfg.services or (f"TCP/{cfg.destination_port}" if cfg.destination_port else "Not specified")
+            key_changes["Action"] = (cfg.action or "allow").upper()
+            key_changes["Rule Action"] = (cfg.action or "allow").upper()
+            key_changes["Security Profile Group"] = cfg.security_profile or "Not specified"
+            key_changes["Session Logging"] = cfg.logging or "Not specified"
+            key_changes["Session Audit Logging"] = cfg.logging or "Not specified"
+            if cfg.is_nat_change:
+                pub_t = f"{cfg.nat_original_destination_address}:{cfg.nat_original_destination_port}" if cfg.nat_original_destination_address else "Not specified"
+                priv_t = f"{cfg.nat_translated_destination_address}:{cfg.nat_translated_destination_port}" if cfg.nat_translated_destination_address else "Not specified"
+                key_changes["Destination NAT"] = f"Rule: {cfg.nat_rule_name or 'NAT-Rule'} | Pre-NAT Public: {pub_t} -> Post-NAT Private: {priv_t}"
+                key_changes["Inbound Destination NAT"] = f"Rule: {cfg.nat_rule_name or 'NAT-Rule'} | Pre-NAT Public: {pub_t} -> Post-NAT Private: {priv_t}"
+            else:
+                key_changes["Destination NAT"] = "None (Direct routed security policy)"
+                key_changes["Inbound Destination NAT"] = "None (Direct routed security policy)"
+        else:
+            key_changes["Target Identity"] = cfg.identity_name or "Not specified"
+            key_changes["Identity Profile"] = cfg.identity_profile or "Not specified"
+            key_changes["Authoritative Source"] = cfg.identity_source or "Not specified"
+            key_changes["Account ID"] = cfg.account_id or "Not specified"
+            key_changes["Requested Role"] = cfg.requested_role or "Not specified"
+            key_changes["Access Profile"] = cfg.access_profile or "Not specified"
+            key_changes["Entitlement"] = cfg.entitlement or "Not specified"
+
+        summary.key_configuration_changes = key_changes
+
+        # 4. Initial observations
+        obs = []
+        if cfg.domain == "NETWORK_SECURITY":
+            dest_lower = (cfg.destination_addresses or "").lower()
+            if dest_lower in ["any", "0.0.0.0/0"]:
+                obs.append("⚠️ Unrestricted Destination: Destination address is set to wildcard 'any' (High risk of unrestricted outbound traffic / data exfiltration).")
+
+            src_lower = (cfg.source_addresses or "").lower()
+            if src_lower in ["any", "0.0.0.0/0"] and "untrust" in (cfg.source_zone or "").lower():
+                obs.append("⚠️ Perimeter Exposure: Source address is set to wildcard 'any' (0.0.0.0/0) originating from Untrust perimeter.")
+
+            if (cfg.applications or "").lower() in ["any"]:
+                obs.append("⚠️ App-ID Inspection Bypass: Application is set to 'any', bypassing Palo Alto Layer-7 deep packet inspection.")
+
+            if (cfg.services or "").lower() in ["any"] or (cfg.destination_port or "").lower() in ["any"]:
+                obs.append("⚠️ Unrestricted Ports: Service/Port is set to 'any', exposing arbitrary network ports without port restriction.")
+
+            if (cfg.security_profile or "").lower() in ["none", "disabled", ""]:
+                obs.append("⚠️ Threat Prevention Inactive: Security Profile Group is set to 'none' (Threat Prevention, Antivirus, and Anti-Spyware inspection disabled).")
+
+            if "disabled" in (cfg.logging or "").lower():
+                obs.append("⚠️ Compliance Violation: Session audit logging is disabled, violating enterprise security and forensic audit standards.")
+
+            if cfg.is_nat_change:
+                obs.append(f"ℹ️ Inbound NAT Architecture: Pre-NAT public IP {cfg.nat_original_destination_address} is translated to private host {cfg.nat_translated_destination_address}. Accompanying security policy target matches internal host.")
+
+            if not obs:
+                obs.append("✅ Scoped Baseline: No perimeter wildcards detected. Destination CIDR, App-ID, security profile group, and logging comply with baseline security policy.")
+
+        else:
+            if "contractor" in (cfg.identity_name or "").lower() and ("admin" in (cfg.requested_role or "").lower() or "cui" in (cfg.entitlement or "").lower()):
+                obs.append("⚠️ Contractor Privileged Access: External contractor requesting elevated CUI/Administrator entitlements (Potential SoD conflict).")
+            else:
+                obs.append("✅ Standard Identity Request: Identity attributes match standard corporate role assignment lifecycle.")
+
+        summary.initial_observations = obs
+        return summary
+
     # =========================================================================
     # SAMPLE CHANGE REQUEST TEMPLATES & LOADER METHODS
     # =========================================================================
@@ -596,7 +747,7 @@ Security Profile Group: Strict-Enterprise-Security
 Log Setting: Enabled at session end
 
 Business Justification:
-The Customer Web Portal requires outbound HTTPS connectivity to an external payment verification API (198.51.100.25) to support transaction processing.
+The Customer Portal API requires outbound HTTPS connectivity to an external payment gateway for payment transaction processing. The current firewall policy blocks this communication.
 
 Implementation Plan:
 1. Log into Panorama management console.
@@ -665,7 +816,7 @@ Security Profile Group: None
 Log Setting: Disabled
 
 Business Justification:
-The data science team is running ad-hoc model training and needs unrestricted outbound internet connectivity to download public datasets, Python packages, and cloud machine learning models. Restricting destinations or applications is slowing down model experimentation.
+The analytics team requires external connectivity for downloading packages, accessing cloud services and integrating with external data providers. The team has requested unrestricted outbound access to avoid connectivity issues.
 
 Implementation Plan:
 1. Log into Panorama.
@@ -731,7 +882,7 @@ Security Profile Group: Strict-Enterprise-Security
 Log Setting: Enabled at session end
 
 Business Justification:
-The core banking application tier needs to connect to the dedicated PostgreSQL database cluster host (10.200.20.15) on standard port 5432 for transactional data persistence. This change adheres to internal network segmentation standards.
+The banking application requires database connectivity to support transaction processing and customer account operations.
 
 Implementation Plan:
 1. Log into Panorama.
@@ -807,7 +958,7 @@ Security Profile Group: Strict-Enterprise-Security
 Log Setting: Enabled at session end
 
 Business Justification:
-The Customer Support Portal must be accessible to external customers over the internet via public IP 203.0.113.50. Inbound traffic requires destination NAT translation to internal DMZ server 10.100.30.25 and an accompanying strict security policy.
+The support portal is currently hosted internally and needs to be accessible to external customers through its public IP address.
 
 Implementation Plan:
 1. Configure Destination NAT rule 'NAT-Support-Portal-Inbound' on Panorama.
@@ -881,7 +1032,7 @@ Proposed Security Profile Group: None
 Proposed Log Setting: Disabled
 
 Business Justification:
-The external vendor integration gateway is experiencing intermittent connectivity drops during high-volume synchronizations. To diagnose and prevent business disruption, temporary unrestricted outbound access is required across all ports and protocols without security inspection.
+The external vendor has reported connectivity issues while accessing its cloud-hosted services. The team proposes allowing unrestricted outbound access to resolve the issue immediately.
 
 Implementation Plan:
 1. Locate existing rule 'Allow-Vendor-Integration' on PAN-NGFW-EDGE-01.

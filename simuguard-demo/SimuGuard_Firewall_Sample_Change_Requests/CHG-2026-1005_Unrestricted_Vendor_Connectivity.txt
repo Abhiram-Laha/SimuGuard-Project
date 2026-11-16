@@ -34,7 +34,7 @@ Security Profile Group: none
 Logging: Disabled
 
 Business Justification:
-The external vendor has reported connectivity issues while accessing its cloud-hosted services. The operations team proposes allowing unrestricted outbound access to resolve the issue immediately.
+The external vendor has reported connectivity issues while accessing its cloud-hosted services. The team proposes allowing unrestricted outbound access to resolve the issue immediately.
 
 Implementation Plan:
 Modify the existing firewall policy through Panorama. Change destination, application and service restrictions to any. Commit the configuration after review.
