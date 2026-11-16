@@ -230,3 +230,212 @@ def test_sidebar_structure_contains_only_simplified_pages():
     assert PAGE_REPORTS in NAV_PAGES
     assert PAGE_SETTINGS in NAV_PAGES
     assert len(NAV_PAGES) == 4
+
+
+# =============================================================================
+# FIVE OFFICIAL FIREWALL CHANGE REQUESTS VALIDATION (CHG-1001 to CHG-1005)
+# =============================================================================
+
+def test_chg_2026_1001_outbound_https_customer_portal(temp_repo: ChangeRepository):
+    """CHG-2026-1001: Scoped Outbound HTTPS API Connectivity (Expected Verdict: ALLOW, Score: 0)."""
+    text = ServiceNowExtractor.get_sample_chg_1001()
+    cfg = ServiceNowExtractor.extract_from_text(text)
+
+    # 1. Extraction Verification
+    assert cfg.domain == "NETWORK_SECURITY"
+    assert cfg.request_number == "CHG-2026-1001"
+    assert "Allow outbound HTTPS connectivity" in cfg.title
+    assert cfg.rule_name == "Allow-Customer-Portal-API-HTTPS"
+    assert cfg.source_zone == "Trust-Application"
+    assert cfg.source_addresses == "10.100.10.0/24"
+    assert cfg.destination_zone == "Untrust-Internet"
+    assert cfg.destination_addresses == "198.51.100.25/32"
+    assert cfg.applications == "ssl"
+    assert cfg.services == "tcp-443"
+    assert cfg.destination_port == "443"
+    assert cfg.action == "allow"
+    assert cfg.security_profile == "Strict-Enterprise-Security"
+    assert "Enabled" in cfg.logging
+    assert cfg.is_nat_change is False
+    assert len(cfg.missing_fields) == 0
+    assert len(cfg.warnings) == 0  # Clean compliant change
+
+    # 2. End-to-End Simulation
+    _execute_assessment_from_workspace(temp_repo, cfg)
+    rec = temp_repo.get_change_request("CHG-2026-1001")
+    assert rec is not None
+    asmt = temp_repo.get_latest_assessment("CHG-2026-1001", assessment_type="ORIGINAL")
+    assert asmt is not None
+    assert asmt.verdict == "ALLOW"
+    assert asmt.composite_risk_score == 0
+    assert asmt.security_gaps_count == 0
+
+
+def test_chg_2026_1002_unrestricted_outbound_internet(temp_repo: ChangeRepository):
+    """CHG-2026-1002: Unrestricted Outbound Internet Egress (Expected Verdict: BLOCK, Score: 100)."""
+    text = ServiceNowExtractor.get_sample_chg_1002()
+    cfg = ServiceNowExtractor.extract_from_text(text)
+
+    # 1. Extraction Verification
+    assert cfg.domain == "NETWORK_SECURITY"
+    assert cfg.request_number == "CHG-2026-1002"
+    assert "unrestricted outbound internet access" in cfg.title.lower()
+    assert cfg.rule_name == "Allow-Analytics-Internet-Access"
+    assert cfg.source_zone == "Trust-Analytics"
+    assert cfg.source_addresses == "10.100.20.0/24"
+    assert cfg.destination_zone == "Untrust-Internet"
+    assert cfg.destination_addresses == "any"
+    assert cfg.applications == "any"
+    assert cfg.services == "any"
+    assert cfg.security_profile.lower() in ["none", "disabled", ""]
+    assert "disabled" in cfg.logging.lower()
+    assert cfg.is_nat_change is False
+
+    # 2. Risk & Ambiguity Parameter Warnings
+    assert any("Destination Address is wildcard 'any'" in w for w in cfg.warnings)
+    assert any("App-ID is set to 'any'" in w for w in cfg.warnings)
+    assert any("Service / Port is set to 'any'" in w for w in cfg.warnings)
+    assert any("Security Profile Group is set to 'none'" in w for w in cfg.warnings)
+    assert any("Audit Logging is disabled" in w for w in cfg.warnings)
+
+    # 3. End-to-End Simulation & Remediation
+    _execute_assessment_from_workspace(temp_repo, cfg)
+    rec = temp_repo.get_change_request("CHG-2026-1002")
+    assert rec is not None
+    asmt = temp_repo.get_latest_assessment("CHG-2026-1002", assessment_type="ORIGINAL")
+    assert asmt is not None
+    assert asmt.verdict == "BLOCK_DEPLOYMENT"
+    assert asmt.composite_risk_score == 100
+    assert asmt.security_gaps_count >= 2
+
+    # Verify remediation candidates generated and validated
+    remed = temp_repo.get_remediation_record("CHG-2026-1002")
+    assert remed is not None
+    post_asmt = temp_repo.get_latest_assessment("CHG-2026-1002", assessment_type="POST_REMEDIATION")
+    assert post_asmt is not None
+    assert post_asmt.verdict in ["ALLOW", "VERIFIED_SAFE"]
+    assert post_asmt.composite_risk_score == 0
+
+
+def test_chg_2026_1003_internal_network_segmentation(temp_repo: ChangeRepository):
+    """CHG-2026-1003: Internal Banking Network Segmentation (Expected Verdict: ALLOW, Score: 0)."""
+    text = ServiceNowExtractor.get_sample_chg_1003()
+    cfg = ServiceNowExtractor.extract_from_text(text)
+
+    # 1. Extraction Verification
+    assert cfg.domain == "NETWORK_SECURITY"
+    assert cfg.request_number == "CHG-2026-1003"
+    assert "internal database servers" in cfg.title.lower()
+    assert cfg.rule_name == "Allow-Banking-App-To-DB"
+    assert cfg.source_zone == "Trust-Application"
+    assert cfg.source_addresses == "10.200.10.0/24"
+    assert cfg.destination_zone == "Trust-Database"
+    assert cfg.destination_addresses == "10.200.20.15/32"
+    assert cfg.applications == "postgresql"
+    assert cfg.services == "tcp-5432"
+    assert cfg.destination_port == "5432"
+    assert cfg.action == "allow"
+    assert cfg.security_profile == "Strict-Enterprise-Security"
+    assert "Enabled" in cfg.logging
+    assert len(cfg.warnings) == 0
+
+    # 2. End-to-End Simulation
+    _execute_assessment_from_workspace(temp_repo, cfg)
+    rec = temp_repo.get_change_request("CHG-2026-1003")
+    assert rec is not None
+    asmt = temp_repo.get_latest_assessment("CHG-2026-1003", assessment_type="ORIGINAL")
+    assert asmt is not None
+    assert asmt.verdict == "ALLOW"
+    assert asmt.composite_risk_score == 0
+    assert asmt.security_gaps_count == 0
+
+
+def test_chg_2026_1004_inbound_nat_support_portal(temp_repo: ChangeRepository):
+    """CHG-2026-1004: Inbound Destination NAT & Security Policy (Expected Verdict: ALLOW, Score: 0).
+    Verifies strict separation of external pre-NAT public IP from internal post-NAT private IP.
+    """
+    text = ServiceNowExtractor.get_sample_chg_1004()
+    cfg = ServiceNowExtractor.extract_from_text(text)
+
+    # 1. Extraction Verification
+    assert cfg.domain == "NETWORK_SECURITY"
+    assert cfg.request_number == "CHG-2026-1004"
+    assert "inbound nat and security policy" in cfg.title.lower()
+    assert cfg.is_nat_change is True
+
+    # 2. Strict NAT Field Isolation
+    assert cfg.nat_rule_name == "NAT-Support-Portal-Inbound"
+    assert cfg.nat_original_source_zone == "Untrust-Internet"
+    assert cfg.nat_original_destination_zone == "Untrust-Internet"
+    assert cfg.nat_original_destination_address == "203.0.113.50"
+    assert cfg.nat_original_destination_port == "443"
+    assert cfg.nat_translated_destination_address == "10.100.30.25"
+    assert cfg.nat_translated_destination_port == "443"
+
+    # 3. Security Policy Targets Post-NAT Private Destination (NOT Public IP)
+    assert cfg.rule_name == "Allow-Inbound-Support-Portal"
+    assert cfg.source_zone == "Untrust-Internet"
+    assert cfg.destination_zone == "Trust-DMZ" or "Untrust" in cfg.destination_zone
+    assert cfg.destination_addresses == "10.100.30.25"
+    assert cfg.nat_original_destination_address != cfg.destination_addresses
+    assert "10.100.30.25" in cfg.destination_addresses
+    assert cfg.applications == "ssl"
+    assert cfg.services == "tcp-443"
+    assert cfg.destination_port == "443"
+    assert cfg.security_profile == "Strict-Enterprise-Security"
+
+    # 4. End-to-End Simulation
+    _execute_assessment_from_workspace(temp_repo, cfg)
+    rec = temp_repo.get_change_request("CHG-2026-1004")
+    assert rec is not None
+    asmt = temp_repo.get_latest_assessment("CHG-2026-1004", assessment_type="ORIGINAL")
+    assert asmt is not None
+    assert asmt.verdict == "ALLOW"
+    assert asmt.composite_risk_score == 0
+    assert asmt.security_gaps_count == 0
+
+
+def test_chg_2026_1005_unrestricted_vendor_connectivity(temp_repo: ChangeRepository):
+    """CHG-2026-1005: Unrestricted Vendor Connectivity Modification (Expected Verdict: BLOCK, Score: 100)."""
+    text = ServiceNowExtractor.get_sample_chg_1005()
+    cfg = ServiceNowExtractor.extract_from_text(text)
+
+    # 1. Extraction Verification
+    assert cfg.domain == "NETWORK_SECURITY"
+    assert cfg.request_number == "CHG-2026-1005"
+    assert "unrestricted vendor connectivity" in cfg.title.lower()
+    assert cfg.rule_name == "Allow-Vendor-Integration-Any"
+    assert cfg.existing_rule_name == "Allow-Vendor-Integration"
+    assert cfg.source_zone == "Trust-Vendor"
+    assert cfg.source_addresses == "10.100.40.0/24"
+    assert cfg.destination_zone == "Untrust-Internet"
+    assert cfg.destination_addresses == "any"
+    assert cfg.applications == "any"
+    assert cfg.services == "any"
+    assert cfg.security_profile.lower() in ["none", "disabled", ""]
+    assert "disabled" in cfg.logging.lower()
+
+    # 2. Risk & Ambiguity Parameter Warnings
+    assert any("Destination Address is wildcard 'any'" in w for w in cfg.warnings)
+    assert any("App-ID is set to 'any'" in w for w in cfg.warnings)
+    assert any("Service / Port is set to 'any'" in w for w in cfg.warnings)
+    assert any("Security Profile Group is set to 'none'" in w for w in cfg.warnings)
+    assert any("Audit Logging is disabled" in w for w in cfg.warnings)
+
+    # 3. End-to-End Simulation & Remediation
+    _execute_assessment_from_workspace(temp_repo, cfg)
+    rec = temp_repo.get_change_request("CHG-2026-1005")
+    assert rec is not None
+    asmt = temp_repo.get_latest_assessment("CHG-2026-1005", assessment_type="ORIGINAL")
+    assert asmt is not None
+    assert asmt.verdict == "BLOCK_DEPLOYMENT"
+    assert asmt.composite_risk_score == 100
+    assert asmt.security_gaps_count >= 2
+
+    # Verify candidate patch remediation drops score to 0
+    remed = temp_repo.get_remediation_record("CHG-2026-1005")
+    assert remed is not None
+    post_asmt = temp_repo.get_latest_assessment("CHG-2026-1005", assessment_type="POST_REMEDIATION")
+    assert post_asmt is not None
+    assert post_asmt.verdict in ["ALLOW", "VERIFIED_SAFE"]
+    assert post_asmt.composite_risk_score == 0

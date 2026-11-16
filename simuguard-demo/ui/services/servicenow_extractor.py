@@ -1,6 +1,6 @@
 """ServiceNow Change Request Extractor and Parser Service.
 
-Extracts structured firewall and identity governance configurations from
+Extracts structured firewall, NAT, and identity governance configurations from
 unstructured ServiceNow ticket text, key-value fields, and embedded Terraform HCL blocks.
 """
 
@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import json
 from pathlib import Path
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from config.settings import CHANGES_DIR
 
@@ -22,23 +22,50 @@ class ExtractedConfig:
     request_number: str = ""
     priority: str = "HIGH"
     change_type: str = "NORMAL"
-    justification: str = ""
-    description: str = ""
-    requested_by: str = "SecOps Operations Engineer"
+    change_operation: str = "Create Security Policy"
+    category: str = "Network Security"
+    subcategory: str = "Firewall Rule Modification"
+    business_service: str = ""
+    business_application: str = ""
+    environment: str = "Production"
+    target_firewall: str = "PAN-NGFW-EDGE-01"
+    firewall_device: str = "PAN-NGFW-EDGE-01"
+    firewall_platform: str = "Palo Alto PA-5450"
+    management_platform: str = "Panorama"
 
-    # Network Security / Firewall Fields
-    firewall_platform: str = "Palo Alto Networks PA-5450"
-    firewall_device: str = "fw-edge-01-primary"
+    requested_by: str = "SecOps Operations Engineer"
+    assignment_group: str = "Network Security Operations"
+    justification: str = ""
+    implementation_plan: str = ""
+    validation_plan: str = ""
+    backout_plan: str = ""
+    maintenance_window: str = ""
+    description: str = ""
+
+    # Network Security / Firewall Rule Fields
     rule_name: str = ""
-    source_zone: str = "Untrust-Internet"
+    existing_rule_name: str = ""
+    source_zone: str = ""
     destination_zone: str = ""
     source_addresses: str = ""
     destination_addresses: str = ""
     applications: str = ""
-    services: str = "service-https"
-    destination_port: str = "443"
+    services: str = ""
+    protocol: str = "TCP"
+    destination_port: str = ""
     action: str = "allow"
     security_profile: str = "Strict-Enterprise-Security"
+    logging: str = "Enabled at session end"
+
+    # Inbound Destination NAT Fields (Specific to CHG-2026-1004)
+    is_nat_change: bool = False
+    nat_rule_name: str = ""
+    nat_original_source_zone: str = ""
+    nat_original_destination_zone: str = ""
+    nat_original_destination_address: str = ""
+    nat_original_destination_port: str = ""
+    nat_translated_destination_address: str = ""
+    nat_translated_destination_port: str = ""
 
     # Identity Governance / SailPoint Fields
     identity_name: str = ""
@@ -76,7 +103,7 @@ class ServiceNowExtractor:
             "identitynow", "governance", "sod conflict", "grant role"
         ]
         firewall_keywords = [
-            "firewall", "panos", "palo alto", "security rule",
+            "firewall", "panos", "palo alto", "security rule", "nat rule",
             "source zone", "destination zone", "cidr", "app-id", "ingress", "egress"
         ]
 
@@ -88,34 +115,94 @@ class ServiceNowExtractor:
         else:
             cfg.domain = "NETWORK_SECURITY"
 
-        # 2. Extract Common Fields using Regex Patterns
-        cfg.title = cls._extract_field(
-            clean_text,
-            [r"(?:short description|summary|title)\s*[:=]\s*(.+)", r"^([A-Z0-9_\- ]{10,80})$"],
-            default="ServiceNow Change Request",
-        )
+        # 2. Extract Common Header Fields
         cfg.request_number = cls._extract_field(
             clean_text,
-            [r"(?:change request|change number|cr number|ticket number|req(?:uest)?\s*#?)\s*[:=]\s*([A-Za-z0-9_\-]+)"],
+            [r"^(?:CHANGE REQUEST|Change Request|Request Number|Ticket Number|Req #)\s*[:=]\s*([A-Za-z0-9_\-]+)"],
+            default="",
+        )
+        cfg.title = cls._extract_field(
+            clean_text,
+            [r"^(?:Short Description|Summary|Title)\s*[:=]\s*(.+)"],
             default="",
         )
         cfg.priority = cls._extract_field(
             clean_text,
-            [r"priority\s*[:=]\s*(critical|high|medium|low|emergency|expedited)"],
+            [r"^Priority\s*[:=]\s*(Critical|High|Medium|Low|Emergency|Expedited)"],
             default="HIGH",
         ).upper()
         if cfg.priority not in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
             cfg.priority = "HIGH"
 
-        cfg.justification = cls._extract_field(
+        cfg.change_type = cls._extract_field(
             clean_text,
-            [r"(?:business justification|justification|reason)\s*[:=]\s*(.+?)(?=\n[A-Z]|\Z)"],
-            default="Operational infrastructure change requested via ServiceNow ITSM.",
+            [r"^Change Type\s*[:=]\s*(.+)"],
+            default="NORMAL",
+        ).upper()
+        cfg.change_operation = cls._extract_field(
+            clean_text,
+            [r"^Change Operation\s*[:=]\s*(.+)"],
+            default="Create Security Policy",
+        )
+        cfg.category = cls._extract_field(
+            clean_text,
+            [r"^Category\s*[:=]\s*(.+)"],
+            default="Network Security" if cfg.domain == "NETWORK_SECURITY" else "Identity Governance",
+        )
+        cfg.subcategory = cls._extract_field(
+            clean_text,
+            [r"^Subcategory\s*[:=]\s*(.+)"],
+            default="Firewall Rule Modification",
+        )
+        cfg.business_service = cls._extract_field(
+            clean_text,
+            [r"^Business Service\s*[:=]\s*(.+)"],
+            default="",
+        )
+        cfg.business_application = cls._extract_field(
+            clean_text,
+            [r"^Application\s*[:=]\s*(APP-[A-Za-z0-9_\-]+)", r"^Business Application\s*[:=]\s*(.+)"],
+            default="",
+        )
+        cfg.environment = cls._extract_field(
+            clean_text,
+            [r"^Environment\s*[:=]\s*(.+)"],
+            default="Production",
+        )
+        cfg.target_firewall = cls._extract_field(
+            clean_text,
+            [r"^Target Firewall\s*[:=]\s*(.+)"],
+            default="PAN-NGFW-EDGE-01",
+        )
+        cfg.firewall_device = cfg.target_firewall
+        cfg.firewall_platform = cls._extract_field(
+            clean_text,
+            [r"^Firewall Platform\s*[:=]\s*(.+)"],
+            default="Palo Alto PA-5450",
+        )
+        cfg.management_platform = cls._extract_field(
+            clean_text,
+            [r"^Management Platform\s*[:=]\s*(.+)"],
+            default="Panorama",
         )
         cfg.requested_by = cls._extract_field(
             clean_text,
-            [r"(?:requested by|submitter|requester)\s*[:=]\s*(.+)"],
-            default="David Kim (Senior SecOps Operations Engineer)",
+            [r"^Requested By\s*[:=]\s*(.+)", r"^Submitter\s*[:=]\s*(.+)"],
+            default="SecOps Operations Engineer",
+        )
+        cfg.assignment_group = cls._extract_field(
+            clean_text,
+            [r"^Assignment Group\s*[:=]\s*(.+)"],
+            default="Network Security Operations",
+        )
+        cfg.justification = cls._extract_multiline_section(clean_text, "Business Justification")
+        cfg.implementation_plan = cls._extract_multiline_section(clean_text, "Implementation Plan")
+        cfg.validation_plan = cls._extract_multiline_section(clean_text, "Validation Plan")
+        cfg.backout_plan = cls._extract_multiline_section(clean_text, "Backout Plan")
+        cfg.maintenance_window = cls._extract_field(
+            clean_text,
+            [r"^Requested Maintenance Window\s*[:=]\s*(.+)", r"^Maintenance Window\s*[:=]\s*(.+)"],
+            default="Next Scheduled Maintenance Window",
         )
 
         # 3. Check for Embedded Terraform / HCL Block
@@ -124,17 +211,16 @@ class ServiceNowExtractor:
             cfg.raw_hcl = hcl_match.group(1).strip()
             cls._extract_from_hcl(cfg.raw_hcl, cfg)
         elif "resource " in clean_text and " {" in clean_text:
-            # Entire text may be Terraform
             cfg.raw_hcl = clean_text
             cls._extract_from_hcl(clean_text, cfg)
 
-        # 4. Extract Domain-Specific Fields from Text Lines
+        # 4. Extract Domain-Specific Fields
         if cfg.domain == "NETWORK_SECURITY":
-            cls._extract_firewall_fields(clean_text, cfg)
+            cls._extract_firewall_and_nat_fields(clean_text, cfg)
         else:
             cls._extract_sailpoint_fields(clean_text, cfg)
 
-        # 5. Check if matches known certified files
+        # 5. Check if matches known baseline files in changes/
         cls._match_known_scenario(clean_text, cfg)
 
         # 6. Validate Missing and Ambiguous Fields
@@ -144,7 +230,7 @@ class ServiceNowExtractor:
 
     @classmethod
     def _extract_field(cls, text: str, patterns: List[str], default: str = "") -> str:
-        """Extract first matching group from regex patterns."""
+        """Extract first matching group from regex patterns line by line."""
         for pat in patterns:
             m = re.search(pat, text, re.IGNORECASE | re.MULTILINE)
             if m:
@@ -154,96 +240,144 @@ class ServiceNowExtractor:
         return default
 
     @classmethod
-    def _extract_firewall_fields(cls, text: str, cfg: ExtractedConfig) -> None:
-        """Extract network security and firewall attributes."""
-        if not cfg.rule_name:
-            cfg.rule_name = cls._extract_field(
-                text,
-                [r"(?:rule name|policy name|security policy)\s*[:=]\s*(.+)"],
-                default="Allow-Egress-Rule",
-            )
-        if not cfg.source_zone:
-            cfg.source_zone = cls._extract_field(
-                text,
-                [r"(?:source zone|src zone|from zone)\s*[:=]\s*(.+)"],
-                default="Untrust-Internet",
-            )
-        if not cfg.destination_zone:
-            cfg.destination_zone = cls._extract_field(
-                text,
-                [r"(?:destination zone|dst zone|to zone)\s*[:=]\s*(.+)"],
-                default="Prod-Database",
-            )
-        if not cfg.source_addresses:
-            cfg.source_addresses = cls._extract_field(
-                text,
-                [r"(?:source address(?:es)?|source cidr|src ip|source ip)\s*[:=]\s*(.+)"],
-                default="0.0.0.0/0",
-            )
-        if not cfg.destination_addresses:
-            cfg.destination_addresses = cls._extract_field(
-                text,
-                [r"(?:destination address(?:es)?|destination cidr|dst ip|dest ip|destination)\s*[:=]\s*(.+)"],
-                default="10.100.2.15/32",
-            )
-        if not cfg.applications:
-            cfg.applications = cls._extract_field(
-                text,
-                [r"(?:applications?|app-id|application)\s*[:=]\s*(.+)"],
-                default="any",
-            )
-        if not cfg.services:
-            cfg.services = cls._extract_field(
-                text,
-                [r"(?:services?|service object)\s*[:=]\s*(.+)"],
-                default="service-https",
-            )
-        if not cfg.destination_port:
-            cfg.destination_port = cls._extract_field(
-                text,
-                [r"(?:destination port|dst port|port)\s*[:=]\s*(.+)"],
-                default="443",
-            )
-        if not cfg.action:
-            act = cls._extract_field(text, [r"action\s*[:=]\s*(allow|deny|drop)"], default="allow").lower()
-            cfg.action = act if act in ["allow", "deny", "drop"] else "allow"
+    def _extract_multiline_section(cls, text: str, section_header: str) -> str:
+        """Extract multi-line body under a section header until the next uppercase header."""
+        pat = rf"(?:^|\n){re.escape(section_header)}\s*[:=]\s*\n?([\s\S]+?)(?=\n[A-Z][A-Za-z0-9 ]+:\s*|\Z)"
+        m = re.search(pat, text, re.IGNORECASE)
+        if m:
+            body = m.group(1).strip()
+            return body
+        return ""
+
+    @classmethod
+    def _extract_firewall_and_nat_fields(cls, text: str, cfg: ExtractedConfig) -> None:
+        """Extract firewall rule parameters, NAT translations, security profiles, and logging."""
+        # --- NAT Rule Extraction (CHG-2026-1004) ---
+        nat_name = cls._extract_field(text, [r"^NAT Rule Name\s*[:=]\s*(.+)"])
+        orig_dst_ip = cls._extract_field(text, [r"^Original Destination Address\s*[:=]\s*(.+)"])
+        trans_dst_ip = cls._extract_field(text, [r"^Translated Destination Address\s*[:=]\s*(.+)"])
+
+        if nat_name or orig_dst_ip or trans_dst_ip:
+            cfg.is_nat_change = True
+            cfg.nat_rule_name = nat_name or "Inbound-Destination-NAT"
+            cfg.nat_original_source_zone = cls._extract_field(text, [r"^Original Source Zone\s*[:=]\s*(.+)"], default="Untrust-Internet")
+            cfg.nat_original_destination_zone = cls._extract_field(text, [r"^Original Destination Zone\s*[:=]\s*(.+)"], default="Untrust-Internet")
+            cfg.nat_original_destination_address = orig_dst_ip
+            cfg.nat_original_destination_port = cls._extract_field(text, [r"^Original Destination Port\s*[:=]\s*(.+)"], default="443")
+            cfg.nat_translated_destination_address = trans_dst_ip
+            cfg.nat_translated_destination_port = cls._extract_field(text, [r"^Translated Destination Port\s*[:=]\s*(.+)"], default="443")
+
+        # --- Rule Name & Existing Rule Extraction ---
+        existing_rn = cls._extract_field(text, [r"^Existing Rule Name\s*[:=]\s*(.+)"])
+        proposed_rn = cls._extract_field(text, [r"^Proposed Rule Name\s*[:=]\s*(.+)"])
+        sec_pol_name = cls._extract_field(text, [r"^Security Policy Name\s*[:=]\s*(.+)"])
+        std_rule_name = cls._extract_field(text, [r"^Rule Name\s*[:=]\s*(.+)"])
+
+        if proposed_rn:
+            cfg.rule_name = proposed_rn
+            cfg.existing_rule_name = existing_rn
+        elif sec_pol_name:
+            cfg.rule_name = sec_pol_name
+        elif std_rule_name:
+            cfg.rule_name = std_rule_name
+        elif existing_rn:
+            cfg.rule_name = existing_rn
+
+        # --- Zones & Addresses ---
+        cfg.source_zone = cls._extract_field(
+            text,
+            [r"^Source Zone\s*[:=]\s*(.+)", r"^From Zone\s*[:=]\s*(.+)"],
+            default="Untrust-Internet",
+        )
+        cfg.destination_zone = cls._extract_field(
+            text,
+            [r"^Destination Zone\s*[:=]\s*(.+)", r"^To Zone\s*[:=]\s*(.+)"],
+            default="Untrust-Internet",
+        )
+        cfg.source_addresses = cls._extract_field(
+            text,
+            [r"^Source Address(?:es)?\s*[:=]\s*(.+)", r"^Source CIDR\s*[:=]\s*(.+)"],
+            default="0.0.0.0/0",
+        )
+
+        # Ensure Destination Address is the Security Policy target (not the NAT original IP)
+        cfg.destination_addresses = cls._extract_field(
+            text,
+            [r"^(?!Original|Translated)Destination Address(?:es)?\s*[:=]\s*(.+)", r"^Destination CIDR\s*[:=]\s*(.+)"],
+            default=cfg.nat_translated_destination_address or "10.100.2.15/32",
+        )
+
+        # --- Layer-7 App-ID vs Business Application ---
+        app_candidates = re.findall(r"^Application\s*[:=]\s*(.+)$", text, re.IGNORECASE | re.MULTILINE)
+        if len(app_candidates) > 1:
+            cfg.applications = app_candidates[1].strip()
+        elif len(app_candidates) == 1:
+            val = app_candidates[0].strip()
+            if val.startswith("APP-") and not cfg.business_application:
+                cfg.business_application = val
+                cfg.applications = cls._extract_field(text, [r"^App-ID\s*[:=]\s*(.+)"], default="any")
+            else:
+                cfg.applications = val
+        else:
+            cfg.applications = cls._extract_field(text, [r"^App-ID\s*[:=]\s*(.+)"], default="any")
+
+        # --- Service, Protocol & Port ---
+        cfg.services = cls._extract_field(text, [r"^Service\s*[:=]\s*(.+)"], default="service-https")
+        cfg.protocol = cls._extract_field(text, [r"^Protocol\s*[:=]\s*(.+)"], default="TCP").upper()
+        cfg.destination_port = cls._extract_field(text, [r"^Destination Port\s*[:=]\s*(.+)"], default="443")
+
+        # --- Action ---
+        act = cls._extract_field(text, [r"^Action\s*[:=]\s*(Allow|Deny|Drop)"], default="allow").lower()
+        cfg.action = act if act in ["allow", "deny", "drop"] else "allow"
+
+        # --- Security Profile & Logging ---
+        cfg.security_profile = cls._extract_field(
+            text,
+            [r"^Security Profile Group\s*[:=]\s*(.+)", r"^Security Profile\s*[:=]\s*(.+)"],
+            default="Strict-Enterprise-Security",
+        )
+        cfg.logging = cls._extract_field(
+            text,
+            [r"^Logging\s*[:=]\s*(.+)"],
+            default="Enabled at session end",
+        )
 
     @classmethod
     def _extract_sailpoint_fields(cls, text: str, cfg: ExtractedConfig) -> None:
         """Extract SailPoint identity governance attributes."""
         cfg.identity_name = cls._extract_field(
             text,
-            [r"(?:target identity|identity name)\s*[:=]\s*(.+)", r"^identity\s*[:=]\s*(.+)"],
+            [r"^Target Identity\s*[:=]\s*(.+)", r"^Identity Name\s*[:=]\s*(.+)", r"^Identity\s*[:=]\s*(.+)"],
             default="Sarah Chen (sp-ident-sarah-chen)",
         )
         cfg.identity_profile = cls._extract_field(
             text,
-            [r"(?:identity profile)\s*[:=]\s*(.+)"],
+            [r"^Identity Profile\s*[:=]\s*(.+)"],
             default="Corporate Full-Time Employees",
         )
         cfg.requested_role = cls._extract_field(
             text,
-            [r"(?:requested role|role name)\s*[:=]\s*(.+)", r"^role\s*[:=]\s*(.+)"],
+            [r"^Requested Role\s*[:=]\s*(.+)", r"^Role Name\s*[:=]\s*(.+)", r"^Role\s*[:=]\s*(.+)"],
             default="Finance & Treasury Analyst",
         )
         cfg.access_profile = cls._extract_field(
             text,
-            [r"(?:access profile)\s*[:=]\s*(.+)"],
+            [r"^Access Profile\s*[:=]\s*(.+)"],
             default="Production S3 CUI Vault Read Access",
         )
         cfg.entitlement = cls._extract_field(
             text,
-            [r"(?:entitlement|permission)\s*[:=]\s*(.+)"],
+            [r"^Entitlement\s*[:=]\s*(.+)", r"^Permission\s*[:=]\s*(.+)"],
             default="AWS Production S3 CUI Vault Read",
         )
         cfg.account_id = cls._extract_field(
             text,
-            [r"(?:account id|source account)\s*[:=]\s*(.+)"],
+            [r"^Source Account ID\s*[:=]\s*(.+)", r"^Account ID\s*[:=]\s*(.+)"],
             default="sp-acct-ad-sarah-chen",
         )
         cfg.identity_source = cls._extract_field(
             text,
-            [r"(?:authoritative source|identity source)\s*[:=]\s*(.+)", r"^source\s*[:=]\s*(.+)"],
+            [r"^Authoritative Source\s*[:=]\s*(.+)", r"^Identity Source\s*[:=]\s*(.+)"],
             default="Corporate Active Directory",
         )
 
@@ -282,6 +416,10 @@ class ServiceNowExtractor:
         if act_m:
             cfg.action = act_m.group(1)
 
+        prof_m = re.search(r'security_profile_group\s*=\s*"([^"]+)"', hcl)
+        if prof_m:
+            cfg.security_profile = prof_m.group(1)
+
     @classmethod
     def _match_known_scenario(cls, text: str, cfg: ExtractedConfig) -> None:
         """Match scenario text against known baseline files in changes/."""
@@ -290,13 +428,13 @@ class ServiceNowExtractor:
         netflix_path = CHANGES_DIR / "allow_netflix.tf"
         safe_path = CHANGES_DIR / "demo" / "demo_safe_firewall.tf"
 
-        if "4082" in text or "direct-db-access-rule" in text or "pci-db-sg" in text:
+        if "pr #4082" in text.lower() or "chg004082" in text.lower() or "direct-db-access-rule" in text.lower():
             if pr_4082_path.exists():
                 cfg.scenario_source_path = str(pr_4082_path)
                 cfg.raw_hcl = pr_4082_path.read_text(encoding="utf-8")
                 if not cfg.title:
                     cfg.title = "PR-4082: Direct Database Access & IAM Role Attachment"
-        elif "4083" in text or "dmz-ext-inbound-permissive" in text or "arn:aws:iam::aws:policy/AdministratorAccess" in text:
+        elif "pr #4083" in text.lower() or "chg004083" in text.lower() or "allow-analytics-outbound-webhook" in text.lower():
             if pr_4083_path.exists():
                 cfg.scenario_source_path = str(pr_4083_path)
                 cfg.raw_hcl = pr_4083_path.read_text(encoding="utf-8")
@@ -323,19 +461,19 @@ class ServiceNowExtractor:
     def _synthesize_firewall_hcl(cls, cfg: ExtractedConfig) -> str:
         """Synthesize compliant Terraform HCL for a firewall rule."""
         rule_ident = re.sub(r"[^a-zA-Z0-9_]", "_", cfg.rule_name or "extracted_firewall_rule")
+        sec_profile_val = cfg.security_profile or "none"
         return f'''# Synthesized Terraform HCL from ServiceNow Change Request
-resource "panos_security_rule_group" "{rule_ident}" {{
-  position = "top"
-
+resource "panos_security_policy" "{rule_ident}" {{
   rule {{
     name                  = "{cfg.rule_name or 'Allow-Service-Traffic'}"
     source_zones          = ["{cfg.source_zone or 'Untrust-Internet'}"]
     source_addresses      = ["{cfg.source_addresses or '0.0.0.0/0'}"]
-    destination_zones     = ["{cfg.destination_zone or 'Prod-Database'}"]
-    destination_addresses = ["{cfg.destination_addresses or '10.100.2.15/32'}"]
+    destination_zones     = ["{cfg.destination_zone or 'Untrust-Internet'}"]
+    destination_addresses = ["{cfg.destination_addresses or 'any'}"]
     applications          = ["{cfg.applications or 'any'}"]
     services              = ["{cfg.services or 'service-https'}"]
     action                = "{cfg.action or 'allow'}"
+    security_profile_group = "{sec_profile_val}"
   }}
 }}
 '''
@@ -346,26 +484,49 @@ resource "panos_security_rule_group" "{rule_ident}" {{
         cfg.warnings = []
         cfg.missing_fields = []
 
-        if not cfg.title or cfg.title == "ServiceNow Change Request":
+        if not cfg.title:
             cfg.missing_fields.append("Short Description / Summary")
 
         if cfg.domain == "NETWORK_SECURITY":
             if not cfg.rule_name:
                 cfg.missing_fields.append("Firewall Rule Name")
+            if not cfg.source_zone:
+                cfg.missing_fields.append("Source Zone")
             if not cfg.destination_zone:
                 cfg.missing_fields.append("Destination Zone")
             if not cfg.destination_addresses:
                 cfg.missing_fields.append("Destination Address / CIDR")
 
             # Risk & Ambiguity detections
-            if cfg.destination_addresses.lower() in ["any", "0.0.0.0/0"]:
-                cfg.warnings.append("Destination Address is wildcard 'any' (High risk of unrestricted ingress/egress)")
-            if cfg.source_addresses.lower() in ["any", "0.0.0.0/0"] and cfg.destination_zone.lower() in ["prod-database", "database", "pci-db", "cui-vault"]:
-                cfg.warnings.append("Source 0.0.0.0/0 into Protected Database Zone (Critical exposure)")
+            dest_lower = cfg.destination_addresses.lower()
+            if dest_lower in ["any", "0.0.0.0/0"]:
+                cfg.warnings.append("Destination Address is wildcard 'any' (High risk of unrestricted outbound traffic / data exfiltration)")
+
+            src_lower = cfg.source_addresses.lower()
+            if src_lower in ["any", "0.0.0.0/0"] and "untrust" in cfg.source_zone.lower():
+                if any(db_kw in cfg.destination_zone.lower() for db_kw in ["database", "prod-database", "pci-db"]):
+                    cfg.warnings.append("Direct perimeter access to Database Tier violates PCI-DSS 1.3.1 (Untrust -> Database)")
+                else:
+                    cfg.warnings.append("Unrestricted source 0.0.0.0/0 from Untrust perimeter (Inbound exposure)")
+
             if cfg.applications.lower() in ["any"]:
-                cfg.warnings.append("App-ID is set to 'any' (High risk of protocol evasion; specific App-ID required)")
-            if cfg.action.lower() == "allow" and "database" in cfg.destination_zone.lower() and "untrust" in cfg.source_zone.lower():
-                cfg.warnings.append("Direct perimeter access to Database Tier violates PCI-DSS 1.3.1")
+                cfg.warnings.append("App-ID is set to 'any' (Bypasses Palo Alto Layer-7 deep packet inspection)")
+
+            if cfg.services.lower() in ["any"] or cfg.destination_port.lower() in ["any"]:
+                cfg.warnings.append("Service / Port is set to 'any' (Exposes arbitrary network ports without restriction)")
+
+            if cfg.security_profile.lower() in ["none", "disabled", ""]:
+                cfg.warnings.append("Security Profile Group is set to 'none' (Disables Threat Prevention, Antivirus, and Anti-Spyware)")
+
+            if "disabled" in cfg.logging.lower():
+                cfg.warnings.append("Audit Logging is disabled (Violates enterprise compliance and forensic audit standards)")
+
+            # NAT Specific Verification
+            if cfg.is_nat_change:
+                cfg.warnings.append(
+                    f"Inbound Destination NAT configured: Public {cfg.nat_original_destination_address}:{cfg.nat_original_destination_port} -> "
+                    f"Internal {cfg.nat_translated_destination_address}:{cfg.nat_translated_destination_port} (Security Policy target verified)"
+                )
 
         elif cfg.domain == "IDENTITY_GOVERNANCE":
             if not cfg.identity_name:
@@ -373,13 +534,380 @@ resource "panos_security_rule_group" "{rule_ident}" {{
             if not (cfg.requested_role or cfg.access_profile or cfg.entitlement):
                 cfg.missing_fields.append("At least one requested entitlement or role")
 
-            # Ambiguity detections
             if "contractor" in cfg.identity_name.lower() and ("admin" in cfg.requested_role.lower() or "cui" in cfg.entitlement.lower()):
                 cfg.warnings.append("Contractor identity requesting privileged CUI/Admin access (Potential SoD violation)")
 
     # =========================================================================
-    # SAMPLE PRE-LOADED TEMPLATES
+    # SAMPLE CHANGE REQUEST TEMPLATES & LOADER METHODS
     # =========================================================================
+
+    @classmethod
+    def _read_chg_sample(cls, filename: str) -> str:
+        candidates = [
+            Path(__file__).parent.parent.parent / "SimuGuard_Firewall_Sample_Change_Requests" / filename,
+            Path(__file__).parent.parent.parent.parent / "SimuGuard_Firewall_Sample_Change_Requests" / filename,
+            Path("SimuGuard_Firewall_Sample_Change_Requests") / filename,
+            CHANGES_DIR.parent / "SimuGuard_Firewall_Sample_Change_Requests" / filename,
+        ]
+        for p in candidates:
+            if p.exists():
+                return p.read_text(encoding="utf-8")
+        return ""
+
+    @classmethod
+    def get_sample_chg_1001(cls) -> str:
+        """Sample CHG-2026-1001: Allow outbound HTTPS connectivity for Customer Portal API (ALLOW)."""
+        content = cls._read_chg_sample("CHG-2026-1001_Outbound_HTTPS_Customer_Portal.txt")
+        if content:
+            return content
+        return """CHANGE REQUEST: CHG-2026-1001
+
+Short Description: Allow outbound HTTPS connectivity for Customer Portal API
+
+Requested By: Rahul Sharma
+Assignment Group: Network Security Operations
+Change Type: Normal
+Priority: Medium
+Category: Network Security
+Subcategory: Firewall Rule Modification
+
+Business Service: Customer Web Portal
+Application: APP-001-CUSTOMER-PORTAL
+Environment: Production
+
+Target Firewall: PAN-NGFW-EDGE-01
+Firewall Platform: Palo Alto PA-5450
+Management Platform: Panorama
+
+Change Operation: Create Security Policy
+
+Security Policy Details:
+Rule Name: Allow-Customer-Portal-Outbound
+Source Zone: Trust-Application
+Source Address / CIDR: 10.100.10.0/24
+Destination Zone: Untrust-Internet
+Destination Address / CIDR: 198.51.100.25/32
+Application: ssl
+Service: service-https
+Port: 443
+Protocol: TCP
+Action: Allow
+Security Profile Group: Strict-Enterprise-Security
+Log Setting: Enabled at session end
+
+Business Justification:
+The Customer Web Portal requires outbound HTTPS connectivity to an external payment verification API (198.51.100.25) to support transaction processing.
+
+Implementation Plan:
+1. Log into Panorama management console.
+2. Navigate to Device Group 'Edge-Firewalls' -> Policies -> Security.
+3. Add security rule 'Allow-Customer-Portal-Outbound'.
+4. Configure source zone 'Trust-Application' with source prefix 10.100.10.0/24.
+5. Configure destination zone 'Untrust-Internet' with destination IP 198.51.100.25/32.
+6. Set application to 'ssl' and service to 'service-https'.
+7. Attach 'Strict-Enterprise-Security' profile group.
+8. Enable logging at session end.
+9. Commit and push configuration to PAN-NGFW-EDGE-01.
+
+Validation Plan:
+1. Initiate curl HTTPS request from application host 10.100.10.15 to https://198.51.100.25.
+2. Verify traffic log in Panorama shows rule 'Allow-Customer-Portal-Outbound' hit with action 'allow'.
+3. Confirm SSL session establishment without TLS handshake failures.
+
+Backout Plan:
+1. If communication fails or unexpected traffic is observed, disable rule 'Allow-Customer-Portal-Outbound'.
+2. Commit and push changes via Panorama.
+3. Notify application team.
+
+Maintenance Window:
+2026-10-15 02:00 UTC - 2026-10-15 04:00 UTC
+"""
+
+    @classmethod
+    def get_sample_chg_1002(cls) -> str:
+        """Sample CHG-2026-1002: Enable unrestricted outbound internet access for Analytics Servers (BLOCK)."""
+        content = cls._read_chg_sample("CHG-2026-1002_Unrestricted_Outbound_Internet.txt")
+        if content:
+            return content
+        return """CHANGE REQUEST: CHG-2026-1002
+
+Short Description: Enable unrestricted outbound internet access for Analytics Servers
+
+Requested By: Amit Verma
+Assignment Group: Network Security Operations
+Change Type: Normal
+Priority: High
+Category: Network Security
+Subcategory: Firewall Rule Modification
+
+Business Service: Enterprise Analytics Platform
+Application: APP-002-ANALYTICS
+Environment: Production
+
+Target Firewall: PAN-NGFW-EDGE-01
+Firewall Platform: Palo Alto PA-5450
+Management Platform: Panorama
+
+Change Operation: Create Security Policy
+
+Security Policy Details:
+Rule Name: Temp-Analytics-Outbound-Access
+Source Zone: Trust-Analytics
+Source Address / CIDR: 10.100.20.0/24
+Destination Zone: Untrust-Internet
+Destination Address / CIDR: any
+Application: any
+Service: any
+Port: any
+Protocol: ANY
+Action: Allow
+Security Profile Group: None
+Log Setting: Disabled
+
+Business Justification:
+The data science team is running ad-hoc model training and needs unrestricted outbound internet connectivity to download public datasets, Python packages, and cloud machine learning models. Restricting destinations or applications is slowing down model experimentation.
+
+Implementation Plan:
+1. Log into Panorama.
+2. Create rule 'Temp-Analytics-Outbound-Access' in Edge-Firewalls policy set.
+3. Source: Trust-Analytics (10.100.20.0/24).
+4. Destination: Untrust-Internet (any).
+5. Application: any.
+6. Service: any.
+7. Action: Allow.
+8. Commit configuration.
+
+Validation Plan:
+1. Run pip install and curl commands from analytics worker node.
+2. Confirm external internet access is functional.
+
+Backout Plan:
+1. Remove or disable rule 'Temp-Analytics-Outbound-Access'.
+2. Commit configuration.
+
+Maintenance Window:
+2026-10-16 01:00 UTC - 2026-10-16 03:00 UTC
+"""
+
+    @classmethod
+    def get_sample_chg_1003(cls) -> str:
+        """Sample CHG-2026-1003: Allow application servers to communicate with internal database servers (ALLOW)."""
+        content = cls._read_chg_sample("CHG-2026-1003_Internal_Network_Segmentation.txt")
+        if content:
+            return content
+        return """CHANGE REQUEST: CHG-2026-1003
+
+Short Description: Allow application servers to communicate with internal database servers
+
+Requested By: Sneha Reddy
+Assignment Group: Network Security Operations
+Change Type: Normal
+Priority: Medium
+Category: Network Security
+Subcategory: Internal Segmentation
+
+Business Service: Enterprise Banking Application
+Application: APP-003-BANKING
+Environment: Production
+
+Target Firewall: PAN-NGFW-DC-01
+Firewall Platform: Palo Alto PA-5450
+Management Platform: Panorama
+
+Change Operation: Create Security Policy
+
+Security Policy Details:
+Rule Name: Allow-App-To-Database-Postgres
+Source Zone: Trust-Application
+Source Address / CIDR: 10.200.10.0/24
+Destination Zone: Trust-Database
+Destination Address / CIDR: 10.200.20.15/32
+Application: postgresql
+Service: tcp-5432
+Port: 5432
+Protocol: TCP
+Action: Allow
+Security Profile Group: Strict-Enterprise-Security
+Log Setting: Enabled at session end
+
+Business Justification:
+The core banking application tier needs to connect to the dedicated PostgreSQL database cluster host (10.200.20.15) on standard port 5432 for transactional data persistence. This change adheres to internal network segmentation standards.
+
+Implementation Plan:
+1. Log into Panorama.
+2. Navigate to DataCenter-Firewalls policy group.
+3. Create rule 'Allow-App-To-Database-Postgres'.
+4. Source Zone: Trust-Application, Source CIDR: 10.200.10.0/24.
+5. Destination Zone: Trust-Database, Destination CIDR: 10.200.20.15/32.
+6. Set Application to postgresql, Service to tcp-5432.
+7. Attach Strict-Enterprise-Security profile group.
+8. Commit configuration to PAN-NGFW-DC-01.
+
+Validation Plan:
+1. Run pg_isready and test DB connectivity from 10.200.10.12.
+2. Confirm successful connection in firewall traffic log.
+
+Backout Plan:
+1. Disable rule 'Allow-App-To-Database-Postgres'.
+2. Commit configuration.
+
+Maintenance Window:
+2026-10-17 02:00 UTC - 2026-10-17 04:00 UTC
+"""
+
+    @classmethod
+    def get_sample_chg_1004(cls) -> str:
+        """Sample CHG-2026-1004: Configure inbound NAT and security policy for Customer Support Portal (ALLOW)."""
+        content = cls._read_chg_sample("CHG-2026-1004_Inbound_NAT_Support_Portal.txt")
+        if content:
+            return content
+        return """CHANGE REQUEST: CHG-2026-1004
+
+Short Description: Configure inbound NAT and security policy for Customer Support Portal
+
+Requested By: Karan Mehta
+Assignment Group: Network Security Operations
+Change Type: Normal
+Priority: High
+Category: Network Security
+Subcategory: NAT Rule Configuration
+
+Business Service: Customer Support Portal
+Application: APP-004-SUPPORT-PORTAL
+Environment: Production
+
+Target Firewall: PAN-NGFW-EDGE-02
+Firewall Platform: Palo Alto PA-5450
+Management Platform: Panorama
+
+Change Operation: Create NAT and Security Policies
+
+NAT Policy Details:
+Rule Name: NAT-Support-Portal-Inbound
+NAT Type: Destination NAT (IPv4)
+Original Source Zone: Untrust-Internet
+Original Destination Zone: Untrust-Internet
+Original Destination Address: 203.0.113.50/32
+Original Service: service-https (TCP 443)
+Translated Destination Address: 10.100.30.25
+Translated Destination Port: 443
+
+Security Policy Details:
+Rule Name: Allow-Inbound-Support-Portal
+Source Zone: Untrust-Internet
+Source Address / CIDR: any (0.0.0.0/0)
+Destination Zone: Trust-DMZ
+Destination Address / CIDR: 10.100.30.25/32
+Application: ssl
+Service: service-https
+Port: 443
+Protocol: TCP
+Action: Allow
+Security Profile Group: Strict-Enterprise-Security
+Log Setting: Enabled at session end
+
+Business Justification:
+The Customer Support Portal must be accessible to external customers over the internet via public IP 203.0.113.50. Inbound traffic requires destination NAT translation to internal DMZ server 10.100.30.25 and an accompanying strict security policy.
+
+Implementation Plan:
+1. Configure Destination NAT rule 'NAT-Support-Portal-Inbound' on Panorama.
+2. Configure Security Policy rule 'Allow-Inbound-Support-Portal' matching post-NAT IP 10.100.30.25.
+3. Attach Strict-Enterprise-Security profile.
+4. Commit and push to PAN-NGFW-EDGE-02.
+
+Validation Plan:
+1. Send HTTPS request to https://203.0.113.50 from external probe.
+2. Verify NAT log and Security log show translation and permit.
+
+Backout Plan:
+1. Disable NAT and Security rules.
+2. Commit configuration.
+
+Maintenance Window:
+2026-10-18 01:00 UTC - 2026-10-18 03:00 UTC
+"""
+
+    @classmethod
+    def get_sample_chg_1005(cls) -> str:
+        """Sample CHG-2026-1005: Modify existing firewall rule to allow unrestricted vendor connectivity (BLOCK)."""
+        content = cls._read_chg_sample("CHG-2026-1005_Unrestricted_Vendor_Connectivity.txt")
+        if content:
+            return content
+        return """CHANGE REQUEST: CHG-2026-1005
+
+Short Description: Modify existing firewall rule to allow unrestricted vendor connectivity
+
+Requested By: David Kim
+Assignment Group: SecOps-Network-Team
+Change Type: Emergency
+Priority: Critical
+Category: Network Security
+Subcategory: Existing Firewall Rule Modification
+
+Business Service: Enterprise Infrastructure
+Application: APP-005-VENDOR-INTEGRATION
+Environment: Production
+
+Target Firewall: PAN-NGFW-EDGE-01
+Firewall Platform: Palo Alto PA-5450
+Management Platform: Panorama
+
+Change Operation: Modify Existing Security Policy
+
+Existing Policy Details:
+Rule Name: Allow-Vendor-Integration
+Current Source Zone: Trust-Vendor
+Current Source Address / CIDR: 10.100.40.0/24
+Current Destination Zone: Untrust-Internet
+Current Destination Address / CIDR: 198.51.100.80/32
+Current Application: ssl
+Current Service: service-https
+Current Port: 443
+Current Action: Allow
+Current Security Profile Group: Strict-Enterprise-Security
+Current Log Setting: Enabled at session end
+
+Proposed Policy Modification:
+Rule Name: Allow-Vendor-Integration-Any
+Proposed Source Zone: Trust-Vendor
+Proposed Source Address / CIDR: 10.100.40.0/24
+Proposed Destination Zone: Untrust-Internet
+Proposed Destination Address / CIDR: any
+Proposed Application: any
+Proposed Service: any
+Proposed Port: any
+Proposed Action: Allow
+Proposed Security Profile Group: None
+Proposed Log Setting: Disabled
+
+Business Justification:
+The external vendor integration gateway is experiencing intermittent connectivity drops during high-volume synchronizations. To diagnose and prevent business disruption, temporary unrestricted outbound access is required across all ports and protocols without security inspection.
+
+Implementation Plan:
+1. Locate existing rule 'Allow-Vendor-Integration' on PAN-NGFW-EDGE-01.
+2. Update destination address from 198.51.100.80/32 to 'any'.
+3. Update application from 'ssl' to 'any'.
+4. Update service from 'service-https' to 'any'.
+5. Set security profile group to 'None'.
+6. Disable session logging.
+7. Rename rule to 'Allow-Vendor-Integration-Any'.
+8. Commit change immediately.
+
+Validation Plan:
+1. Vendor to verify data synchronization across multiple dynamically allocated ports.
+
+Backout Plan:
+1. Revert rule configuration back to original parameters:
+   - Destination: 198.51.100.80/32
+   - Application: ssl
+   - Service: service-https
+   - Security Profile: Strict-Enterprise-Security
+   - Logging: Enabled at session end
+2. Commit configuration.
+
+Maintenance Window:
+2026-10-19 00:00 UTC - 2026-10-19 02:00 UTC (Emergency Change)
+"""
 
     @classmethod
     def get_sample_pr_4082(cls) -> str:
@@ -417,8 +945,8 @@ resource "panos_security_rule_group" "rule_4082" {
   }
 }
 
-resource "aws_iam_role_policy_attachment" "role_attachment" {
-  role       = "analytics-pipeline-role"
+resource "aws_iam_role_policy_attachment" "wildcard_s3" {
+  role       = "telemetry-ingestion-role"
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 """

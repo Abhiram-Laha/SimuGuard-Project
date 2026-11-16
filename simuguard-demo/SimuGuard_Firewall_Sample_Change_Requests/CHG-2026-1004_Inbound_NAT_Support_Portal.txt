@@ -1,0 +1,65 @@
+CHANGE REQUEST: CHG-2026-1004
+
+Short Description: Configure inbound NAT and security policy for Customer Support Portal
+
+Requested By: Karan Mehta
+Assignment Group: Network Security Operations
+Change Type: Normal
+Priority: High
+Category: Network Security
+Subcategory: NAT Rule Configuration
+
+Business Service: Customer Support Portal
+Application: APP-004-SUPPORT-PORTAL
+Environment: Production
+
+Target Firewall: PAN-NGFW-EDGE-02
+Firewall Platform: Palo Alto PA-5450
+Management Platform: Panorama
+
+Change Operation: Create NAT and Security Policies
+
+NAT Rule Name: NAT-Support-Portal-Inbound
+Original Source Zone: Untrust-Internet
+Original Destination Zone: Untrust-Internet
+Original Destination Address: 203.0.113.50
+Original Destination Port: 443
+Translated Destination Address: 10.100.30.25
+Translated Destination Port: 443
+Protocol: TCP
+
+Security Policy Name: Allow-Inbound-Support-Portal
+Source Zone: Untrust-Internet
+Destination Zone: Untrust-Internet
+Source Address: any
+Destination Address: 10.100.30.25
+Application: ssl
+Service: tcp-443
+Action: Allow
+Security Profile Group: Strict-Enterprise-Security
+Logging: Enabled at session end
+
+Business Justification:
+The support portal is currently hosted internally and needs to be accessible to external customers through its public IP address.
+
+Implementation Plan:
+1. Configure destination NAT.
+2. Create the corresponding security policy.
+3. Attach the required security profile group.
+4. Validate NAT and policy matching.
+5. Confirm that only HTTPS access is exposed.
+
+Validation Plan:
+Verify access using the public IP and DNS hostname. Confirm that the application responds over HTTPS and that firewall logs capture the traffic.
+
+Backout Plan:
+Disable the NAT rule and associated security policy.
+
+Expected Impact:
+The support portal will become externally accessible. No other internal services should be exposed.
+
+Requested Maintenance Window:
+22 November 2026, 02:00–04:00 IST
+
+Risk Assessment Requested:
+Evaluate internet exposure, NAT translation correctness, security policy matching, application dependencies, sensitive data exposure and unintended access to internal resources.

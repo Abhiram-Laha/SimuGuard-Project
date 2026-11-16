@@ -1,0 +1,54 @@
+CHANGE REQUEST: CHG-2026-1002
+
+Short Description: Enable unrestricted outbound internet access for Analytics Servers
+
+Requested By: Amit Verma
+Assignment Group: Network Security Operations
+Change Type: Normal
+Priority: High
+Category: Network Security
+Subcategory: Firewall Rule Modification
+
+Business Service: Enterprise Analytics Platform
+Application: APP-002-ANALYTICS
+Environment: Production
+
+Target Firewall: PAN-NGFW-EDGE-01
+Firewall Platform: Palo Alto PA-5450
+Management Platform: Panorama
+
+Change Operation: Create Security Policy
+
+Rule Name: Allow-Analytics-Internet-Access
+Source Zone: Trust-Analytics
+Destination Zone: Untrust-Internet
+Source Address: 10.100.20.0/24
+Destination Address: any
+Application: any
+Service: any
+Protocol: Any
+Destination Port: Any
+Action: Allow
+Security Profile Group: none
+Logging: Disabled
+
+Business Justification:
+The analytics team requires external connectivity for downloading packages, accessing cloud services and integrating with external data providers. The team has requested unrestricted outbound access to avoid connectivity issues.
+
+Implementation Plan:
+Create the firewall security policy in Panorama and push the configuration to the production perimeter firewall.
+
+Validation Plan:
+Verify that analytics servers can access external internet resources.
+
+Backout Plan:
+Disable the newly created firewall rule.
+
+Expected Impact:
+Analytics application availability should not be affected.
+
+Requested Maintenance Window:
+17 November 2026, 01:00–02:00 IST
+
+Risk Assessment Requested:
+Evaluate unrestricted destination access, application-any configuration, missing security profiles, disabled logging, potential data exfiltration and downstream application exposure. Recommend a restricted alternative if the request is unsafe.

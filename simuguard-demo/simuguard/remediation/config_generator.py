@@ -85,7 +85,30 @@ class ConfigGenerator:
                         "}\n"
                     )
                 else:
-                    self._render_generic_resource(res, candidate_blocks)
+                    rule_blocks = []
+                    for r in res.rules:
+                        sz = ", ".join(f'"{x}"' for x in r.source_zones)
+                        sa = ", ".join(f'"{x}"' for x in r.source_addresses)
+                        dz = ", ".join(f'"{x}"' for x in r.destination_zones)
+                        da = ", ".join(f'"{x}"' for x in r.destination_addresses)
+                        apps = ", ".join(f'"{x}"' for x in r.applications)
+                        svcs = ", ".join(f'"{x}"' for x in r.services)
+                        sec_prof = f'    security_profile_group = "{r.security_profile_group}"\n' if r.security_profile_group else ""
+                        rule_blocks.append(
+                            f'  rule {{\n'
+                            f'    name                  = "{r.name}"\n'
+                            f'    source_zones          = [{sz}]\n'
+                            f'    source_addresses      = [{sa}]\n'
+                            f'    destination_zones     = [{dz}]\n'
+                            f'    destination_addresses = [{da}]\n'
+                            f'    applications          = [{apps}]\n'
+                            f'    services              = [{svcs}]\n'
+                            f'    action                = "{r.action}"\n'
+                            f'{sec_prof}'
+                            f'  }}'
+                        )
+                    rules_joined = "\n".join(rule_blocks)
+                    candidate_blocks.append(f'resource "panos_security_policy" "{res.resource_name}" {{\n{rules_joined}\n}}\n')
 
             elif isinstance(res, AwsSecurityGroupRuleResource):
                 # Explicitly REPLACE wildcard egress with scoped CIDR

@@ -142,35 +142,63 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
 
     # Quick Template Buttons (One-click loaders)
     st.markdown(
-        "<div style='font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;'>Quick Demo Scenarios:</div>",
+        "<div style='font-size:0.75rem; font-weight:700; color:#1e293b; text-transform:uppercase; margin-bottom:6px;'>Sample Firewall Change Requests (Official Project Files):</div>",
         unsafe_allow_html=True,
     )
-    col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
-    with col_t1:
-        if st.button("📌 PR-4082 (DB Ingress)", key="load_pr4082", use_container_width=True):
-            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_pr_4082()
+    col_c1, col_c2, col_c3, col_c4, col_c5 = st.columns(5)
+    with col_c1:
+        if st.button("📄 CHG-1001 (Outbound HTTPS)", key="load_chg1001", use_container_width=True):
+            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_chg_1001()
             st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
             st.rerun()
-    with col_t2:
-        if st.button("📌 PR-4083 (DMZ & IAM)", key="load_pr4083", use_container_width=True):
-            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_pr_4083()
+    with col_c2:
+        if st.button("📄 CHG-1002 (Unrestricted Egress)", key="load_chg1002", use_container_width=True):
+            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_chg_1002()
             st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
             st.rerun()
-    with col_t3:
-        if st.button("📌 Netflix (Streaming)", key="load_netflix", use_container_width=True):
-            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_allow_netflix()
+    with col_c3:
+        if st.button("📄 CHG-1003 (Internal DB Seg)", key="load_chg1003", use_container_width=True):
+            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_chg_1003()
             st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
             st.rerun()
-    with col_t4:
-        if st.button("📌 Safe Rule (Telemetry)", key="load_safe", use_container_width=True):
-            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_safe_rule()
+    with col_c4:
+        if st.button("📄 CHG-1004 (Inbound NAT)", key="load_chg1004", use_container_width=True):
+            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_chg_1004()
             st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
             st.rerun()
-    with col_t5:
-        if st.button("📌 SailPoint (S3 Access)", key="load_sp", use_container_width=True):
-            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_sailpoint()
+    with col_c5:
+        if st.button("📄 CHG-1005 (Vendor Modify)", key="load_chg1005", use_container_width=True):
+            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_chg_1005()
             st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
             st.rerun()
+
+    with st.expander("⚡ Additional Scenarios (PR-4082, PR-4083, Netflix, Safe Rule, SailPoint)", expanded=False):
+        col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
+        with col_t1:
+            if st.button("📌 PR-4082 (DB Ingress)", key="load_pr4082", use_container_width=True):
+                st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_pr_4082()
+                st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
+                st.rerun()
+        with col_t2:
+            if st.button("📌 PR-4083 (DMZ & IAM)", key="load_pr4083", use_container_width=True):
+                st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_pr_4083()
+                st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
+                st.rerun()
+        with col_t3:
+            if st.button("📌 Netflix (Streaming)", key="load_netflix", use_container_width=True):
+                st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_allow_netflix()
+                st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
+                st.rerun()
+        with col_t4:
+            if st.button("📌 Safe Rule (Telemetry)", key="load_safe", use_container_width=True):
+                st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_safe_rule()
+                st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
+                st.rerun()
+        with col_t5:
+            if st.button("📌 SailPoint (S3 Access)", key="load_sp", use_container_width=True):
+                st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_sailpoint()
+                st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
+                st.rerun()
 
     # Large Text Area
     raw_input = st.text_area(
@@ -275,6 +303,34 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
             cfg.services = st.text_input("Service / Port", value=cfg.services or "service-https", key="cfg_service")
             act_idx = 0 if cfg.action.lower() == "allow" else (1 if cfg.action.lower() == "deny" else 2)
             cfg.action = st.selectbox("Rule Action", options=["allow", "deny", "drop"], index=act_idx, key="cfg_action")
+
+        # Inbound Destination NAT Sub-Card (Separates Public External IP from Private Translated Host)
+        if getattr(cfg, "is_nat_change", False):
+            st.markdown(
+                """
+                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px 14px; margin: 0.75rem 0;">
+                    <div style="font-weight: 700; color: #166534; font-size: 0.85rem; margin-bottom: 4px;">
+                        🌐 Inbound Destination NAT Configuration (Public Endpoint vs Private Target Separation)
+                    </div>
+                    <div style="font-size: 0.8rem; color: #15803d;">
+                        Destination NAT maps the external public endpoint to an internal private host. The security policy above authorizes traffic to the post-NAT private destination IP.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            col_nat1, col_nat2, col_nat3, col_nat4 = st.columns(4)
+            with col_nat1:
+                cfg.nat_rule_name = st.text_input("NAT Rule Name", value=cfg.nat_rule_name or "NAT-Inbound", key="cfg_nat_rule_name")
+                cfg.nat_original_source_zone = st.text_input("Original Source Zone", value=cfg.nat_original_source_zone or "Untrust-Internet", key="cfg_nat_orig_sz")
+            with col_nat2:
+                cfg.nat_original_destination_zone = st.text_input("Original Dest Zone", value=cfg.nat_original_destination_zone or "Untrust-Internet", key="cfg_nat_orig_dz")
+                cfg.nat_original_destination_address = st.text_input("Original Public IP *", value=cfg.nat_original_destination_address or "203.0.113.50/32", key="cfg_nat_orig_dst_ip", help="Pre-NAT external public IP")
+            with col_nat3:
+                cfg.nat_original_destination_port = st.text_input("Original Port", value=cfg.nat_original_destination_port or "443", key="cfg_nat_orig_port")
+                cfg.nat_translated_destination_address = st.text_input("Translated Private IP *", value=cfg.nat_translated_destination_address or "10.100.30.25", key="cfg_nat_trans_dst_ip", help="Post-NAT internal destination host")
+            with col_nat4:
+                cfg.nat_translated_destination_port = st.text_input("Translated Port", value=cfg.nat_translated_destination_port or "443", key="cfg_nat_trans_port")
 
     else:
         # SailPoint Identity Governance Specifications
@@ -617,17 +673,21 @@ def _render_remediation_tab(result: AssessmentExecutionResult) -> None:
     # Recommendations List
     st.markdown("##### 📋 Actionable Remediation Recommendations")
     for r in plan.recommendations:
+        title_text = getattr(r, "explanation", "") or getattr(r, "action_summary", "") or f"Remediation for {r.rule_id}"
+        target_res = getattr(r, "affected_resource", "") or getattr(r, "target_resource", "Security Rule")
+        benefit_text = getattr(r, "security_benefit", "") or getattr(r, "justification", "Least-privilege scoping")
+        conf_pct = int(getattr(r, "confidence_score", 0.95) * 100)
         st.markdown(
             f"""
             <div class="sg-card" style="margin-bottom: 0.5rem; border-left: 3px solid #10b981;">
                 <div style="font-weight: 600; color: #0f172a; font-size: 0.9rem;">
-                    💡 {html.escape(r.action_summary)}
+                    💡 [{r.rule_id}] {html.escape(title_text)}
                 </div>
                 <div style="font-size: 0.82rem; color: #475569; margin-top: 2px;">
-                    Target Resource: <code>{html.escape(r.target_resource)}</code> • Scope: <code>{html.escape(r.attribute_scoped or 'All')}</code>
+                    Target Resource: <code>{html.escape(target_res)}</code> • Confidence: <code>{conf_pct}%</code>
                 </div>
                 <div style="font-size: 0.8rem; color: #059669; margin-top: 4px;">
-                    Justification: {html.escape(r.justification)}
+                    Security Benefit: {html.escape(benefit_text)}
                 </div>
             </div>
             """,

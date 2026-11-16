@@ -3,9 +3,9 @@
 *Autonomous Simulation, Digital Twin Blast-Radius Modeling, and Closed-Loop Remediation Engine*
 
 [![Python](https://img.shields.io/badge/Python-3.13%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/Tests-288%20Passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-306%20Passing-brightgreen.svg)](tests/)
 [![Security](https://img.shields.io/badge/Air--Gapped-Verified-success.svg)](#security--architecture)
-[![ITSM](https://img.shields.io/badge/UI-ServiceNow%20Inspired-0f62fe.svg)](#dashboard-interface)
+[![ITSM](https://img.shields.io/badge/UI-ServiceNow%20Single%20Workspace-0f62fe.svg)](#dashboard-interface)
 
 ---
 
@@ -96,20 +96,18 @@ simuguard-demo/
 - Python 3.10+ (Python 3.13 recommended)
 - Git
 
-### 2. Clone Repository & Install Dependencies
+### 2. Application Directory & Virtual Environment
 ```bash
-# Clone the repository
-git clone https://github.com/apex-global/simuguard-demo.git
-cd simuguard-demo/simuguard-demo
+# Navigate to project workspace
+cd simuguard-demo
 
-# Create and activate a virtual environment (optional but recommended)
-python -m venv venv
+# Optional: activate virtual environment
 # Windows:
 venv\Scripts\activate
 # Linux/macOS:
 source venv/bin/activate
 
-# Install required packages
+# Install dependencies (if not already installed)
 pip install -r requirements.txt
 ```
 
@@ -118,13 +116,40 @@ Start the local Streamlit application:
 ```bash
 streamlit run app.py
 ```
-Open your browser to `http://localhost:8501`. The application will start in **Demo Sandbox Mode** with the 5 pre-loaded enterprise scenarios ready for inspection.
+Open your browser to `http://localhost:8501`. 
+
+**Default Landing Page**: The application automatically lands on **"New Assessment"** (the Single Assessment Workspace) in **Demo Sandbox Mode**, ready for interactive evaluation.
 
 ---
 
-## 🎯 Certified Demonstration Scenarios
+## 🖥️ Single Assessment Workspace (Primary Workflow)
 
-SimuGuard AI comes pre-loaded with 5 certified demonstration scenarios:
+The entire engineer experience is consolidated into **one primary workspace** (`New Assessment`), eliminating context switching:
+
+1. **Step 1: Paste Change Request**: Ingest raw ServiceNow tickets, HCL blocks, or load 1-click scenarios.
+2. **Step 2: Review Configuration**: Inspect extracted fields, review parameter warnings (App-ID wildcard, unrestricted egress), and verify Inbound Destination NAT mapping.
+3. **Step 3: Run Pre-Flight Assessment**: Execute deterministic pre-flight simulation against the 220-node Digital Twin.
+4. **Step 4: Inline Results & Verification**: Review decision gate verdict, security gaps, blast-radius asset graph, synthesized candidate configuration, before-and-after comparison, and download executive PDF/JSON compliance reports.
+
+---
+
+## 🎯 Official Firewall Change Request Scenarios
+
+SimuGuard AI includes the 5 official firewall change request specifications (located in `SimuGuard_Firewall_Sample_Change_Requests/`), accessible via 1-click loaders directly in Section 1 of the workspace:
+
+| Change Request | Title / Scope | Gate Verdict | Risk Score | Gaps | Technical Highlights |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **`CHG-2026-1001`** | Outbound HTTPS Customer Portal API | **`ALLOW`** | **0 / 100** | 0 | Scoped destination (`198.51.100.25/32`), App-ID `ssl`, Strict profile, logging enabled. |
+| **`CHG-2026-1002`** | Analytics Unrestricted Outbound Egress | **`BLOCK_DEPLOYMENT`** | **100 / 100** | 2 | Wildcard destination `any`, App-ID `any`, profile `None`, logging `Disabled`. Remediated to `0/100` (`ALLOW`). |
+| **`CHG-2026-1003`** | Banking App-to-Database Segmentation | **`ALLOW`** | **0 / 100** | 0 | Strict internal segmentation (`10.200.20.15/32:5432`), App-ID `postgresql`, compliant posture. |
+| **`CHG-2026-1004`** | Inbound NAT Customer Support Portal | **`ALLOW`** | **0 / 100** | 0 | Separates public external IP (`203.0.113.50`) from private translated target (`10.100.30.25`). Policy matches private host. |
+| **`CHG-2026-1005`** | Unrestricted Vendor Connectivity | **`BLOCK_DEPLOYMENT`** | **100 / 100** | 2 | Emergency modification to permissive `any`. Blocked; remediated to `0/100` (`ALLOW`). |
+
+---
+
+## 📦 Pre-Loaded Demonstration Sandbox Scenarios
+
+In addition to the text change requests above, the demo database (`data/simuguard_demo.db`) comes pre-loaded with 5 historical baseline records:
 
 | Identifier | Title | Scenario Scope | Gate Verdict | Risk Delta |
 | :--- | :--- | :--- | :---: | :---: |
@@ -135,8 +160,8 @@ SimuGuard AI comes pre-loaded with 5 certified demonstration scenarios:
 | **`SIM-DEMO-005`** | Unmapped Entity Exception | Egress rule referencing unmapped SG `sg-guest-network-01` outside Digital Twin. | **`WARN_MANUAL_REVIEW`** (Score: 35) | Unmapped entity review |
 
 ### Resetting Demonstration Scenarios
-To reset the demonstration environment to its pristine baseline:
-- Click **"🔄 Reset Demo Scenarios"** in the sidebar, or
+To reset the demonstration sandbox to its pristine baseline:
+- Navigate to **"Settings & Diagnostics"** and click **"Reset Demo Sandbox Data"**, or
 - Run the CLI reset utility:
   ```bash
   python -c "from ui.services.demo_service import DemoEnvironmentService; DemoEnvironmentService.reset_demo_database()"
@@ -146,22 +171,38 @@ To reset the demonstration environment to its pristine baseline:
 
 ## 🧪 Automated Testing
 
-SimuGuard AI maintains an exhaustive regression test suite covering units, parsers, graph traversals, security rules, candidate overlays, persistence, concurrency safety, and end-to-end workflows:
+SimuGuard AI maintains an exhaustive regression test suite covering unit schemas, parsers, graph traversals, security rules, candidate overlays, persistence, concurrency safety, and end-to-end single workspace workflows:
 
 ```bash
-# Execute the complete 288-test regression suite:
+# Execute the complete 306-test regression suite:
 python -m pytest -v
 ```
 
-All 288 tests run deterministically and execute in **under 30 seconds** in pure air-gapped mode.
+All **306 tests run deterministically** with 0 failures and 0 warnings, completing in **under 30 seconds** in pure air-gapped mode.
 
 ---
 
-## 🔒 Security & Limitations Notice
+## 🔒 Security & Project Limitations
 
-- **Local Simulation**: SimuGuard AI operates entirely on local synthetic models. It introduces zero outbound network calls, credentials, or live cloud connectors.
-- **Safety**: Automated remediation operates strictly on deep copies and candidate overlays; original configuration files and enterprise datasets are never mutated.
-- For complete operational boundaries, read the [Project Limitations Specification](docs/PROJECT_LIMITATIONS.md).
+SimuGuard AI was architected as a **safe, local pre-deployment simulation platform**. To guarantee absolute environment safety, the following operational constraints are strictly enforced:
+
+1. **Air-Gapped & Local-Only Operation**:
+   - Zero outbound network calls, telemetry phone-home, or external web lookups.
+   - Zero live API connectors to Palo Alto Panorama, AWS STS/IAM/EC2, SailPoint ISC, or ServiceNow.
+2. **Zero Production Mutation**:
+   - SimuGuard AI cannot push, commit, or execute configuration changes onto actual firewalls, routers, or cloud infrastructure.
+   - All remediation patches are candidate configurations generated for review and validated exclusively on an in-memory ephemeral candidate Digital Twin overlay.
+3. **Database Isolation**:
+   - Demo sandbox workflows operate strictly in `data/simuguard_demo.db`.
+   - The production database `data/simuguard_history.db` remains 100% clean and isolated.
+4. **Deterministic Simulation vs Live Threat Intelligence**:
+   - Security evaluations are based on static benchmark rules (CIS Benchmarks, NIST SP 800-171, PCI-DSS, SOX 404).
+   - Real-time threat feeds (e.g. WildFire live cloud lookups) are not queried.
+5. **No Blind Hallucinations**:
+   - The extraction and remediation engines never invent credentials, private subnets, or external partner IP ranges.
+   - Ambiguous or unknown parameters are explicitly tagged for human review (`NEEDS_MANUAL_REVIEW`).
+
+For full details, see [docs/PROJECT_LIMITATIONS.md](docs/PROJECT_LIMITATIONS.md).
 
 ---
 

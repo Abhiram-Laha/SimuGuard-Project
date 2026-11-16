@@ -384,9 +384,99 @@ def render_sailpoint_assessment_screenshot():
     print("Saved:", out_path)
 
 
+def render_nat_validation_screenshot():
+    """Render comprehensive screenshot of CHG-2026-1004 Inbound Destination NAT assessment."""
+    fig, ax = plt.subplots(figsize=(14, 11), dpi=200)
+    ax.set_facecolor(LIGHT_BG)
+    fig.patch.set_facecolor(LIGHT_BG)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+
+    # Verdict Banner
+    draw_box(ax, 0.03, 0.86, 0.94, 0.11, bg="#f0fdf4", border=GREEN_ALLOW, lw=2)
+    ax.text(0.05, 0.935, "PRE-FLIGHT SIMULATION DECISION GATE • CHG-2026-1004 (CUSTOMER SUPPORT PORTAL NAT)", fontsize=8, fontweight="bold", color="#166534")
+    draw_box(ax, 0.72, 0.915, 0.23, 0.035, bg=GREEN_ALLOW, border=GREEN_ALLOW)
+    ax.text(0.74, 0.925, "✓ VERDICT: ALLOW (SAFE)", fontsize=8, fontweight="bold", color="#ffffff")
+    ax.text(0.05, 0.895, "COMPLIANT INBOUND DESTINATION NAT & POLICY (Risk Score: 0/100)", fontsize=13, fontweight="bold", color="#166534")
+    ax.text(0.05, 0.872, "Destination NAT translates public 203.0.113.50 -> private 10.100.30.25; security policy enforces post-NAT private target.", fontsize=8.5, color="#15803d")
+
+    # Metric KPI Cards
+    kpis = [
+        ("Simulation Verdict", "ALLOW", "Zero Policy Violations"),
+        ("Baseline Risk Score", "0/100", "Compliant Security Posture"),
+        ("Security Gaps", "0 Gaps", "All Checks Passed Cleanly"),
+        ("Affected Topology", "3 Assets", "Edge Firewalls & Untrust Zone"),
+        ("Target Host Isolation", "10.100.30.25", "Post-NAT Private Host"),
+    ]
+    for i, (label, val, hint) in enumerate(kpis):
+        bx = 0.03 + i * 0.192
+        draw_box(ax, bx, 0.76, 0.18, 0.085, bg="#ffffff", border=BORDER_GRAY)
+        ax.text(bx + 0.015, 0.825, label, fontsize=7.5, color=TEXT_MUTED, fontweight="bold")
+        ax.text(bx + 0.015, 0.795, val, fontsize=13, color=GREEN_ALLOW if i in [0, 1, 2] else TEXT_DARK, fontweight="bold")
+        ax.text(bx + 0.015, 0.77, hint, fontsize=6.8, color="#475569")
+
+    # Section 1 & 2 Workspace Review
+    draw_box(ax, 0.03, 0.44, 0.94, 0.30, bg="#ffffff", border=BORDER_GRAY)
+    ax.text(0.05, 0.705, "Section 2: Configuration Review — Inbound Destination NAT Target Separation", fontsize=11, fontweight="bold", color=TEXT_DARK)
+
+    # NAT Configuration Highlight Box
+    draw_box(ax, 0.05, 0.57, 0.90, 0.11, bg="#f0fdf4", border="#bbf7d0", lw=1.5)
+    ax.text(0.065, 0.655, "🌐 Dedicated Inbound Destination NAT Separation (Pre-NAT Public IP vs Post-NAT Private Target)", fontsize=9, fontweight="bold", color="#166534")
+    ax.text(0.065, 0.635, "NAT Rule: NAT-Support-Portal-Inbound  |  Original Source: Untrust-Internet  |  Original Dest Zone: Untrust-Internet", fontsize=7.8, color="#15803d")
+    
+    # Pre-NAT vs Post-NAT comparison pills
+    draw_box(ax, 0.065, 0.585, 0.42, 0.035, bg="#ffffff", border="#86efac")
+    ax.text(0.08, 0.595, "Pre-NAT Public Endpoint: 203.0.113.50:443 (External Facing)", fontsize=7.5, fontweight="bold", color="#1e293b")
+
+    draw_box(ax, 0.51, 0.585, 0.42, 0.035, bg="#ffffff", border="#86efac")
+    ax.text(0.525, 0.595, "Post-NAT Translated Private Target: 10.100.30.25:443 (DMZ)", fontsize=7.5, fontweight="bold", color="#059669")
+
+    # Accompanying Security Policy Block
+    draw_box(ax, 0.05, 0.46, 0.90, 0.095, bg="#f8fafc", border=BORDER_GRAY)
+    ax.text(0.065, 0.53, "🛡️ Accompanying Palo Alto Security Policy (Strictly Targets Post-NAT Private Destination):", fontsize=8.5, fontweight="bold", color=TEXT_DARK)
+    ax.text(0.065, 0.505, "• Rule Name: Allow-Inbound-Support-Portal    • Source: Untrust-Internet (0.0.0.0/0)    • Destination: Trust-DMZ (10.100.30.25/32)", fontsize=7.5, color=SLATE)
+    ax.text(0.065, 0.48, "• App-ID: ssl    • Service: service-https (TCP 443)    • Profile Group: Strict-Enterprise-Security    • Log: Enabled at session end", fontsize=7.5, color=SLATE)
+    ax.text(0.065, 0.465, "✅ Verified: Security policy correctly permits traffic to internal host 10.100.30.25 without exposing raw perimeter network.", fontsize=7.2, color="#059669", fontweight="bold")
+
+    # Assessment & Blast Radius Analysis
+    draw_box(ax, 0.03, 0.17, 0.46, 0.25, bg="#ffffff", border=BORDER_GRAY)
+    ax.text(0.05, 0.39, "🌐 Digital Twin Blast Radius Impact", fontsize=10.5, fontweight="bold", color=TEXT_DARK)
+    draw_box(ax, 0.05, 0.19, 0.42, 0.18, bg="#f8fafc", border=BORDER_GRAY)
+    ax.text(0.06, 0.34, "Impacted Enterprise Topology Nodes:", fontsize=8, fontweight="bold", color=TEXT_DARK)
+    ax.text(0.06, 0.31, "1. PAN-NGFW-EDGE-01 (Primary Internet Perimeter)", fontsize=7.2, color=SLATE)
+    ax.text(0.06, 0.28, "2. PAN-NGFW-EDGE-02 (Secondary Passive Perimeter)", fontsize=7.2, color=SLATE)
+    ax.text(0.06, 0.25, "3. Network Zone: Untrust-Internet (Public Edge)", fontsize=7.2, color=SLATE)
+    ax.text(0.06, 0.21, "🔒 Blast Isolation Status: Fully Scoped & Contained", fontsize=7.8, fontweight="bold", color="#059669")
+
+    draw_box(ax, 0.51, 0.17, 0.46, 0.25, bg="#ffffff", border=BORDER_GRAY)
+    ax.text(0.53, 0.39, "⚖️ Verification & Compliance Checks", fontsize=10.5, fontweight="bold", color=TEXT_DARK)
+    draw_box(ax, 0.53, 0.19, 0.42, 0.18, bg="#f0fdf4", border="#bbf7d0")
+    ax.text(0.55, 0.34, "Pre-Flight Validation Engine Verdict: VERIFIED_SAFE", fontsize=8, fontweight="bold", color="#166534")
+    ax.text(0.55, 0.305, "✅ NAT Target Isolation: Public 203.0.113.50 translated to 10.100.30.25", fontsize=7.2, color="#15803d")
+    ax.text(0.55, 0.275, "✅ Security Policy Target: Destination IP matches private host 10.100.30.25", fontsize=7.2, color="#15803d")
+    ax.text(0.55, 0.245, "✅ Palo Alto L7 App-ID: Scoped to 'ssl' (DPI inspection active)", fontsize=7.2, color="#15803d")
+    ax.text(0.55, 0.215, "✅ Security Profile: Strict-Enterprise-Security profile attached", fontsize=7.2, color="#15803d")
+
+    # One-Click Export Toolbar
+    draw_box(ax, 0.03, 0.03, 0.94, 0.12, bg="#ffffff", border=BORDER_GRAY)
+    ax.text(0.05, 0.115, "📄 One-Click Audit & Compliance Exports", fontsize=10.5, fontweight="bold", color=TEXT_DARK)
+    draw_box(ax, 0.05, 0.05, 0.42, 0.05, bg=PRIMARY_BLUE, border=PRIMARY_BLUE)
+    ax.text(0.12, 0.068, "📥 Download Executive PDF Report (CAB Audit)", fontsize=8.5, fontweight="bold", color="#ffffff")
+    draw_box(ax, 0.53, 0.05, 0.42, 0.05, bg="#1e293b", border="#334155")
+    ax.text(0.61, 0.068, "📥 Download Audit JSON Export (CI/CD Artifact)", fontsize=8.5, fontweight="bold", color="#ffffff")
+
+    out_path = OUT_DIR / "chg_1004_inbound_nat_validation.png"
+    plt.tight_layout()
+    plt.savefig(out_path, facecolor=fig.get_facecolor(), bbox_inches="tight")
+    plt.close()
+    print("Saved:", out_path)
+
+
 if __name__ == "__main__":
     render_sidebar_screenshot()
     render_single_workspace_screenshot()
     render_firewall_assessment_screenshot()
     render_sailpoint_assessment_screenshot()
-    print("All 4 UX redesign screenshots successfully generated!")
+    render_nat_validation_screenshot()
+    print("All 5 UX redesign and NAT validation screenshots successfully generated!")

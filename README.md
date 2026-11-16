@@ -81,11 +81,22 @@ The engine evaluates the `blast_condition` on each edge before propagating blast
 
 ---
 
-## 🧪 Running the Tests
+## ⚡ Application Launch & Running Tests
 
-To execute the complete test suite (75 unit tests across Phases 1, 2, and 3):
-
+### 1. Launch Streamlit Application
 ```bash
-# From workspace root or simuguard-demo directory:
+# Navigate to application workspace
+cd simuguard-demo
+
+# Launch dashboard (starts in Demo Sandbox Mode on 'New Assessment')
+streamlit run app.py
+```
+
+### 2. Execute Automated Test Suite
+```bash
+# From simuguard-demo directory:
+cd simuguard-demo
 python -m pytest -v
 ```
+
+All 306 regression tests run deterministically with 0 failures and 0 warnings.
