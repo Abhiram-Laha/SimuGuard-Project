@@ -5,7 +5,7 @@ import json
 from typing import Any, Dict, List, Optional
 import streamlit as st
 
-from config.settings import PAGE_NEW_CHANGE, PAGE_RESULTS
+from config.settings import PAGE_NEW_ASSESSMENT, PAGE_NEW_CHANGE, PAGE_RESULTS
 from storage.models import AssessmentRecord, ChangeDomain, ChangeRequestRecord, RemediationRecord
 from storage.repository import ChangeRepository
 from ui.components.metric_cards import render_metric_card
@@ -84,8 +84,8 @@ def render_reports_page(repository: ChangeRepository) -> None:
         )
         col_e1, col_e2, col_e3 = st.columns([1, 1, 1])
         with col_e2:
-            if st.button("Submit New Change Request →", use_container_width=True, key="btn_rep_to_new_change"):
-                st.session_state["active_page"] = PAGE_NEW_CHANGE
+            if st.button("New Risk Assessment →", use_container_width=True, key="btn_rep_to_new_change"):
+                st.session_state["active_page"] = PAGE_NEW_ASSESSMENT
                 st.rerun()
         return
 
