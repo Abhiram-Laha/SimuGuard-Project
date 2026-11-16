@@ -71,18 +71,26 @@ class CentralizedIdentityResolver:
         self,
         query: Optional[str] = None,
         employee_id: Optional[str] = None,
+        worker_id: Optional[str] = None,
         account_id: Optional[str] = None,
         target_department: Optional[str] = None,
     ) -> IdentityResolutionResult:
-        """Resolve identity dynamically from query, employee_id, or account_id.
+        """Resolve identity dynamically from query, employee_id, worker_id, or account_id.
 
         Never defaults to any hardcoded identity when matching fails.
         Detects conflicts between employee_id and query name.
         Detects duplicate/ambiguous matches when multiple identities match.
+        Strictly requires exact employee/worker ID resolution when provided; never substitutes another identity.
         """
         raw_query = (query or "").strip()
-        raw_eid = (employee_id or "").strip()
+        raw_eid = (employee_id or worker_id or "").strip()
         raw_acct = (account_id or "").strip()
+
+        # If query contains an embedded ID, extract it
+        if raw_query:
+            embedded_eid = re.search(r"\((EMP-[a-zA-Z0-9_-]+|CTR-[a-zA-Z0-9_-]+)\)", raw_query, re.IGNORECASE)
+            if embedded_eid and not raw_eid:
+                raw_eid = embedded_eid.group(1).strip()
 
         if not raw_query and not raw_eid and not raw_acct:
             return IdentityResolutionResult(
@@ -90,11 +98,16 @@ class CentralizedIdentityResolver:
                 message="No target identity specified. Identity resolution cannot proceed without an identity reference.",
             )
 
-        # 1. Match by employee_id if provided
+        # 1. Match by employee_id / worker_id if provided
         ident_by_eid: Optional[Dict[str, Any]] = None
         if raw_eid:
             for ident in self._identities:
-                eid_val = ident.get("employee_id") or ident.get("attributes", {}).get("employeeId")
+                eid_val = (
+                    ident.get("employee_id")
+                    or ident.get("worker_id")
+                    or ident.get("attributes", {}).get("employeeId")
+                    or ident.get("attributes", {}).get("workerId")
+                )
                 if eid_val and str(eid_val).strip().lower() == raw_eid.lower():
                     ident_by_eid = ident
                     break
@@ -186,6 +199,16 @@ class CentralizedIdentityResolver:
         resolved_ident: Optional[Dict[str, Any]] = None
         if ident_by_eid:
             resolved_ident = ident_by_eid
+        elif raw_eid:
+            # An explicit Employee/Worker ID was provided, but could not be resolved in the directory.
+            # Substitution with another identity based on name/substring is strictly prohibited.
+            return IdentityResolutionResult(
+                status=IdentityResolutionStatus.UNMAPPED,
+                message=(
+                    f"Specified Employee/Worker ID '{raw_eid}' not found in authoritative identity directory. "
+                    f"Substitution with another identity based on name query '{raw_query}' is strictly prohibited."
+                ),
+            )
         elif candidates_by_query:
             resolved_ident = candidates_by_query[0]
         elif ident_by_acct:

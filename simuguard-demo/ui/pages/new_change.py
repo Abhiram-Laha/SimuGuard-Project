@@ -387,7 +387,7 @@ def render_new_change_page(repository: ChangeRepository) -> None:
             id_options = [
                 f"{i['display_name']} ({i['id']} - {i.get('job_title', 'Staff')})"
                 for i in identities
-            ] or ["Sarah Chen (sp-ident-sarah-chen)"]
+            ] or ["Select Target Identity"]
 
             id_profiles = dataset_service.get_identity_profiles()
             idp_options = [p["name"] for p in id_profiles] or ["Corporate Full-Time Employees"]
@@ -410,7 +410,7 @@ def render_new_change_page(repository: ChangeRepository) -> None:
                 sel_identity_str = st.selectbox("Target Identity *", options=id_options, index=0)
                 sel_idp = st.selectbox("Identity Profile", options=idp_options, index=0)
                 sel_src = st.selectbox("Authoritative Source", options=src_options, index=0)
-                account_id = st.text_input("Source Account ID", value="sp-acct-ad-sarah-chen")
+                account_id = st.text_input("Source Account ID", value="")
                 account_status = st.selectbox(
                     "Account Status", options=["ACTIVE", "INACTIVE", "LOCKED"], index=0
                 )

@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import streamlit as st
 
-from config.settings import CHANGES_DIR, PAGE_HISTORY, PAGE_SETTINGS, SCREENSHOTS_DIR
+from config.settings import CHANGES_DIR, PAGE_HISTORY, PAGE_SETTINGS
 from storage.models import (
     AssessmentRecord,
     ChangeDomain,
@@ -50,6 +50,30 @@ from ui.services.servicenow_extractor import (
     ExtractedConfig,
     ServiceNowExtractor,
 )
+
+
+def _reset_assessment_and_form_state() -> None:
+    """Clear previous assessment results and editable form widget caches for complete cross-request isolation."""
+    st.session_state["current_assessment_result"] = None
+    st.session_state["current_change_request"] = None
+    widget_keys = [
+        "cfg_domain", "cfg_firewall", "cfg_rule_name", "cfg_existing_rule",
+        "cfg_src_zone", "cfg_src_cidr", "cfg_dst_zone", "cfg_dst_cidr",
+        "cfg_action", "cfg_app", "cfg_service", "cfg_profile", "cfg_logging",
+        "cfg_identity", "cfg_idp", "cfg_src", "cfg_acct", "cfg_role",
+        "cfg_ap", "cfg_ent", "cfg_is_nat", "cfg_nat_orig_dst", "cfg_nat_trans_dst"
+    ]
+    for k in widget_keys:
+        if k in st.session_state:
+            del st.session_state[k]
+
+
+def _load_sample_scenario(text: str) -> None:
+    """Load a sample scenario text, reset stale state, and extract cleanly."""
+    _reset_assessment_and_form_state()
+    st.session_state["servicenow_raw_text"] = text
+    st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(text)
+    st.rerun()
 
 
 def render_single_workspace_page(repository: ChangeRepository) -> None:
@@ -154,57 +178,37 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
     col_c1, col_c2, col_c3, col_c4, col_c5 = st.columns(5)
     with col_c1:
         if st.button("📄 CHG-1001 (Outbound HTTPS)", key="load_chg1001", use_container_width=True):
-            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_chg_1001()
-            st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
-            st.rerun()
+            _load_sample_scenario(ServiceNowExtractor.get_sample_chg_1001())
     with col_c2:
         if st.button("📄 CHG-1002 (Unrestricted Egress)", key="load_chg1002", use_container_width=True):
-            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_chg_1002()
-            st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
-            st.rerun()
+            _load_sample_scenario(ServiceNowExtractor.get_sample_chg_1002())
     with col_c3:
         if st.button("📄 CHG-1003 (Internal DB Seg)", key="load_chg1003", use_container_width=True):
-            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_chg_1003()
-            st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
-            st.rerun()
+            _load_sample_scenario(ServiceNowExtractor.get_sample_chg_1003())
     with col_c4:
         if st.button("📄 CHG-1004 (Inbound NAT)", key="load_chg1004", use_container_width=True):
-            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_chg_1004()
-            st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
-            st.rerun()
+            _load_sample_scenario(ServiceNowExtractor.get_sample_chg_1004())
     with col_c5:
         if st.button("📄 CHG-1005 (Vendor Modify)", key="load_chg1005", use_container_width=True):
-            st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_chg_1005()
-            st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
-            st.rerun()
+            _load_sample_scenario(ServiceNowExtractor.get_sample_chg_1005())
 
     with st.expander("⚡ Additional Scenarios (PR-4082, PR-4083, Netflix, Safe Rule, SailPoint)", expanded=False):
         col_t1, col_t2, col_t3, col_t4, col_t5 = st.columns(5)
         with col_t1:
             if st.button("📌 PR-4082 (DB Ingress)", key="load_pr4082", use_container_width=True):
-                st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_pr_4082()
-                st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
-                st.rerun()
+                _load_sample_scenario(ServiceNowExtractor.get_sample_pr_4082())
         with col_t2:
             if st.button("📌 PR-4083 (DMZ & IAM)", key="load_pr4083", use_container_width=True):
-                st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_pr_4083()
-                st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
-                st.rerun()
+                _load_sample_scenario(ServiceNowExtractor.get_sample_pr_4083())
         with col_t3:
             if st.button("📌 Netflix (Streaming)", key="load_netflix", use_container_width=True):
-                st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_allow_netflix()
-                st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
-                st.rerun()
+                _load_sample_scenario(ServiceNowExtractor.get_sample_allow_netflix())
         with col_t4:
             if st.button("📌 Safe Rule (Telemetry)", key="load_safe", use_container_width=True):
-                st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_safe_rule()
-                st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
-                st.rerun()
+                _load_sample_scenario(ServiceNowExtractor.get_sample_safe_rule())
         with col_t5:
             if st.button("📌 SailPoint (S3 Access)", key="load_sp", use_container_width=True):
-                st.session_state["servicenow_raw_text"] = ServiceNowExtractor.get_sample_sailpoint()
-                st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(st.session_state["servicenow_raw_text"])
-                st.rerun()
+                _load_sample_scenario(ServiceNowExtractor.get_sample_sailpoint())
 
     # Large Text Area
     raw_input = st.text_area(
@@ -220,6 +224,7 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
     col_ext1, col_ext2 = st.columns([1, 4])
     with col_ext1:
         if st.button("🔍 Extract Configuration", use_container_width=True, key="btn_extract_config"):
+            _reset_assessment_and_form_state()
             st.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(raw_input)
             st.toast("✅ Configuration extracted successfully!", icon="🔍")
             st.rerun()
@@ -347,14 +352,14 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
         # SailPoint Identity Governance Specifications
         col_s1, col_s2, col_s3 = st.columns(3)
         with col_s1:
-            cfg.identity_name = st.text_input("Target Identity *", value=cfg.identity_name or "Sarah Chen (sp-ident-sarah-chen)", key="cfg_identity")
-            cfg.requested_role = st.text_input("Requested Role *", value=cfg.requested_role or "Finance & Treasury Analyst", key="cfg_role")
+            cfg.identity_name = st.text_input("Target Identity *", value=cfg.identity_name or "", key="cfg_identity")
+            cfg.requested_role = st.text_input("Requested Role *", value=cfg.requested_role or "", key="cfg_role")
         with col_s2:
-            cfg.access_profile = st.text_input("Access Profile", value=cfg.access_profile or "Production S3 CUI Vault Read Access", key="cfg_ap")
-            cfg.entitlement = st.text_input("Entitlement *", value=cfg.entitlement or "AWS Production S3 CUI Vault Read", key="cfg_ent")
+            cfg.access_profile = st.text_input("Access Profile", value=cfg.access_profile or "", key="cfg_ap")
+            cfg.entitlement = st.text_input("Entitlement *", value=cfg.entitlement or "", key="cfg_ent")
         with col_s3:
-            cfg.identity_source = st.text_input("Authoritative Source", value=cfg.identity_source or "Corporate Active Directory", key="cfg_src")
-            cfg.account_id = st.text_input("Account ID", value=cfg.account_id or "sp-acct-ad-sarah-chen", key="cfg_acct")
+            cfg.identity_source = st.text_input("Authoritative Source", value=cfg.identity_source or "", key="cfg_src")
+            cfg.account_id = st.text_input("Account ID", value=cfg.account_id or "", key="cfg_acct")
 
     # Expandable Advanced Details (Non-intrusive)
     with st.expander("⚙️ Advanced Change Metadata, Schedule & Justification", expanded=False):
@@ -502,36 +507,6 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
 # WORKSPACE HELPER FUNCTIONS & SECTIONS
 # =============================================================================
 
-def _get_screenshot_path(filename: str) -> Optional[Path]:
-    """Resolve screenshot file path defensively across different execution contexts."""
-    candidates = [
-        SCREENSHOTS_DIR / filename,
-        Path(__file__).resolve().parent.parent.parent / "deliverables" / "screenshots" / filename,
-        Path("deliverables/screenshots") / filename,
-        Path("simuguard-demo/deliverables/screenshots") / filename,
-        Path(__file__).resolve().parent.parent / "deliverables" / "screenshots" / filename,
-    ]
-    for p in candidates:
-        try:
-            if p.exists() and p.is_file():
-                return p.resolve()
-        except Exception:
-            continue
-    return None
-
-
-def _render_embedded_screenshot(filename: str, caption: str) -> None:
-    """Render an inline screenshot image responsively with defensive fallback."""
-    img_path = _get_screenshot_path(filename)
-    if img_path and img_path.is_file():
-        try:
-            st.image(str(img_path), caption=caption, use_container_width=True)
-        except Exception as e:
-            st.warning(f"Visual asset '{filename}' could not be displayed: {e}")
-    else:
-        st.warning(f"Visual reference asset '{filename}' is currently unavailable.")
-
-
 def _render_change_request_summary(cfg: ExtractedConfig) -> None:
     """Render plain-English business & SecOps summary of the extracted change request."""
     summary: ChangeRequestSummary = ServiceNowExtractor.generate_summary(cfg)
@@ -660,11 +635,6 @@ def _render_change_request_summary(cfg: ExtractedConfig) -> None:
             """
         )
     st.markdown("".join(obs_cards), unsafe_allow_html=True)
-
-    _render_embedded_screenshot(
-        "change_request_summary.png",
-        caption="Change Request Summary — Architecture & Observation Overview",
-    )
     st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -832,11 +802,6 @@ def _render_findings_tab(base_rep: Any) -> None:
             """,
             unsafe_allow_html=True,
         )
-
-    _render_embedded_screenshot(
-        "directly_affected_infrastructure_assets.png",
-        caption="Directly Affected Infrastructure Assets — Topology Impact & Blast Scope",
-    )
 
 
 def _render_blast_radius_tab(base_rep: Any) -> None:

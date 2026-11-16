@@ -5,10 +5,8 @@ import pytest
 from simuguard.models.affected_asset import AffectedAsset
 from simuguard.models.enums import AssetCriticality, BlastTier
 from ui.pages.workspace import (
-    _get_screenshot_path,
     _render_blast_radius_tab,
     _render_change_request_summary,
-    _render_embedded_screenshot,
     _render_findings_tab,
 )
 from ui.services.servicenow_extractor import (
@@ -269,8 +267,8 @@ def test_change_request_summary_native_table_rendering_no_raw_html():
             assert "<table style=" not in val_m, f"{req_id} markdown contains raw <table> tag: {val_m[:100]}"
 
 
-def test_inline_screenshots_rendered_in_change_summary_and_affected_assets():
-    """Verify change_request_summary.png and directly_affected_infrastructure_assets.png render inline via st.image."""
+def test_reference_screenshots_removed_from_workspace():
+    """Verify neither change_request_summary.png nor directly_affected_infrastructure_assets.png are rendered in the workspace."""
     from streamlit.testing.v1 import AppTest
 
     app = AppTest.from_file("simuguard-demo/app.py", default_timeout=30)
@@ -279,14 +277,10 @@ def test_inline_screenshots_rendered_in_change_summary_and_affected_assets():
     app.session_state["extracted_config"] = ServiceNowExtractor.extract_from_text(raw_text)
     app.run()
 
-    # Section 2 Change Request Summary screenshot check
+    # Section 2 Change Request Summary: verify 0 screenshot images rendered
     assert not app.exception
     imgs = app.get("imgs")
-    assert len(imgs) >= 1
-    summary_img = imgs[0]
-    assert "Change Request Summary" in summary_img.proto.imgs[0].caption
-    # width = -5 confirms use_container_width=True
-    assert summary_img.proto.width == -5
+    assert len(imgs) == 0, "No screenshots should be rendered in Change Request Summary section"
 
     # Run assessment to reveal Findings & Affected Assets tab
     buttons = [b for b in app.button if "Run Pre-Flight Assessment" in b.label]
@@ -294,34 +288,6 @@ def test_inline_screenshots_rendered_in_change_summary_and_affected_assets():
     buttons[0].click().run()
 
     assert not app.exception
+    # Section 5 Findings & Affected Assets: verify 0 screenshot images rendered
     imgs_after = app.get("imgs")
-    assert len(imgs_after) >= 2
-    captions = [im.proto.imgs[0].caption for im in imgs_after]
-    assert any("Change Request Summary" in c for c in captions)
-    assert any("Directly Affected Infrastructure Assets" in c for c in captions)
-    for im in imgs_after:
-        assert im.proto.width == -5  # container width responsive
-
-
-def test_screenshot_defensive_path_resolution_and_missing_fallback(monkeypatch):
-    """Verify fallback handling when screenshot files are missing without raising uncaught exceptions."""
-    import streamlit as st
-
-    # 1. Nonexistent file returns None
-    missing_path = _get_screenshot_path("nonexistent_test_image_12345.png")
-    assert missing_path is None
-
-    # 2. Existing files return valid resolved Path
-    summary_path = _get_screenshot_path("change_request_summary.png")
-    assert summary_path is not None
-    assert summary_path.is_file()
-
-    assets_path = _get_screenshot_path("directly_affected_infrastructure_assets.png")
-    assert assets_path is not None
-    assert assets_path.is_file()
-
-    # 3. Missing file triggers warning without unhandled exception
-    warnings = []
-    monkeypatch.setattr(st, "warning", lambda msg: warnings.append(msg))
-    _render_embedded_screenshot("nonexistent_test_image_12345.png", caption="Test Missing")
-    assert any("unavailable" in w.lower() or "not found" in w.lower() for w in warnings)
+    assert len(imgs_after) == 0, "No screenshots should be rendered in Directly Affected Infrastructure Assets section"

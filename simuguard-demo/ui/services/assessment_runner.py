@@ -10,6 +10,13 @@ from simuguard.engine.analyzer import SimuGuardAnalyzer
 from simuguard.engine.risk_engine import RiskEngine
 from simuguard.graph.blast_radius import BlastRadiusResult, UnknownImpactAsset
 from simuguard.graph.dataset_loader import EnterpriseDatasetLoader
+from simuguard.identity import (
+    CentralizedIdentityResolver,
+    IdentityAccessState,
+    IdentityLifecycleCategory,
+    IdentityResolutionResult,
+    IdentityResolutionStatus,
+)
 from simuguard.models.affected_asset import AffectedAsset
 from simuguard.models.enums import BlastTier, DeploymentVerdict, Severity
 from simuguard.models.report import PreFlightSimulationReport
@@ -340,32 +347,49 @@ class AssessmentRunnerService:
             except Exception:
                 pass
 
-        # Identify target identity
+        # Dynamic Centralized Identity Resolution
         target_id_or_name = sp_details.identity_name or sp_details.identity_id
-        matched_ident: Optional[Dict[str, Any]] = None
-        for i in identities:
-            if (
-                i["id"] == target_id_or_name
-                or i["display_name"] == target_id_or_name
-                or i["id"] in target_id_or_name
-                or i["display_name"] in target_id_or_name
-            ):
-                matched_ident = i
-                break
+        resolver = CentralizedIdentityResolver(sp_data)
+        resolution = resolver.resolve_identity(
+            query=target_id_or_name,
+            account_id=sp_details.account_id,
+        )
 
         identified_gaps: List[SecurityGap] = []
         affected_assets: List[AffectedAsset] = []
         validation_plan: List[ValidationCheck] = []
         has_unknown = False
 
-        if not matched_ident:
+        if resolution.status == IdentityResolutionStatus.CONFLICT:
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="SP-CORR-03",
+                    severity=Severity.CRITICAL,
+                    gap_title="Identity Conflict: Conflicting Employee Attributes",
+                    technical_impact=resolution.message,
+                    compliance_violation="NIST SP 800-53 AC-2 (Account Management)",
+                    remediation_guidance="Resolve identity discrepancy between Employee ID and Name in authoritative HR source.",
+                )
+            )
+        elif resolution.status == IdentityResolutionStatus.AMBIGUOUS:
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="SP-CORR-02",
+                    severity=Severity.HIGH,
+                    gap_title=f"Ambiguous Identity Reference: '{target_id_or_name}'",
+                    technical_impact=resolution.message,
+                    compliance_violation="NIST SP 800-53 AC-2 (Account Management)",
+                    remediation_guidance="Specify unique identity ID or authoritative account ID to disambiguate target user.",
+                )
+            )
+        elif resolution.status == IdentityResolutionStatus.UNMAPPED or not resolution.identity:
             has_unknown = True
             identified_gaps.append(
                 SecurityGap(
                     rule_id="SP-CORR-01",
                     severity=Severity.HIGH,
-                    gap_title=f"Unmapped Governance Entity: Identity '{target_id_or_name}'",
-                    technical_impact=(
+                    gap_title=f"Unmapped Governance Entity: Identity '{target_id_or_name or 'Unspecified'}'",
+                    technical_impact=resolution.message or (
                         f"Identity '{target_id_or_name}' cannot be correlated to any registered "
                         "identity profile or active authoritative directory in SailPoint ISC."
                     ),
@@ -374,12 +398,36 @@ class AssessmentRunnerService:
                 )
             )
         else:
-            ident_id = matched_ident["id"]
-            ident_name = matched_ident["display_name"]
-            emp_type = matched_ident.get("employment_type", "EMPLOYEE")
+            matched_ident = resolution.identity
+            ident_id = resolution.identity_id
+            ident_name = resolution.display_name
+            emp_type = resolution.employment_type or "EMPLOYEE"
+
+            # Check for Leaver / Terminated identity requesting access
+            if resolution.lifecycle_category == IdentityLifecycleCategory.LEAVER:
+                identified_gaps.append(
+                    SecurityGap(
+                        rule_id="SP-05",
+                        severity=Severity.CRITICAL,
+                        gap_title=f"Access Request for Terminated/Leaver Identity: {ident_name}",
+                        technical_impact=(
+                            f"Identity '{ident_name}' ({ident_id}) has lifecycle state '{resolution.lifecycle_state}'. "
+                            "Requesting or modifying access for deactivated or terminated personnel is strictly prohibited."
+                        ),
+                        compliance_violation="ISO 27001 A.9.2.6 & NIST SP 800-53 AC-2",
+                        remediation_guidance="Reject request immediately and ensure identity deprovisioning workflow is executed.",
+                    )
+                )
+
+            # Evaluate distinct governance access states (SP-01, SP-02)
+            access_state = CentralizedIdentityResolver.evaluate_access_state(
+                request_status=sp_details.request_status,
+                approval_status=sp_details.approval_status,
+                provisioning_status=sp_details.provisioning_status,
+            )
 
             # 1. Evaluate Rule SP-01: In-Flight Access Assumption (PENDING_IS_NOT_ACCESS)
-            if sp_details.request_status in ["PENDING_APPROVAL", "REJECTED"] or sp_details.approval_status != "APPROVED":
+            if not access_state.is_approved:
                 identified_gaps.append(
                     SecurityGap(
                         rule_id="SP-01",
@@ -396,7 +444,7 @@ class AssessmentRunnerService:
                 )
 
             # 2. Evaluate Rule SP-02: Unprovisioned Access State
-            if sp_details.provisioning_status != "PROVISIONED":
+            if not access_state.is_provisioned:
                 identified_gaps.append(
                     SecurityGap(
                         rule_id="SP-02",
@@ -447,7 +495,11 @@ class AssessmentRunnerService:
                     )
 
             # 4. Evaluate Rule SP-04: Contractor Privileged Access
-            is_contractor = emp_type == "CONTRACTOR" or "contractor" in matched_ident.get("identity_profile_id", "").lower()
+            is_contractor = (
+                resolution.lifecycle_category == IdentityLifecycleCategory.CONTRACTOR
+                or emp_type == "CONTRACTOR"
+                or "contractor" in matched_ident.get("identity_profile_id", "").lower()
+            )
             if is_contractor:
                 privileged_roles = {"sp-role-cloud-administrator", "sp-role-network-security-engineer", "sp-role-production-support-engineer"}
                 if requested_role_id in privileged_roles or "admin" in (sp_details.requested_role or "").lower():

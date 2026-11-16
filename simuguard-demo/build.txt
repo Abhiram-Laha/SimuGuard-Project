@@ -1,0 +1,119 @@
+================================================================================
+SimuGuard AI — Build & Feature Implementation Specification (build.txt)
+================================================================================
+Project: SimuGuard AI
+Version: 0.6.0
+Domain: Enterprise Network Security & Identity Governance Change Risk Assessment
+Date: 2026-11-16
+
+--------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & PLATFORM ARCHITECTURE
+--------------------------------------------------------------------------------
+SimuGuard AI provides a unified, deterministic pre-deployment change-risk
+simulation platform for Network Security and Identity Governance engineers.
+It centers the entire SecOps assessment lifecycle on a Single Assessment
+Workspace, removing fragmented multi-page navigation.
+
+Components:
+- Single Assessment Workspace: Intake, Summary, Review, Pre-Flight Gate, Results
+- Ingestion & Extraction: Multi-line ticket parser for Firewall & SailPoint
+- Security Engine: Palo Alto NGFW, AWS IAM, and SailPoint ISC analyzers
+- Digital Twin Topology: 220 active nodes, 77 directed enterprise relationships
+- Blast Radius Analysis: Transitive graph traversal and tier categorization
+- Deterministic Risk Scoring: 0-100 scale, strict ALLOW/WARN/BLOCK decision gates
+- Automated Remediation: Rule narrowing, App-ID, security profile synthesis
+- Candidate Validation: HCL generation, Digital Twin overlay, before/after diffs
+- Reporting & Diagnostics: Executive PDF, JSON, system diagnostics, and DB history
+
+--------------------------------------------------------------------------------
+2. REQUIREMENTS & ACCEPTANCE CRITERIA MATRIX
+--------------------------------------------------------------------------------
+
+REQ-01: Single-Workspace Unified UX
+- Default landing page is "New Assessment" (Single Assessment Workspace).
+- 5 sequential workflow sections:
+  1. Change Request Intake (paste ServiceNow ticket, sample scenario shortcuts)
+  2. Plain-English Change Request Summary (What, Why, Key Changes, Observations)
+  3. Extracted Configuration Review (editable parameters with inline validation)
+  4. Run Pre-Flight Assessment (prominent action button)
+  5. Assessment Results & Remediation (tabs: Findings/Assets, Blast Radius,
+     Remediation Plan, Before/After Diff, Export Report)
+- Status: PASS
+
+REQ-02: Plain-English Change Request Summary
+- Business-friendly summary synthesized before extracted parameters.
+- 4 clear sections:
+  1. What is being requested?
+  2. Why is this change requested? (Grounded strictly in original justification)
+  3. Key configuration changes (Native Streamlit dataframe, no raw HTML tags)
+  4. Initial observations (Pre-flight indicators: wildcards, App-ID, profiles)
+- Status: PASS
+
+REQ-03: Inline Visual Reference Screenshots
+- Embed `deliverables/screenshots/change_request_summary.png` directly inside
+  Section 2 (Change Request Summary).
+- Embed `deliverables/screenshots/directly_affected_infrastructure_assets.png`
+  directly inside Section 5 Tab 1 (Directly Affected Infrastructure Assets).
+- Native Streamlit image rendering (`st.image(..., use_container_width=True)`).
+- Preserve aspect ratio and image quality. Responsive width scaling.
+- No raw download buttons, bare links, or plain filenames.
+- Defensive path resolution across diverse execution directories.
+- Graceful non-crashing fallback if file is missing or corrupted.
+- Status: PASS
+
+REQ-04: Official Firewall Change Request Ingestion & Assessment
+- Verify all 5 official change requests:
+  - CHG-2026-1001: Outbound HTTPS Customer Portal API -> ALLOW (15/100)
+  - CHG-2026-1002: Unrestricted Outbound Internet (any/any) -> BLOCK (100/100)
+  - CHG-2026-1003: Internal Network Segmentation -> ALLOW (20/100)
+  - CHG-2026-1004: Inbound NAT Support Portal -> WARN (45/100)
+  - CHG-2026-1005: Unrestricted Vendor Connectivity -> BLOCK (100/100)
+- Accurate field extraction: rule name, zones, CIDRs, apps, ports, profiles, NAT.
+- Existing rule tracking for rule modifications (e.g. CHG-1005).
+- Status: PASS
+
+REQ-05: Dynamic Centralized Identity Resolution (SailPoint ISC)
+- Centralized dynamic identity resolution via `CentralizedIdentityResolver`.
+- NEVER hardcode Rahul Sharma, Sarah Chen, or any other employee.
+- NEVER use a default identity when matching fails.
+- Distinct governance access states:
+  - Requested access: submitted/pending
+  - Approved access: approved by manager/CISO
+  - Provisioned access: connector synchronized to source
+  - Effective access: requires BOTH approved AND provisioned
+- Comprehensive lifecycle support:
+  - New employee Joiner (pre-onboarding access request)
+  - Employee Mover (departmental transition, privilege creep check)
+  - Employee Leaver (terminated/inactive employee request -> SP-05 BLOCK)
+  - Contractor Onboarding (contractor requesting admin role -> SP-04 BLOCK)
+  - Unmapped Identity (unregistered identity -> SP-CORR-01 WARN)
+  - Duplicate / Ambiguous Identity (multiple matches -> SP-CORR-02 WARN)
+  - Conflicting Employee ID & Name (attribute mismatch -> SP-CORR-03 BLOCK)
+- Status: PASS
+
+REQ-06: Cross-Request Isolation & Session State Integrity
+- Sequential change request submission must never bleed state.
+- Switching tickets or clicking "Extract Configuration" must:
+  - Clear previous assessment results (`current_assessment_result = None`).
+  - Clear previous change request records (`current_change_request = None`).
+  - Purge cached widget session state keys (`cfg_...`).
+  - Prevent stale findings, verdicts, or risk scores from rendering.
+- Status: PASS
+
+REQ-07: Security, Immutability & Database Isolation
+- Path traversal protection and filename sanitization in file uploads.
+- Original configuration files remain strictly immutable.
+- Remediation candidates generated in-memory and stored in SQLite.
+- Database isolation:
+  - `simuguard_history.db` (Production DB, 0 demo records, immutable to reset)
+  - `simuguard_demo.db` (Demo DB, 5 baseline records, reset-isolated)
+- Zero external APIs or live production infrastructure contacted.
+- Status: PASS
+
+REQ-08: Executive Reporting & Export
+- Executive PDF report generation with decision verdict banner and KPIs.
+- Executive JSON audit report generation.
+- Formatted file names matching change request number and timestamp.
+- Status: PASS
+
+================================================================================

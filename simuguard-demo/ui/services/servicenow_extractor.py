@@ -360,42 +360,57 @@ class ServiceNowExtractor:
 
     @classmethod
     def _extract_sailpoint_fields(cls, text: str, cfg: ExtractedConfig) -> None:
-        """Extract SailPoint identity governance attributes."""
+        """Extract SailPoint identity governance attributes dynamically without hardcoded defaults."""
         cfg.identity_name = cls._extract_field(
             text,
             [r"^Target Identity\s*[:=]\s*(.+)", r"^Identity Name\s*[:=]\s*(.+)", r"^Identity\s*[:=]\s*(.+)"],
-            default="Sarah Chen (sp-ident-sarah-chen)",
+            default="",
         )
         cfg.identity_profile = cls._extract_field(
             text,
             [r"^Identity Profile\s*[:=]\s*(.+)"],
-            default="Corporate Full-Time Employees",
+            default="",
         )
         cfg.requested_role = cls._extract_field(
             text,
             [r"^Requested Role\s*[:=]\s*(.+)", r"^Role Name\s*[:=]\s*(.+)", r"^Role\s*[:=]\s*(.+)"],
-            default="Finance & Treasury Analyst",
+            default="",
         )
         cfg.access_profile = cls._extract_field(
             text,
             [r"^Access Profile\s*[:=]\s*(.+)"],
-            default="Production S3 CUI Vault Read Access",
+            default="",
         )
         cfg.entitlement = cls._extract_field(
             text,
             [r"^Entitlement\s*[:=]\s*(.+)", r"^Permission\s*[:=]\s*(.+)"],
-            default="AWS Production S3 CUI Vault Read",
+            default="",
         )
         cfg.account_id = cls._extract_field(
             text,
             [r"^Source Account ID\s*[:=]\s*(.+)", r"^Account ID\s*[:=]\s*(.+)"],
-            default="sp-acct-ad-sarah-chen",
+            default="",
         )
         cfg.identity_source = cls._extract_field(
             text,
             [r"^Authoritative Source\s*[:=]\s*(.+)", r"^Identity Source\s*[:=]\s*(.+)"],
-            default="Corporate Active Directory",
+            default="",
         )
+
+        # Dynamic attribute enrichment via CentralizedIdentityResolver if identity was extracted
+        if cfg.identity_name:
+            try:
+                from simuguard.graph.dataset_loader import EnterpriseDatasetLoader
+                from simuguard.identity import CentralizedIdentityResolver, IdentityResolutionStatus
+                sp_data = EnterpriseDatasetLoader().load_sailpoint_governance()
+                res = CentralizedIdentityResolver(sp_data).resolve_identity(cfg.identity_name)
+                if res.status == IdentityResolutionStatus.RESOLVED and res.identity:
+                    if not cfg.identity_profile and res.identity_profile_id:
+                        cfg.identity_profile = res.identity_profile_id
+                    if not cfg.account_id and res.account_ids:
+                        cfg.account_id = res.account_ids[0]
+            except Exception:
+                pass
 
     @classmethod
     def _extract_from_hcl(cls, hcl: str, cfg: ExtractedConfig) -> None:
