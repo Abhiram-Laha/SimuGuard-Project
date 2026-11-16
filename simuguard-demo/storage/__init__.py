@@ -8,8 +8,10 @@ from storage.models import (
     ChangePriority,
     ChangeRequestRecord,
     ChangeType,
+    FirewallChangeDetails,
     KPISummary,
     RemediationRecord,
+    SailPointChangeDetails,
     WorkflowState,
 )
 
@@ -20,7 +22,9 @@ __all__ = [
     "ChangePriority",
     "ChangeRequestRecord",
     "ChangeType",
+    "FirewallChangeDetails",
     "KPISummary",
     "RemediationRecord",
+    "SailPointChangeDetails",
     "WorkflowState",
 ]

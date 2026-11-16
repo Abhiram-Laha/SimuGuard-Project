@@ -48,10 +48,7 @@ def render_sidebar() -> str:
             st.session_state["active_page"] = PAGE_OVERVIEW
 
         current_page = st.session_state["active_page"]
-        if current_page not in NAV_PAGES:
-            current_page = PAGE_OVERVIEW
-
-        current_idx = NAV_PAGES.index(current_page)
+        radio_idx = NAV_PAGES.index(current_page) if current_page in NAV_PAGES else NAV_PAGES.index(PAGE_HISTORY)
 
         def _format_func(page_name: str) -> str:
             icon = PAGE_ICONS.get(page_name, "•")
@@ -60,12 +57,17 @@ def render_sidebar() -> str:
         selected = st.radio(
             label="Navigation",
             options=NAV_PAGES,
-            index=current_idx,
+            index=radio_idx,
             format_func=_format_func,
             key="nav_radio_selection",
         )
 
-        st.session_state["active_page"] = selected
+        if current_page in NAV_PAGES:
+            st.session_state["active_page"] = selected
+        else:
+            # If in a sub-view (like Record Detail), update active_page only if user picks a different page
+            if selected != PAGE_HISTORY:
+                st.session_state["active_page"] = selected
 
         # Sidebar Footer
         st.markdown(
@@ -79,4 +81,4 @@ def render_sidebar() -> str:
             unsafe_allow_html=True,
         )
 
-    return selected
+        return st.session_state["active_page"]

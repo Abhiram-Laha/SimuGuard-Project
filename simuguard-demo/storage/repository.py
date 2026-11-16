@@ -1,7 +1,8 @@
 """Data Access Repository for SimuGuard AI SQLite Storage."""
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+import json
+from typing import Any, Dict, List, Optional, Tuple
 import sqlite3
 
 from storage.database import get_db_connection
@@ -11,7 +12,53 @@ from storage.models import (
     ChangeRequestRecord,
     KPISummary,
     RemediationRecord,
+    WorkflowState,
 )
+
+ALL_CHANGE_REQUEST_COLUMNS = [
+    "request_number",
+    "title",
+    "description",
+    "justification",
+    "submitted_by",
+    "submitter_role",
+    "change_type",
+    "domain",
+    "priority",
+    "status",
+    "created_at",
+    "updated_at",
+    "category",
+    "subcategory",
+    "assignment_group",
+    "assigned_engineer",
+    "business_service",
+    "configuration_item",
+    "affected_application",
+    "infrastructure_platform",
+    "target_environment",
+    "scenario_name",
+    "source_file_path",
+    "raw_content",
+    "implementation_plan",
+    "technical_approach",
+    "backout_plan",
+    "validation_plan",
+    "business_impact",
+    "operational_impact",
+    "dependencies",
+    "additional_notes",
+    "planned_start",
+    "planned_end",
+    "maintenance_window",
+    "scheduling_notes",
+    "expected_business_impact",
+    "expected_technical_impact",
+    "expected_service_disruption",
+    "risk_context",
+    "firewall_details_json",
+    "sailpoint_details_json",
+]
 
 
 class ChangeRepository:
@@ -36,7 +83,6 @@ class ChangeRepository:
             if not row:
                 return "SIM-CHG-000001"
             last_num_str = row["request_number"]
-            # Extract digits after SIM-CHG-
             try:
                 parts = last_num_str.split("-")
                 num = int(parts[-1])
@@ -61,46 +107,110 @@ class ChangeRepository:
                 record.created_at = now
             record.updated_at = now
 
-            c.execute(
-                """
-                INSERT INTO change_requests (
-                    request_number, title, description, submitted_by, submitter_role,
-                    change_type, domain, priority, status, created_at, updated_at,
-                    assigned_engineer, target_environment, source_file_path, raw_content
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    record.request_number,
-                    record.title,
-                    record.description,
-                    record.submitted_by,
-                    record.submitter_role,
-                    record.change_type,
-                    record.domain,
-                    record.priority,
-                    record.status,
-                    record.created_at,
-                    record.updated_at,
-                    record.assigned_engineer,
-                    record.target_environment,
-                    record.source_file_path,
-                    record.raw_content,
-                ),
-            )
+            # Fetch existing columns in change_requests
+            cursor = c.cursor()
+            cursor.execute("PRAGMA table_info(change_requests);")
+            valid_cols = {row["name"] for row in cursor.fetchall()}
+
+            record_dict = record.model_dump()
+            cols_to_insert = [col for col in ALL_CHANGE_REQUEST_COLUMNS if col in valid_cols]
+            placeholders = ", ".join(["?"] * len(cols_to_insert))
+            col_names = ", ".join(cols_to_insert)
+            values = [record_dict.get(col) for col in cols_to_insert]
+
+            query = f"INSERT INTO change_requests ({col_names}) VALUES ({placeholders})"
+            c.execute(query, values)
             c.commit()
 
             # Record initial activity log
+            action_name = "DRAFT_SAVED" if record.status == WorkflowState.DRAFT.value else "REQUEST_CREATED"
             self.log_activity(
                 request_number=record.request_number,
-                action="REQUEST_CREATED",
+                action=action_name,
                 actor=record.submitted_by,
-                details=f"Created change request '{record.title}' with priority {record.priority}",
+                details=f"Change request created with status '{record.status}' and priority '{record.priority}'",
                 conn=c,
             )
             return record
         finally:
             if close_after:
                 c.close()
+
+    def update_change_request(
+        self, record: ChangeRequestRecord, conn: Optional[sqlite3.Connection] = None
+    ) -> ChangeRequestRecord:
+        """Update all fields of an existing change request."""
+        close_after = conn is None
+        c = self._get_conn(conn)
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            record.updated_at = now
+
+            cursor = c.cursor()
+            cursor.execute("PRAGMA table_info(change_requests);")
+            valid_cols = {row["name"] for row in cursor.fetchall()}
+
+            record_dict = record.model_dump()
+            cols_to_update = [
+                col for col in ALL_CHANGE_REQUEST_COLUMNS if col in valid_cols and col != "request_number"
+            ]
+            set_clause = ", ".join([f"{col} = ?" for col in cols_to_update])
+            values = [record_dict.get(col) for col in cols_to_update]
+            values.append(record.request_number)
+
+            query = f"UPDATE change_requests SET {set_clause} WHERE request_number = ?"
+            c.execute(query, values)
+            c.commit()
+            return record
+        finally:
+            if close_after:
+                c.close()
+
+    def save_draft(
+        self, record: ChangeRequestRecord, conn: Optional[sqlite3.Connection] = None
+    ) -> ChangeRequestRecord:
+        """Save change request in DRAFT status without creating any assessment."""
+        record.status = WorkflowState.DRAFT.value
+        existing = self.get_change_request(record.request_number, conn=conn)
+        if existing:
+            saved = self.update_change_request(record, conn=conn)
+            self.log_activity(
+                request_number=record.request_number,
+                action="DRAFT_SAVED",
+                actor=record.submitted_by,
+                details=f"Draft updated with title '{record.title}'",
+                conn=conn,
+            )
+            return saved
+        else:
+            return self.create_change_request(record, conn=conn)
+
+    def submit_change_request(
+        self, record: ChangeRequestRecord, conn: Optional[sqlite3.Connection] = None
+    ) -> ChangeRequestRecord:
+        """Submit change request for assessment (sets status to SUBMITTED)."""
+        record.status = WorkflowState.SUBMITTED.value
+        existing = self.get_change_request(record.request_number, conn=conn)
+        if existing:
+            saved = self.update_change_request(record, conn=conn)
+            self.log_activity(
+                request_number=record.request_number,
+                action="REQUEST_SUBMITTED",
+                actor=record.submitted_by,
+                details=f"Change request submitted for simulation assessment. Priority: {record.priority}",
+                conn=conn,
+            )
+            return saved
+        else:
+            saved = self.create_change_request(record, conn=conn)
+            self.log_activity(
+                request_number=record.request_number,
+                action="REQUEST_SUBMITTED",
+                actor=record.submitted_by,
+                details=f"Change request submitted for simulation assessment. Priority: {record.priority}",
+                conn=conn,
+            )
+            return saved
 
     def get_change_request(
         self, request_number: str, conn: Optional[sqlite3.Connection] = None
@@ -134,6 +244,146 @@ class ChangeRepository:
             )
             rows = cursor.fetchall()
             return [ChangeRequestRecord(**dict(row)) for row in rows]
+        finally:
+            if close_after:
+                c.close()
+
+    def filter_change_requests(
+        self,
+        search_query: Optional[str] = None,
+        domain: Optional[str] = None,
+        priority: Optional[str] = None,
+        status: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        sort_field: str = "created_at",
+        sort_order: str = "DESC",
+        limit: int = 20,
+        offset: int = 0,
+        conn: Optional[sqlite3.Connection] = None,
+    ) -> List[Dict[str, Any]]:
+        """Query change requests with comprehensive search, filtering, sorting and pagination."""
+        close_after = conn is None
+        c = self._get_conn(conn)
+        try:
+            where_clauses = []
+            params: List[Any] = []
+
+            if search_query and search_query.strip():
+                sq = f"%{search_query.strip()}%"
+                where_clauses.append(
+                    "(cr.request_number LIKE ? OR cr.title LIKE ? OR cr.description LIKE ?)"
+                )
+                params.extend([sq, sq, sq])
+
+            if domain and domain.strip() and domain.upper() != "ALL":
+                where_clauses.append("cr.domain = ?")
+                params.append(domain.strip())
+
+            if priority and priority.strip() and priority.upper() != "ALL":
+                where_clauses.append("cr.priority = ?")
+                params.append(priority.strip())
+
+            if status and status.strip() and status.upper() != "ALL":
+                where_clauses.append("cr.status = ?")
+                params.append(status.strip())
+
+            if start_date and start_date.strip():
+                where_clauses.append("cr.created_at >= ?")
+                params.append(start_date.strip())
+
+            if end_date and end_date.strip():
+                where_clauses.append("cr.created_at <= ?")
+                params.append(end_date.strip())
+
+            where_str = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+            # Validate sort field & direction to prevent SQL injection
+            allowed_sort_fields = {"created_at", "request_number", "priority", "status", "domain", "title"}
+            safe_sort_field = sort_field if sort_field in allowed_sort_fields else "created_at"
+            safe_sort_order = "ASC" if sort_order.upper() == "ASC" else "DESC"
+
+            query = f"""
+            SELECT
+                cr.*,
+                a.verdict,
+                a.composite_risk_score,
+                a.security_gaps_count,
+                a.blast_radius_nodes_count
+            FROM change_requests cr
+            LEFT JOIN (
+                SELECT a1.*
+                FROM assessment_records a1
+                INNER JOIN (
+                    SELECT request_number, MAX(timestamp) as max_ts
+                    FROM assessment_records
+                    GROUP BY request_number
+                ) a2 ON a1.request_number = a2.request_number AND a1.timestamp = a2.max_ts
+            ) a ON cr.request_number = a.request_number
+            {where_str}
+            ORDER BY cr.{safe_sort_field} {safe_sort_order}
+            LIMIT ? OFFSET ?
+            """
+            params.extend([limit, offset])
+
+            cursor = c.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            if close_after:
+                c.close()
+
+    def count_filtered_change_requests(
+        self,
+        search_query: Optional[str] = None,
+        domain: Optional[str] = None,
+        priority: Optional[str] = None,
+        status: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        conn: Optional[sqlite3.Connection] = None,
+    ) -> int:
+        """Count total matching records for pagination calculation."""
+        close_after = conn is None
+        c = self._get_conn(conn)
+        try:
+            where_clauses = []
+            params: List[Any] = []
+
+            if search_query and search_query.strip():
+                sq = f"%{search_query.strip()}%"
+                where_clauses.append(
+                    "(request_number LIKE ? OR title LIKE ? OR description LIKE ?)"
+                )
+                params.extend([sq, sq, sq])
+
+            if domain and domain.strip() and domain.upper() != "ALL":
+                where_clauses.append("domain = ?")
+                params.append(domain.strip())
+
+            if priority and priority.strip() and priority.upper() != "ALL":
+                where_clauses.append("priority = ?")
+                params.append(priority.strip())
+
+            if status and status.strip() and status.upper() != "ALL":
+                where_clauses.append("status = ?")
+                params.append(status.strip())
+
+            if start_date and start_date.strip():
+                where_clauses.append("created_at >= ?")
+                params.append(start_date.strip())
+
+            if end_date and end_date.strip():
+                where_clauses.append("created_at <= ?")
+                params.append(end_date.strip())
+
+            where_str = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+            query = f"SELECT COUNT(*) as total FROM change_requests {where_str}"
+
+            cursor = c.cursor()
+            cursor.execute(query, params)
+            return cursor.fetchone()["total"]
         finally:
             if close_after:
                 c.close()
@@ -376,7 +626,6 @@ class ChangeRepository:
             if total == 0:
                 return KPISummary()
 
-            # Latest assessment per request
             cursor.execute(
                 """
                 SELECT a.verdict, a.composite_risk_score
@@ -399,7 +648,6 @@ class ChangeRepository:
                 else 0.0
             )
 
-            # Count remediations
             cursor.execute("SELECT COUNT(DISTINCT request_number) as rem_cnt FROM remediation_records")
             remediated_count = cursor.fetchone()["rem_cnt"]
 

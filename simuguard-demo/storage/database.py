@@ -1,12 +1,12 @@
-"""SQLite database management and schema definitions for SimuGuard AI."""
+"""SQLite database management, schema definitions, and safe migrations for SimuGuard AI."""
 
 import sqlite3
 from pathlib import Path
-from typing import Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 from config.settings import DB_PATH
 
 
-SCHEMA_SQL = """
+BASE_SCHEMA_SQL = """
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS change_requests (
@@ -71,11 +71,45 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 CREATE INDEX IF NOT EXISTS idx_assessment_request ON assessment_records (request_number);
 CREATE INDEX IF NOT EXISTS idx_remediation_request ON remediation_records (request_number);
 CREATE INDEX IF NOT EXISTS idx_activity_request ON activity_logs (request_number);
+CREATE INDEX IF NOT EXISTS idx_change_requests_status ON change_requests (status);
+CREATE INDEX IF NOT EXISTS idx_change_requests_domain ON change_requests (domain);
+CREATE INDEX IF NOT EXISTS idx_change_requests_created ON change_requests (created_at);
 """
+
+# Additional columns required for enterprise ServiceNow Change Management (Phase 6 Milestone C)
+ADDITIONAL_COLUMNS: List[Tuple[str, str]] = [
+    ("justification", "TEXT DEFAULT ''"),
+    ("category", "TEXT DEFAULT 'Network Security'"),
+    ("subcategory", "TEXT DEFAULT 'Security Policy Rule'"),
+    ("assignment_group", "TEXT DEFAULT 'SecOps-Network-Team'"),
+    ("business_service", "TEXT DEFAULT 'Enterprise Network Perimeter'"),
+    ("configuration_item", "TEXT DEFAULT ''"),
+    ("affected_application", "TEXT DEFAULT ''"),
+    ("infrastructure_platform", "TEXT DEFAULT ''"),
+    ("scenario_name", "TEXT"),
+    ("implementation_plan", "TEXT DEFAULT ''"),
+    ("technical_approach", "TEXT DEFAULT ''"),
+    ("backout_plan", "TEXT DEFAULT ''"),
+    ("validation_plan", "TEXT DEFAULT ''"),
+    ("business_impact", "TEXT DEFAULT ''"),
+    ("operational_impact", "TEXT DEFAULT ''"),
+    ("dependencies", "TEXT DEFAULT ''"),
+    ("additional_notes", "TEXT DEFAULT ''"),
+    ("planned_start", "TEXT"),
+    ("planned_end", "TEXT"),
+    ("maintenance_window", "TEXT DEFAULT 'Weekend Maintenance Window'"),
+    ("scheduling_notes", "TEXT DEFAULT ''"),
+    ("expected_business_impact", "TEXT DEFAULT 'Low'"),
+    ("expected_technical_impact", "TEXT DEFAULT 'Low'"),
+    ("expected_service_disruption", "TEXT DEFAULT 'None'"),
+    ("risk_context", "TEXT DEFAULT ''"),
+    ("firewall_details_json", "TEXT"),
+    ("sailpoint_details_json", "TEXT"),
+]
 
 
 def get_db_connection(db_path: Optional[Union[str, Path]] = None) -> sqlite3.Connection:
-    """Obtain a SQLite database connection with row factory enabled."""
+    """Obtain a SQLite database connection with row factory enabled and foreign keys active."""
     target_path = Path(db_path) if db_path else DB_PATH
     target_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(target_path), check_same_thread=False)
@@ -84,10 +118,23 @@ def get_db_connection(db_path: Optional[Union[str, Path]] = None) -> sqlite3.Con
     return conn
 
 
+def migrate_schema_if_needed(conn: sqlite3.Connection) -> None:
+    """Perform non-destructive schema migration by safely adding any missing columns."""
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(change_requests);")
+    existing_columns = {row["name"] for row in cursor.fetchall()}
+
+    for col_name, col_def in ADDITIONAL_COLUMNS:
+        if col_name not in existing_columns:
+            cursor.execute(f"ALTER TABLE change_requests ADD COLUMN {col_name} {col_def};")
+    conn.commit()
+
+
 def init_db(db_path: Optional[Union[str, Path]] = None) -> None:
-    """Initialize database schema, tables, and indices."""
+    """Initialize database schema, tables, indices, and apply safe migrations."""
     target_path = Path(db_path) if db_path else DB_PATH
     target_path.parent.mkdir(parents=True, exist_ok=True)
     with get_db_connection(target_path) as conn:
-        conn.executescript(SCHEMA_SQL)
+        conn.executescript(BASE_SCHEMA_SQL)
+        migrate_schema_if_needed(conn)
         conn.commit()

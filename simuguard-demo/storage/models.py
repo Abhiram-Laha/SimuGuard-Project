@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -46,10 +46,14 @@ class ChangeType(CaseInsensitiveEnum):
 class ChangePriority(CaseInsensitiveEnum):
     """ITSM priority level."""
 
-    STANDARD = "STANDARD"
-    NORMAL = "NORMAL"
-    EXPEDITED = "EXPEDITED"
+    CRITICAL = "CRITICAL"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
     EMERGENCY = "EMERGENCY"
+    EXPEDITED = "EXPEDITED"
+    NORMAL = "NORMAL"
+    STANDARD = "STANDARD"
 
 
 class ChangeDomain(CaseInsensitiveEnum):
@@ -61,24 +65,108 @@ class ChangeDomain(CaseInsensitiveEnum):
     MULTI_DOMAIN = "MULTI_DOMAIN"
 
 
+class FirewallChangeDetails(BaseModel):
+    """Domain-specific attributes for Network Security / Firewall change requests."""
+
+    firewall_platform: str = "Palo Alto Networks PA-5450"
+    firewall_device: str = "fw-edge-01-primary"
+    panorama_reference: Optional[str] = "pan-mgmt-01.mgmt.apex-global.example"
+    rule_name: str = ""
+    source_zone: str = "Trust-DMZ"
+    destination_zone: str = "Untrust-Internet"
+    source_addresses: str = "10.100.4.0/24"
+    destination_addresses: str = "any"
+    applications: str = "ssl"
+    services: str = "service-https"
+    protocol: str = "TCP"
+    source_port: str = "any"
+    destination_port: str = "443"
+    action: str = "allow"
+    security_profile: str = "Strict-Enterprise-Security"
+    change_operation: str = "Create"  # Create, Modify, Delete
+
+
+class SailPointChangeDetails(BaseModel):
+    """Domain-specific attributes for Identity Governance / SailPoint change requests."""
+
+    # Identity Information
+    identity_id: str = ""
+    identity_name: str = ""
+    identity_profile: str = ""
+    identity_source: str = ""
+    account_id: str = ""
+    account_status: str = "ACTIVE"
+
+    # Access Information
+    requested_role: str = ""
+    access_profile: str = ""
+    entitlement: str = ""
+    application_name: str = ""
+    business_justification: str = ""
+    access_expiry: Optional[str] = None
+
+    # Governance Lifecycle
+    request_status: str = "SUBMITTED"
+    approval_status: str = "PENDING"
+    provisioning_status: str = "UNPROVISIONED"
+    certification_status: str = "UNCERTIFIED"
+    revocation_status: str = "NONE"
+
+
 class ChangeRequestRecord(BaseModel):
     """Persistent representation of a Change Request."""
 
     request_number: str
     title: str
     description: str = ""
+    justification: str = ""
     submitted_by: str = "SecOps Engineer"
     submitter_role: str = "Network Security Operations"
     change_type: str = ChangeType.FIREWALL_POLICY.value
     domain: str = ChangeDomain.NETWORK_SECURITY.value
     priority: str = ChangePriority.NORMAL.value
     status: str = WorkflowState.SUBMITTED.value
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    category: str = "Network Security"
+    subcategory: str = "Security Policy Rule"
+    assignment_group: str = "SecOps-Network-Team"
     assigned_engineer: Optional[str] = "SecOps Operations"
+    business_service: str = "Enterprise Network Perimeter"
+    configuration_item: str = "PAN-NGFW-EDGE-01"
+    affected_application: str = "Customer Web Portal"
+    infrastructure_platform: str = "Palo Alto Networks NGFW"
     target_environment: str = "Apex Global Production (Digital Twin)"
+    scenario_name: Optional[str] = None
     source_file_path: Optional[str] = None
     raw_content: Optional[str] = None
+
+    # Section C — Planning
+    implementation_plan: str = ""
+    technical_approach: str = ""
+    backout_plan: str = ""
+    validation_plan: str = ""
+    business_impact: str = ""
+    operational_impact: str = ""
+    dependencies: str = ""
+    additional_notes: str = ""
+
+    # Section D — Schedule
+    planned_start: Optional[str] = None
+    planned_end: Optional[str] = None
+    maintenance_window: str = "Weekend Maintenance Window"
+    scheduling_notes: str = ""
+
+    # Section E — Initial Risk Context
+    expected_business_impact: str = "Low"
+    expected_technical_impact: str = "Low"
+    expected_service_disruption: str = "None"
+    risk_context: str = ""
+
+    # Domain specific payload in JSON format
+    firewall_details_json: Optional[str] = None
+    sailpoint_details_json: Optional[str] = None
+
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 class AssessmentRecord(BaseModel):

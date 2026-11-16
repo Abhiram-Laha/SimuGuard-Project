@@ -39,11 +39,11 @@ def render_priority_badge(priority: str) -> str:
     """Return HTML string for change priority."""
     p = (priority or "").strip().upper()
     safe_p = html.escape(p)
-    if p == "EMERGENCY":
+    if p in ("EMERGENCY", "CRITICAL"):
         return f'<span class="sg-badge sg-prio-emergency">{safe_p}</span>'
-    elif p == "EXPEDITED":
+    elif p in ("EXPEDITED", "HIGH"):
         return f'<span class="sg-badge sg-prio-expedited">{safe_p}</span>'
-    elif p == "NORMAL":
+    elif p in ("NORMAL", "MEDIUM"):
         return f'<span class="sg-badge sg-prio-normal">{safe_p}</span>'
     else:
         return f'<span class="sg-badge sg-prio-standard">{safe_p}</span>'

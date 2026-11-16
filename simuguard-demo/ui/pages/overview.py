@@ -198,6 +198,23 @@ def render_overview_page(repository: ChangeRepository) -> None:
         </table>
         """
         st.markdown(table_html, unsafe_allow_html=True)
+
+        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+        col_sel1, col_sel2 = st.columns([3, 1])
+        with col_sel1:
+            req_options = [r["request_number"] for r in recent]
+            selected_req = st.selectbox(
+                "Inspect Request Details",
+                options=req_options,
+                format_func=lambda x: f"{x} — {next((r['title'] for r in recent if r['request_number'] == x), '')}",
+                key="overview_req_selector",
+            )
+        with col_sel2:
+            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("Open Record →", use_container_width=True, key="btn_overview_open_record"):
+                st.session_state["viewing_request_number"] = selected_req
+                st.session_state["active_page"] = "Record Detail"
+                st.rerun()
     else:
         st.markdown(
             """

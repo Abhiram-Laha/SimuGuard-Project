@@ -1,4 +1,4 @@
-"""Navigation router and placeholder page dispatchers for SimuGuard AI."""
+"""Navigation router and page dispatchers for SimuGuard AI."""
 
 import streamlit as st
 from config.settings import (
@@ -15,7 +15,10 @@ from config.settings import (
 )
 from storage.repository import ChangeRepository
 from ui.layout import render_page_header
+from ui.pages.history import render_history_page
+from ui.pages.new_change import render_new_change_page
 from ui.pages.overview import render_overview_page
+from ui.pages.record_detail import render_record_detail_page
 
 
 def _render_placeholder_page(title: str, description: str, milestone_phase: str, details: str) -> None:
@@ -56,24 +59,17 @@ def _render_placeholder_page(title: str, description: str, milestone_phase: str,
 
 def route_page(active_page: str, repository: ChangeRepository) -> None:
     """Dispatch view rendering based on active page selection."""
-    if active_page == PAGE_OVERVIEW:
+    if active_page == "Record Detail":
+        render_record_detail_page(repository)
+
+    elif active_page == PAGE_OVERVIEW:
         render_overview_page(repository)
 
     elif active_page == PAGE_NEW_CHANGE:
-        _render_placeholder_page(
-            title="New Change Request Intake",
-            description="Submit proposed Terraform / HCL security changes for pre-flight simulation.",
-            milestone_phase="Milestone C",
-            details="The change request form allows Network and Identity Operations Engineers to submit candidate infrastructure changes, upload .tf files, select change priority, and trigger pre-deployment simulation.",
-        )
+        render_new_change_page(repository)
 
     elif active_page == PAGE_HISTORY:
-        _render_placeholder_page(
-            title="Change Assessment History",
-            description="Audit log and historical repository of all analyzed security changes.",
-            milestone_phase="Milestone C",
-            details="Browse, filter, and search past change requests by verdict, status, priority, and date. View detailed audit trails of every policy evaluation and remediation step.",
-        )
+        render_history_page(repository)
 
     elif active_page == PAGE_RESULTS:
         _render_placeholder_page(
