@@ -15,10 +15,15 @@ from config.settings import (
 )
 from storage.repository import ChangeRepository
 from ui.layout import render_page_header
+from ui.pages.comparison import render_comparison_page
+from ui.pages.digital_twin import render_digital_twin_page
 from ui.pages.history import render_history_page
 from ui.pages.new_change import render_new_change_page
 from ui.pages.overview import render_overview_page
 from ui.pages.record_detail import render_record_detail_page
+from ui.pages.remediation import render_remediation_page
+from ui.pages.reports import render_reports_page
+from ui.pages.results import render_results_page
 
 
 def _render_placeholder_page(title: str, description: str, milestone_phase: str, details: str) -> None:
@@ -72,50 +77,25 @@ def route_page(active_page: str, repository: ChangeRepository) -> None:
         render_history_page(repository)
 
     elif active_page == PAGE_RESULTS:
-        _render_placeholder_page(
-            title="Simulation Assessment Results",
-            description="Deep inspection of security findings, blast radius impact, and risk score breakdown.",
-            milestone_phase="Milestone D",
-            details="Comprehensive pre-deployment analysis displaying gate verdicts (ALLOW, WARN, BLOCK), individual security gap findings, affected digital twin topology nodes, and deterministic risk scoring.",
-        )
+        render_results_page(repository)
 
     elif active_page == PAGE_REMEDIATION:
-        _render_placeholder_page(
-            title="Remediation Center",
-            description="Automated candidate policy synthesis and correction review.",
-            milestone_phase="Milestone D",
-            details="Inspect auto-generated remediated Terraform policies addressing identified firewall, IAM, and SailPoint violations. Compare original vs candidate configurations before validation.",
-        )
+        render_remediation_page(repository)
 
     elif active_page == PAGE_COMPARISON:
-        _render_placeholder_page(
-            title="Before & After Validation Comparison",
-            description="Closed-loop verification and risk reduction differential.",
-            milestone_phase="Milestone D",
-            details="Side-by-side comparison of pre-remediation vs post-remediation security gaps, risk score delta, and residual operational warnings.",
-        )
+        render_comparison_page(repository)
 
     elif active_page == PAGE_DIGITAL_TWIN:
-        _render_placeholder_page(
-            title="Digital Twin Explorer",
-            description="Interactive graph inspection of Apex Global Technologies infrastructure.",
-            milestone_phase="Milestone E",
-            details="Explore 220 active enterprise nodes and 77 relationships, including Palo Alto firewalls, Panorama device groups, AWS accounts, SailPoint identities, roles, and business workloads.",
-        )
+        render_digital_twin_page(repository)
 
     elif active_page == PAGE_REPORTS:
-        _render_placeholder_page(
-            title="Reports & Compliance Exports",
-            description="Generate executive PDF reports and JSON artifacts for ITSM audit trails.",
-            milestone_phase="Milestone E",
-            details="Export structured PDF reports suitable for Change Advisory Board (CAB) reviews and compliance documentation, matching enterprise ITSM standards.",
-        )
+        render_reports_page(repository)
 
     elif active_page == PAGE_ABOUT:
         _render_placeholder_page(
             title="Settings & System Information",
             description=f"SimuGuard AI Engine v{APP_VERSION} operational metadata.",
-            milestone_phase="Milestone E",
+            milestone_phase="Milestone F",
             details="System diagnostic settings, local database path inspection, digital twin dataset status, and rule engine configuration.",
         )
 

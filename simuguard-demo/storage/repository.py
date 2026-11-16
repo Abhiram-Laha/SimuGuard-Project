@@ -571,6 +571,11 @@ class ChangeRepository:
             if close_after:
                 c.close()
 
+    # Aliases for operational convenience and API consistency
+    save_assessment = save_assessment_record
+    save_remediation = save_remediation_record
+    get_latest_remediation = get_remediation_record
+
     def log_activity(
         self,
         request_number: str,

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 import streamlit as st
 
-from config.settings import PAGE_HISTORY
+from config.settings import PAGE_COMPARISON, PAGE_HISTORY, PAGE_REMEDIATION, PAGE_RESULTS
 from storage.models import WorkflowState
 from storage.repository import ChangeRepository
 from ui.components.status_badges import (
@@ -15,6 +15,7 @@ from ui.components.status_badges import (
     render_workflow_badge,
 )
 from ui.layout import render_page_header
+from ui.services.assessment_runner import AssessmentRunnerService
 
 
 def render_record_detail_page(repository: ChangeRepository, request_number: Optional[str] = None) -> None:
@@ -88,16 +89,28 @@ def render_record_detail_page(repository: ChangeRepository, request_number: Opti
         )
 
     with col_h2:
-        if st.button("← Back to History", use_container_width=True):
+        if st.button("← Back to History", use_container_width=True, key="btn_detail_back_history"):
             st.session_state["active_page"] = PAGE_HISTORY
             st.rerun()
 
         if record.status == WorkflowState.DRAFT.value:
             st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
-            if st.button("🚀 Submit Draft", use_container_width=True):
+            if st.button("🚀 Submit Draft", use_container_width=True, key="btn_detail_submit_draft"):
                 repository.submit_change_request(record)
                 st.success(f"Change Request {record.request_number} promoted to SUBMITTED status.")
                 st.rerun()
+        else:
+            st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
+            btn_label = "🔄 Re-run Assessment" if latest_assessment else "🚀 Run Security Assessment"
+            if st.button(btn_label, use_container_width=True, key="btn_detail_run_assessment"):
+                runner = AssessmentRunnerService(repository=repository)
+                with st.spinner("Executing pre-flight security simulation and remediation engine..."):
+                    ok, msg, res = runner.run_assessment(record.request_number, force_reassessment=True)
+                if ok:
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
 
     # 2. Structured Tabs
     tab_overview, tab_desc, tab_ci, tab_plan, tab_sched, tab_risk, tab_activity = st.tabs(
@@ -169,9 +182,22 @@ def render_record_detail_page(repository: ChangeRepository, request_number: Opti
                 """,
                 unsafe_allow_html=True,
             )
+            col_b1, col_b2, col_b3 = st.columns(3)
+            with col_b1:
+                if st.button("🔍 View Detailed Findings", use_container_width=True, key="btn_det_to_res"):
+                    st.session_state["active_page"] = PAGE_RESULTS
+                    st.rerun()
+            with col_b2:
+                if st.button("🛠️ Open Remediation Center", use_container_width=True, key="btn_det_to_rem"):
+                    st.session_state["active_page"] = PAGE_REMEDIATION
+                    st.rerun()
+            with col_b3:
+                if st.button("⚖️ Before & After Comparison", use_container_width=True, key="btn_det_to_comp"):
+                    st.session_state["active_page"] = PAGE_COMPARISON
+                    st.rerun()
         else:
             st.info(
-                "💡 **No simulation assessment executed yet.** In Milestone D, submitting this change triggers deterministic pre-flight security simulation against the Apex Global Digital Twin."
+                "💡 **No simulation assessment executed yet.** Click the **Run Security Assessment** button above to evaluate deterministic risk scoring and synthesize remediations."
             )
 
     # -------------------------------------------------------------------------
