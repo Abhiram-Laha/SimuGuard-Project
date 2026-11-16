@@ -25,6 +25,73 @@ def render_overview_page(repository: ChangeRepository) -> None:
         button_label="➕ New Change Request",
     )
 
+    # Environment Banner & Synthetic Data Notice
+    env_mode = st.session_state.get("environment_mode", "DEMO")
+    if env_mode == "DEMO":
+        st.markdown(
+            """
+            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 0.65rem 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 0.85rem; color: #166534;">
+                    <strong>🛡️ Demo Sandbox Active:</strong> Modelled on Apex Global Technologies synthetic digital twin (220 nodes, 77 edges). All operational statistics reflect verified demonstration scenarios.
+                </div>
+                <div style="font-size: 0.75rem; background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 4px; font-weight: 600;">
+                    AIR-GAPPED BENCHMARK
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            """
+            <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 0.65rem 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 0.85rem; color: #1e40af;">
+                    <strong>📋 Production Mode Active:</strong> Clean local ITSM change management database (<code>simuguard_history.db</code>).
+                </div>
+                <div style="font-size: 0.75rem; background: #dbeafe; color: #1d4ed8; padding: 2px 8px; border-radius: 4px; font-weight: 600;">
+                    LOCAL PERSISTENCE
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # Guided Demonstration Tour Accordion (Milestone G)
+    if st.session_state.get("show_guided_tour", True):
+        with st.expander("🧭 Guided Demonstration Script & Tour Guide (Click to expand/collapse)", expanded=False):
+            st.markdown(
+                """
+                <div style="font-size: 0.88rem; color: #334155; line-height: 1.6;">
+                    <p style="margin-top:0;"><strong>Welcome to SimuGuard AI!</strong> This local pre-deployment security assessment platform prevents catastrophic network and identity misconfigurations before cloud/firewall pipelines apply them.</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 0.75rem 0;">
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem;">
+                            <div style="font-weight:600; color:#0f172a; margin-bottom:4px;">🎯 Recommended 5-Minute Tour</div>
+                            <ol style="margin:0; padding-left:1.2rem; font-size:0.84rem; color:#475569;">
+                                <li><strong>Overview</strong>: Inspect gate verdict metrics and recent change tickets below.</li>
+                                <li><strong>New Change Request</strong>: Load Scenario <code>PR #4083</code> or <code>PR #4082</code> and submit.</li>
+                                <li><strong>Assessment Results</strong>: Review deterministic risk score (100/100) and <code>BLOCK_DEPLOYMENT</code> verdict.</li>
+                                <li><strong>Digital Twin Explorer</strong>: Visualize affected perimeter firewalls, IAM roles, and CUI Vault assets.</li>
+                                <li><strong>Remediation Center</strong>: Inspect auto-synthesized candidate Terraform patch and candidate overlay validation.</li>
+                                <li><strong>Before & After Comparison</strong>: Review 100-point risk reduction delta and resolved findings.</li>
+                                <li><strong>Executive Reports</strong>: Generate and download publication-grade PDF and JSON audit artifacts.</li>
+                            </ol>
+                        </div>
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem;">
+                            <div style="font-weight:600; color:#0f172a; margin-bottom:4px;">🔬 5 Certified Demonstration Scenarios</div>
+                            <ul style="margin:0; padding-left:1.2rem; font-size:0.84rem; color:#475569;">
+                                <li><code style="color:#0f62fe;">SIM-DEMO-001</code>: Dangerous Firewall Policy (App-ID bypass + S3FullAccess) &rarr; <span style="color:#ef4444; font-weight:600;">BLOCK</span></li>
+                                <li><code style="color:#0f62fe;">SIM-DEMO-002</code>: Cloud IAM Escalation (Unrestricted CUI Vault exposure) &rarr; <span style="color:#ef4444; font-weight:600;">BLOCK</span></li>
+                                <li><code style="color:#0f62fe;">SIM-DEMO-003</code>: SailPoint Contractor Privileged Access (Policy SP-04) &rarr; <span style="color:#ef4444; font-weight:600;">BLOCK</span></li>
+                                <li><code style="color:#0f62fe;">SIM-DEMO-004</code>: Safe Scoped Firewall Policy (Strict partner CIDR + App-ID) &rarr; <span style="color:#10b981; font-weight:600;">ALLOW</span></li>
+                                <li><code style="color:#0f62fe;">SIM-DEMO-005</code>: Unmapped Entity Exception (Outside Digital Twin) &rarr; <span style="color:#f59e0b; font-weight:600;">WARN</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
     # 1. Executive KPI Summary Row
     kpis = repository.get_kpi_summary()
     render_kpi_row(kpis)

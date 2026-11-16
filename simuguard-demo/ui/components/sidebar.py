@@ -70,6 +70,62 @@ def render_sidebar() -> str:
             if selected != PAGE_HISTORY:
                 st.session_state["active_page"] = selected
 
+        # Environment Controls (Milestone G Demo Readiness)
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div style="font-size:0.74rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">
+                ITSM Database Mode
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        current_env = st.session_state.get("environment_mode", "DEMO")
+        env_choice = st.selectbox(
+            "Environment Mode",
+            options=["Demo Sandbox (Apex Global)", "Production (Empty ITSM)"],
+            index=0 if current_env == "DEMO" else 1,
+            label_visibility="collapsed",
+            key="env_selector_sidebar",
+        )
+        new_env = "DEMO" if "Demo" in env_choice else "PRODUCTION"
+        if new_env != current_env:
+            st.session_state["environment_mode"] = new_env
+            st.rerun()
+
+        if current_env == "DEMO":
+            st.markdown(
+                """
+                <div style="font-size: 0.72rem; color: #10b981; margin-bottom: 6px;">
+                    ● Active DB: <code>simuguard_demo.db</code>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            if st.button("🔄 Reset Demo Scenarios", use_container_width=True, key="btn_reset_demo_sidebar"):
+                from ui.services.demo_service import DemoEnvironmentService
+                DemoEnvironmentService.reset_demo_database()
+                st.toast("✅ Demo environment reset with 5 certified scenarios!", icon="🛡️")
+                st.rerun()
+        else:
+            st.markdown(
+                """
+                <div style="font-size: 0.72rem; color: #3b82f6; margin-bottom: 6px;">
+                    ● Active DB: <code>simuguard_history.db</code> (Clean)
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        # Guided Tour Quick Toggle
+        st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+        st.checkbox(
+            "Show Guided Demo Tour",
+            value=st.session_state.get("show_guided_tour", True),
+            key="show_guided_tour",
+            help="Display step-by-step executive demo guidance cards across dashboard pages.",
+        )
+
         # Sidebar Footer
         st.markdown(
             f"""

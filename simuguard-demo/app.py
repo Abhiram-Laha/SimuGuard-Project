@@ -21,9 +21,17 @@ from ui.navigation import route_page
 
 def main() -> None:
     """Main application entry point."""
-    # 1. Initialize persistent SQLite database
-    init_db()
-    repository = ChangeRepository()
+    if "environment_mode" not in st.session_state:
+        st.session_state["environment_mode"] = "DEMO"
+
+    from ui.services.demo_service import DemoEnvironmentService
+
+    if st.session_state["environment_mode"] == "DEMO":
+        DemoEnvironmentService.ensure_demo_initialized()
+        repository = DemoEnvironmentService.get_demo_repository()
+    else:
+        init_db()
+        repository = ChangeRepository()
 
     # 2. Configure page layout & CSS theme
     init_page_layout()

@@ -19,8 +19,8 @@ def render_metric_card(label: str, value: Any, hint: Optional[str] = None) -> No
 
 
 def render_kpi_row(kpis: KPISummary) -> None:
-    """Render the top executive KPI summary cards row."""
-    col1, col2, col3, col4, col5 = st.columns(5)
+    """Render the top executive KPI summary cards row with all 6 core metrics."""
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
         render_metric_card(
@@ -38,22 +38,29 @@ def render_kpi_row(kpis: KPISummary) -> None:
 
     with col3:
         render_metric_card(
-            label="Warn / Review",
+            label="Manual Review",
             value=kpis.warn_count,
-            hint="Manual review required",
+            hint="Requires CAB review",
         )
 
     with col4:
+        render_metric_card(
+            label="Approved / Safe",
+            value=kpis.allowed_count,
+            hint="Zero critical findings",
+        )
+
+    with col5:
         render_metric_card(
             label="Auto-Remediated",
             value=kpis.remediated_count,
             hint="Closed-loop verified",
         )
 
-    with col5:
+    with col6:
         score_display = f"{kpis.avg_risk_score:.1f}" if kpis.total_requests > 0 else "0.0"
         render_metric_card(
             label="Avg Risk Score",
             value=f"{score_display}/100",
-            hint="Simulation baseline",
+            hint="Pre-flight baseline",
         )

@@ -78,6 +78,25 @@ class DatasetService:
                 "justification": "Office guest breakroom amenity enhancement requested by Facilities.",
             }
 
+        # 4. PR-4085: Safe Firewall Scenario
+        p_safe = self.changes_dir / "demo" / "demo_safe_firewall.tf"
+        if not p_safe.exists():
+            p_safe = self.changes_dir / "demo_safe_firewall.tf"
+        if p_safe.exists():
+            scenarios["demo_safe_firewall.tf"] = {
+                "filename": "demo_safe_firewall.tf",
+                "label": "PR #4085 — Scoped SIEM Log Egress (Strict App-ID & Threat Prevention)",
+                "path": str(p_safe),
+                "domain": "NETWORK_SECURITY",
+                "change_type": "FIREWALL_POLICY",
+                "priority": "NORMAL",
+                "ci": "pan-vm-core-firewall-01 (Mgt/Prod Perimeter)",
+                "application": "Enterprise SIEM Collector Pipeline",
+                "platform": "Palo Alto Networks PAN-OS 11.1",
+                "description": "Outbound SIEM log egress scoped strictly to partner CIDR 52.84.120.0/22 with App-ID ssl/web-browsing and active threat prevention.",
+                "justification": "Mandatory quarterly SIEM collector connection update according to enterprise security standard.",
+            }
+
         return scenarios
 
     def get_firewalls(self) -> List[Dict[str, Any]]:
