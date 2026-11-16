@@ -350,16 +350,90 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
 
     else:
         # SailPoint Identity Governance Specifications
-        col_s1, col_s2, col_s3 = st.columns(3)
-        with col_s1:
-            cfg.identity_name = st.text_input("Target Identity *", value=cfg.identity_name or "", key="cfg_identity")
-            cfg.requested_role = st.text_input("Requested Role *", value=cfg.requested_role or "", key="cfg_role")
-        with col_s2:
-            cfg.access_profile = st.text_input("Access Profile", value=cfg.access_profile or "", key="cfg_ap")
-            cfg.entitlement = st.text_input("Entitlement *", value=cfg.entitlement or "", key="cfg_ent")
-        with col_s3:
-            cfg.identity_source = st.text_input("Authoritative Source", value=cfg.identity_source or "", key="cfg_src")
-            cfg.account_id = st.text_input("Account ID", value=cfg.account_id or "", key="cfg_acct")
+        l_type = getattr(cfg, "lifecycle_type", "ACCESS_REQUEST")
+        if l_type == "MOVER":
+            col_m1, col_m2, col_m3 = st.columns(3)
+            with col_m1:
+                cfg.identity_name = st.text_input("Target Identity *", value=cfg.identity_name or "", key="cfg_identity")
+                cfg.current_department = st.text_input("Current Department", value=cfg.current_department or "", key="cfg_curr_dept")
+                cfg.current_role = st.text_input("Current Role", value=cfg.current_role or "", key="cfg_curr_role")
+            with col_m2:
+                cfg.employee_id = st.text_input("Employee ID *", value=cfg.employee_id or "", key="cfg_emp_id")
+                cfg.new_department = st.text_input("New Department *", value=cfg.new_department or "", key="cfg_new_dept")
+                cfg.new_role = st.text_input("New Role *", value=cfg.new_role or cfg.requested_role or "", key="cfg_new_role")
+                cfg.requested_role = cfg.new_role
+            with col_m3:
+                cfg.corporate_email = st.text_input("Corporate Email", value=cfg.corporate_email or "", key="cfg_email")
+                cfg.effective_date = st.text_input("Effective Date", value=cfg.effective_date or "", key="cfg_eff_date")
+                appr_opts = ["APPROVED", "PENDING", "REJECTED"]
+                appr_idx = appr_opts.index(cfg.approval_status) if cfg.approval_status in appr_opts else 0
+                cfg.approval_status = st.selectbox("Approval Status", options=appr_opts, index=appr_idx, key="cfg_appr_stat")
+
+            col_acc1, col_acc2 = st.columns(2)
+            with col_acc1:
+                rem_val = ", ".join(cfg.access_to_remove) if cfg.access_to_remove else ""
+                new_rem = st.text_area("Access to Remove / Revoke (comma-separated)", value=rem_val, height=75, key="cfg_acc_rem")
+                cfg.access_to_remove = [x.strip() for x in new_rem.split(",") if x.strip()]
+            with col_acc2:
+                add_val = ", ".join(cfg.access_to_add) if cfg.access_to_add else ""
+                new_add = st.text_area("Access to Add / Grant (comma-separated)", value=add_val, height=75, key="cfg_acc_add")
+                cfg.access_to_add = [x.strip() for x in new_add.split(",") if x.strip()]
+
+            items = []
+            if cfg.access_to_add:
+                items.append(f"ADD: {', '.join(cfg.access_to_add)}")
+            if cfg.access_to_remove:
+                items.append(f"REMOVE: {', '.join(cfg.access_to_remove)}")
+            if items:
+                cfg.entitlement = "; ".join(items)
+
+        elif l_type == "JOINER":
+            col_j1, col_j2, col_j3 = st.columns(3)
+            with col_j1:
+                cfg.identity_name = st.text_input("Employee Name *", value=cfg.identity_name or "", key="cfg_identity")
+                cfg.new_department = st.text_input("Department *", value=cfg.new_department or cfg.department or "", key="cfg_dept")
+            with col_j2:
+                cfg.employee_id = st.text_input("Employee ID *", value=cfg.employee_id or "", key="cfg_emp_id")
+                cfg.requested_role = st.text_input("Job Title / Role *", value=cfg.requested_role or cfg.new_role or "", key="cfg_role")
+            with col_j3:
+                cfg.start_date = st.text_input("Start Date", value=cfg.start_date or "", key="cfg_start_date")
+                cfg.corporate_email = st.text_input("Corporate Email", value=cfg.corporate_email or "", key="cfg_email")
+
+            add_val = ", ".join(cfg.access_to_add) if cfg.access_to_add else cfg.entitlement
+            new_add = st.text_area("Requested Access / Entitlements *", value=add_val, height=75, key="cfg_acc_add")
+            cfg.access_to_add = [x.strip() for x in new_add.split(",") if x.strip()]
+            cfg.entitlement = new_add
+
+        elif l_type == "LEAVER":
+            col_l1, col_l2, col_l3 = st.columns(3)
+            with col_l1:
+                cfg.identity_name = st.text_input("Worker / Employee Name *", value=cfg.identity_name or "", key="cfg_identity")
+                cfg.department = st.text_input("Department", value=cfg.department or cfg.current_department or "", key="cfg_dept")
+            with col_l2:
+                cfg.employee_id = st.text_input("Worker / Employee ID *", value=cfg.employee_id or cfg.worker_id or "", key="cfg_emp_id")
+                cfg.termination_date = st.text_input("Termination Date", value=cfg.termination_date or "", key="cfg_term_date")
+            with col_l3:
+                cfg.worker_type = st.text_input("Worker Type", value=cfg.worker_type or "External contractor", key="cfg_wtype")
+                appr_opts = ["APPROVED", "PENDING", "REJECTED"]
+                appr_idx = appr_opts.index(cfg.approval_status) if cfg.approval_status in appr_opts else 0
+                cfg.approval_status = st.selectbox("Approval Status", options=appr_opts, index=appr_idx, key="cfg_appr_stat")
+
+            rem_val = ", ".join(cfg.access_to_remove) if cfg.access_to_remove else cfg.entitlement
+            new_rem = st.text_area("Access to Revoke / Deprovision *", value=rem_val, height=75, key="cfg_acc_rem")
+            cfg.access_to_remove = [x.strip() for x in new_rem.split(",") if x.strip()]
+            cfg.entitlement = new_rem
+
+        else:
+            col_s1, col_s2, col_s3 = st.columns(3)
+            with col_s1:
+                cfg.identity_name = st.text_input("Target Identity *", value=cfg.identity_name or "", key="cfg_identity")
+                cfg.requested_role = st.text_input("Requested Role *", value=cfg.requested_role or "", key="cfg_role")
+            with col_s2:
+                cfg.access_profile = st.text_input("Access Profile", value=cfg.access_profile or "", key="cfg_ap")
+                cfg.entitlement = st.text_input("Entitlement *", value=cfg.entitlement or "", key="cfg_ent")
+            with col_s3:
+                cfg.identity_source = st.text_input("Authoritative Source", value=cfg.identity_source or "", key="cfg_src")
+                cfg.account_id = st.text_input("Account ID", value=cfg.account_id or "", key="cfg_acct")
 
     # Expandable Advanced Details (Non-intrusive)
     with st.expander("⚙️ Advanced Change Metadata, Schedule & Justification", expanded=False):
@@ -567,7 +641,9 @@ def _render_change_request_summary(cfg: ExtractedConfig) -> None:
         unsafe_allow_html=True,
     )
 
-    if cfg.domain == "NETWORK_SECURITY":
+    if summary.key_configuration_changes:
+        display_params = list(summary.key_configuration_changes.items())
+    elif cfg.domain == "NETWORK_SECURITY":
         display_params = [
             ("Target Firewall", cfg.target_firewall or "Not specified"),
             ("Security Policy", f"Modify '{cfg.existing_rule_name}' -> '{cfg.rule_name}'" if cfg.existing_rule_name else (cfg.rule_name or "Not specified")),
@@ -1107,15 +1183,56 @@ def _execute_assessment_from_workspace(repository: ChangeRepository, cfg: Extrac
 
     sp_details = SailPointChangeDetails(
         identity_name=cfg.identity_name,
+        employee_id=cfg.employee_id,
+        worker_id=cfg.worker_id,
+        worker_type=cfg.worker_type,
+        corporate_email=cfg.corporate_email,
         identity_profile=cfg.identity_profile,
-        identity_source=cfg.identity_source,
+        identity_source=cfg.identity_source or "SailPoint ISC",
         account_id=cfg.account_id,
         account_status=cfg.account_status,
-        requested_role=cfg.requested_role,
+        manager=cfg.manager,
+        manager_id=cfg.manager_id,
+        department=cfg.department or cfg.new_department or cfg.current_department,
+        current_department=cfg.current_department,
+        new_department=cfg.new_department,
+        current_role=cfg.current_role,
+        new_role=cfg.new_role,
+        location=cfg.location,
+        requested_role=cfg.requested_role or cfg.new_role,
         access_profile=cfg.access_profile,
         entitlement=cfg.entitlement,
+        access_to_add=cfg.access_to_add,
+        access_to_remove=cfg.access_to_remove,
+        privileged_access_requested=cfg.privileged_access_requested,
+        privileged_entitlements=cfg.privileged_entitlements,
         business_justification=cfg.justification,
         approval_status=cfg.approval_status or "PENDING",
+        start_date=cfg.start_date,
+        effective_date=cfg.effective_date,
+        termination_date=cfg.termination_date,
+        lifecycle_type=cfg.lifecycle_type,
+        role_name=getattr(cfg, "role_name", ""),
+        role_arn=getattr(cfg, "role_arn", ""),
+        target_role_name=getattr(cfg, "target_role_name", ""),
+        target_role_arn=getattr(cfg, "target_role_arn", ""),
+        source_role_name=getattr(cfg, "source_role_name", ""),
+        source_role_arn=getattr(cfg, "source_role_arn", ""),
+        source_identity_record_id=getattr(cfg, "source_identity_record_id", ""),
+        requested_policy_name=getattr(cfg, "requested_policy_name", ""),
+        identity_record_id=getattr(cfg, "identity_record_id", ""),
+        aws_account=getattr(cfg, "aws_account", ""),
+        source_aws_account=getattr(cfg, "source_aws_account", ""),
+        target_aws_account=getattr(cfg, "target_aws_account", ""),
+        assigned_workload=getattr(cfg, "assigned_workload", ""),
+        current_attached_policies=getattr(cfg, "current_attached_policies", []),
+        permission_boundary=getattr(cfg, "permission_boundary", ""),
+        permission_boundary_arn=getattr(cfg, "permission_boundary_arn", ""),
+        boundary_action=getattr(cfg, "boundary_action", ""),
+        trust_relationship_id=getattr(cfg, "trust_relationship_id", ""),
+        trusted_principal=getattr(cfg, "trusted_principal", ""),
+        mfa_condition=getattr(cfg, "mfa_condition", ""),
+        external_id_condition=getattr(cfg, "external_id_condition", ""),
     ) if cfg.domain == "IDENTITY_GOVERNANCE" else None
 
     # 3. Construct and save ChangeRequestRecord in SQLite

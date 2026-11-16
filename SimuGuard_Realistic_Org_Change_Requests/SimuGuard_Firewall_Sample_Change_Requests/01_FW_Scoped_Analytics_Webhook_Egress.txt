@@ -1,0 +1,63 @@
+CHANGE REQUEST: CHG-NET-2026-3101
+Title: Restrict analytics worker outbound webhook traffic to verified partner endpoint
+Company: Apex Global Technologies
+Environment: Production
+Service: Network Security - Palo Alto
+Assignment group: Network Security Operations
+Priority: 3 - Moderate
+Requested window: 24-Nov-2026, 22:00-22:30 IST
+
+Business justification:
+The analytics ingestion service sends event notifications to the approved external analytics webhook partner. The existing rule permits HTTPS traffic but the application match is set to any. The team requests a precise App-ID restriction.
+
+Target management platform:
+Panorama: pan-mgmt-01.mgmt.apex-global.example
+Management IP: 10.254.0.5
+Device group: DG-Internet-Perimeter
+
+Target firewall:
+Firewall ID: fw-edge-01-primary
+Device: Apex Internet Edge Firewall 01 (Primary Active)
+Model: Palo Alto PA-5450
+PAN-OS: 11.1 Nebula
+HA peer: fw-edge-02-secondary
+
+Existing security rule:
+Rule ID: RULE-PAN-011
+Rule name: Allow-Analytics-Outbound-AppID-Bypass
+Current source zone: Trust-DMZ
+Current source address object: obj-dmz-analytics-subnet
+Current source CIDR: 10.100.4.0/24
+Current destination zone: Untrust-Internet
+Current destination address object: obj-partner-webhook-cidr
+Current destination CIDR: 198.51.100.0/24
+Current application: any
+Current service: service-https (TCP/443)
+Current action: allow
+Current security profile: Strict-Enterprise-Security
+Session-end logging: enabled
+
+Requested configuration:
+Source zone: Trust-DMZ
+Source address: obj-dmz-analytics-subnet (10.100.4.0/24)
+Destination zone: Untrust-Internet
+Destination address: obj-partner-webhook-cidr (198.51.100.0/24)
+Application: ssl
+Service: service-https (TCP/443)
+Action: allow
+Security profile group: Strict-Enterprise-Security
+Log at session end: enabled
+
+Implementation:
+Update RULE-PAN-011 in the DG-Internet-Perimeter device group. Replace application any with ssl. Do not broaden the source or destination.
+
+Validation:
+Confirm the rule matches only the intended HTTPS application and TCP/443 service to the partner CIDR. Verify session-end logging and the security profile.
+
+Backout:
+Restore the previous application match only if the application owner and security owner approve the rollback.
+
+Approvals:
+Analytics application owner: Pending
+Network Security: Pending
+Change manager: Pending

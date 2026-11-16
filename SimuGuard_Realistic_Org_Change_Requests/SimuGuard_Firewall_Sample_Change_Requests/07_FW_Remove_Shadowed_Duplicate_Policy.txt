@@ -1,0 +1,66 @@
+CHANGE REQUEST: CHG-NET-2026-3107
+Title: Remove duplicate shadowed Customer Portal inbound HTTPS security rule
+Company: Apex Global Technologies
+Environment: Production
+Service: Network Security - Palo Alto
+Assignment group: Network Security Operations
+Priority: 3 - Moderate
+Requested window: 30-Nov-2026, 22:00-22:30 IST
+
+Business justification:
+A policy review identified a duplicate Customer Portal inbound HTTPS rule. Network Security proposes removing the redundant rule while retaining the primary approved rule.
+
+Target firewall:
+Firewall ID: fw-edge-01-primary
+Device: Apex Internet Edge Firewall 01 (Primary Active)
+Device group: DG-Internet-Perimeter
+HA peer: fw-edge-02-secondary
+Management platform: Panorama pan-mgmt-01.mgmt.apex-global.example
+
+Rule proposed for removal:
+Rule ID: RULE-PAN-010
+Rule name: Allow-Customer-Portal-Inbound-Shadowed-Duplicate
+Rule order: 45
+Source zone: Untrust-Internet
+Source address: any
+Destination zone: Trust-DMZ
+Destination address: obj-customer-portal-alb-vip (203.0.113.20/32)
+Application: ssl
+Service: service-https (TCP/443)
+Action: allow
+Security profile: Strict-Enterprise-Security
+Session-end logging: enabled
+Current posture: INTENTIONAL_MISCONFIG_SHADOWED
+
+Primary rule to retain:
+Rule ID: RULE-PAN-003
+Rule name: Allow-Customer-Portal-Inbound-HTTPS
+Rule order: 10
+Source zone: Untrust-Internet
+Destination zone: Trust-DMZ
+Destination: obj-customer-portal-alb-vip (203.0.113.20/32)
+Applications: ssl, web-browsing
+Service: service-https (TCP/443)
+Action: allow
+Security profile: Strict-Enterprise-Security
+Session-end logging: enabled
+
+Requested action:
+Disable or remove RULE-PAN-010 while retaining RULE-PAN-003 unchanged.
+
+Implementation:
+Prepare a candidate policy overlay that disables RULE-PAN-010. Do not alter the primary rule or the NAT-001-DMZ-STATIC-PORTAL mapping.
+
+Validation:
+Confirm that the primary portal rule still permits the intended HTTPS traffic and that the duplicate no longer appears as an active matching rule.
+
+Backout:
+Re-enable RULE-PAN-010 only if a validated dependency is identified and approved.
+
+Approvals:
+Network Security owner: Pending
+Customer Portal owner: Pending
+Change manager: Pending
+
+Assessment note:
+The supplied security policy dataset marks RULE-PAN-010 as INTENTIONAL_MISCONFIG_SHADOWED and describes it as an exact duplicate of RULE-PAN-003. Verify rule ordering and duplicate matching using the actual policy dataset.

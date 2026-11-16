@@ -1,0 +1,67 @@
+CHANGE REQUEST: CHG-NET-2026-3103
+Title: Permit analytics DMZ workers to connect directly to restricted financial vault
+Company: Apex Global Technologies
+Environment: Production - Restricted Data
+Service: Network Security - Palo Alto
+Assignment group: Network Security Operations
+Priority: 1 - Critical
+Requested window: 26-Nov-2026, 22:00-22:30 IST
+
+Business justification:
+The analytics team requests direct HTTPS connectivity to the restricted financial data vault to retrieve records for a new reporting workflow. The request does not include a data-owner exception or approved architecture change.
+
+Target firewall:
+Firewall ID: fw-internal-01-primary
+Device: Apex Internal Segmentation Firewall 01 (Primary Active)
+Model: Palo Alto PA-3440
+HA peer: fw-internal-02-secondary
+Device group: DG-Internal-Segmentation
+
+Existing related rule:
+Rule ID: RULE-PAN-017
+Rule name: Allow-DMZ-To-Restricted-CUI-Direct
+Source zone: Trust-DMZ
+Source address: obj-dmz-analytics-subnet (10.100.4.0/24)
+Destination zone: Restricted-Data-Vault
+Destination address: obj-cui-vault-storage-vip (10.100.40.15/32)
+Application: any
+Service: service-https (TCP/443)
+Action: allow
+Security profile: none
+Session-end logging: enabled
+
+Target network:
+Subnet: Restricted Financial & CUI Data Subnet
+CIDR: 10.100.40.0/24
+Gateway: 10.100.40.1
+Zone trust level: MAXIMUM_SECURITY_VAULT
+Asset: Restricted CUI and financial vault internal gateway (10.100.40.15/32)
+
+Requested configuration:
+Source zone: Trust-DMZ
+Source address: 10.100.4.0/24
+Destination zone: Restricted-Data-Vault
+Destination address: 10.100.40.15/32
+Application: ssl
+Service: service-https (TCP/443)
+Action: allow
+Security profile group: none
+Log at session end: enabled
+
+Implementation:
+Create or retain a direct allow path from the analytics DMZ to the restricted vault.
+
+Validation:
+Confirm connectivity from the analytics worker subnet to the restricted vault endpoint.
+
+Backout:
+Disable the direct access rule and verify that the DMZ-to-vault path is removed.
+
+Approvals:
+Analytics application owner: Pending
+Restricted data owner: Not provided
+Information Security: Pending
+Change manager: Pending
+
+Assessment note:
+The supplied policy dataset marks RULE-PAN-017 as INTENTIONAL_MISCONFIG_CUI_EXPOSURE. The request crosses from a semi-trusted DMZ into a maximum-security CUI/financial vault zone. Treat the missing data-owner approval and absent threat profile as material risks.

@@ -1,0 +1,64 @@
+CHANGE REQUEST: CHG-NET-2026-3105
+Title: Enable direct Internet SSH access to analytics DMZ workers for vendor support
+Company: Apex Global Technologies
+Environment: Production
+Service: Network Security - Palo Alto
+Assignment group: Network Security Operations
+Priority: 1 - Critical
+Requested window: 28-Nov-2026, 23:00-23:30 IST
+
+Business justification:
+A third-party support engineer needs to troubleshoot the analytics workers. The vendor requests direct SSH access from the Internet rather than connecting through the corporate bastion.
+
+Target firewall:
+Firewall ID: fw-edge-01-primary
+Device: Apex Internet Edge Firewall 01 (Primary Active)
+Device group: DG-Internet-Perimeter
+HA peer: fw-edge-02-secondary
+
+Existing related rule:
+Rule ID: RULE-PAN-015
+Rule name: Allow-Untrust-Inbound-SSH-Public
+Source zone: Untrust-Internet
+Source address: any (0.0.0.0/0)
+Destination zone: Trust-DMZ
+Destination address: obj-dmz-analytics-subnet (10.100.4.0/24)
+Application: ssh
+Service: service-ssh (TCP/22)
+Action: allow
+Security profile: none
+Session-end logging: enabled
+
+Available management path:
+Bastion object: obj-mgmt-bastion-vip
+Bastion address: 10.254.0.100/32
+Management zone: Mgmt-OOB
+
+Requested configuration:
+Source zone: Untrust-Internet
+Source address: any
+Destination zone: Trust-DMZ
+Destination address: 10.100.4.0/24
+Application: ssh
+Service: service-ssh (TCP/22)
+Action: allow
+Security profile group: none
+Log at session end: enabled
+
+Implementation:
+Permit inbound SSH from the public Internet to the analytics DMZ subnet.
+
+Validation:
+Ask the vendor to confirm SSH access to the analytics workers.
+
+Backout:
+Disable the public SSH rule and require support access through the approved management path.
+
+Approvals:
+Vendor owner: Pending
+Infrastructure owner: Pending
+Information Security: Pending
+Change manager: Pending
+
+Assessment note:
+The supplied dataset marks RULE-PAN-015 as INTENTIONAL_MISCONFIG_EXCESSIVE_INBOUND. The source is any on the untrusted Internet and the destination is a subnet rather than a named bastion host.

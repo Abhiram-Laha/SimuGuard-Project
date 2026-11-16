@@ -133,6 +133,29 @@ class SailPointChangeDetails(BaseModel):
     certification_status: str = "UNCERTIFIED"
     revocation_status: str = "NONE"
 
+    # AWS IAM & Cloud Governance Details
+    role_name: str = ""
+    role_arn: str = ""
+    target_role_name: str = ""
+    target_role_arn: str = ""
+    source_role_name: str = ""
+    source_role_arn: str = ""
+    source_identity_record_id: str = ""
+    requested_policy_name: str = ""
+    identity_record_id: str = ""
+    aws_account: str = ""
+    source_aws_account: str = ""
+    target_aws_account: str = ""
+    assigned_workload: str = ""
+    current_attached_policies: List[str] = Field(default_factory=list)
+    permission_boundary: str = ""
+    permission_boundary_arn: str = ""
+    boundary_action: str = ""
+    trust_relationship_id: str = ""
+    trusted_principal: str = ""
+    mfa_condition: str = ""
+    external_id_condition: str = ""
+
 
 class ChangeRequestRecord(BaseModel):
     """Persistent representation of a Change Request."""

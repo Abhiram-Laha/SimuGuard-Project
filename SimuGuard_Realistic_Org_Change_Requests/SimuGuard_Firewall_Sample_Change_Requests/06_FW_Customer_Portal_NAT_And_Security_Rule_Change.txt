@@ -1,0 +1,72 @@
+CHANGE REQUEST: CHG-NET-2026-3106
+Title: Publish Customer Portal HTTPS endpoint using the approved static destination NAT
+Company: Apex Global Technologies
+Environment: Production
+Service: Network Security - Palo Alto
+Assignment group: Network Security Operations
+Priority: 3 - Moderate
+Requested window: 29-Nov-2026, 20:00-20:45 IST
+
+Business justification:
+The Customer Web Portal requires a public HTTPS endpoint. Network Operations is reviewing the existing destination NAT and matching security policy to confirm the public VIP forwards to the intended DMZ application load balancer.
+
+Panorama:
+Hostname: pan-mgmt-01.mgmt.apex-global.example
+Management IP: 10.254.0.5
+Device group: DG-Internet-Perimeter
+
+Target firewall:
+Firewall ID: fw-edge-01-primary
+Device: Apex Internet Edge Firewall 01 (Primary Active)
+Model: PA-5450
+HA peer: fw-edge-02-secondary
+
+Existing NAT policy:
+NAT ID: NAT-001-DMZ-STATIC-PORTAL
+Name: Static-NAT-Customer-Portal-ALB
+Source zone: Untrust-Internet
+Destination zone: Untrust-Internet
+Destination interface: ethernet1/1
+Service: service-https (TCP/443)
+Source address: any
+Public destination object: obj-customer-portal-alb-vip
+Public VIP: 203.0.113.20/32
+Translation type: destination-translation
+Translated address: 10.100.4.20
+Translated port: 443
+
+Existing matching security policy:
+Rule ID: RULE-PAN-003
+Name: Allow-Customer-Portal-Inbound-HTTPS
+Device group: DG-Internet-Perimeter
+Source zone: Untrust-Internet
+Source address: any
+Destination zone: Trust-DMZ
+Destination object: obj-customer-portal-alb-vip
+Application: ssl, web-browsing
+Service: service-https (TCP/443)
+Action: allow
+Security profile group: Strict-Enterprise-Security
+Log at session end: enabled
+
+Requested action:
+Validate and retain the existing public VIP to DMZ ALB mapping:
+203.0.113.20/32 -> 10.100.4.20:443
+Confirm that the security policy matches the translated traffic and that the strict security profile and session-end logging remain enabled.
+
+Implementation:
+No broadening of source, destination, application or service is requested. Do not create a new NAT mapping if the existing mapping is already correct.
+
+Validation:
+Verify the NAT translation, security rule association, TCP/443 service and expected DMZ destination. Confirm logging and security profile settings.
+
+Backout:
+Restore the previously approved NAT and security policy configuration if a separately approved modification causes portal connectivity failure.
+
+Approvals:
+Customer Portal owner: Approved
+Network Security: Pending
+Change manager: Pending
+
+Assessment note:
+This is primarily a validation and controlled maintenance scenario. Compare the requested values with NAT-001-DMZ-STATIC-PORTAL and RULE-PAN-003 in the supplied baseline. Do not report a configuration change where the request only asks to validate an existing configuration.

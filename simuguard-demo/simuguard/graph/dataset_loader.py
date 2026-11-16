@@ -694,6 +694,19 @@ class EnterpriseDatasetLoader:
             "relationships": self._read_json("sailpoint/relationships.json"),
         }
 
+    def load_aws_iam_governance(self) -> Dict[str, Any]:
+        """Load and return all raw AWS IAM Digital Twin governance data dictionaries."""
+        iam_dir = self.base_dir / "iam"
+        if not iam_dir.is_dir():
+            return {}
+        return {
+            "identities": self._read_json("iam/identities.json"),
+            "roles": self._read_json("iam/roles.json"),
+            "policies": self._read_json("iam/policies.json"),
+            "trust_relationships": self._read_json("iam/trust_relationships.json"),
+            "resource_policies": self._read_json("iam/resource_policies.json"),
+        }
+
     def get_all_resource_ids(self) -> List[str]:
         """Collect all unique primary resource identifiers declared across the dataset."""
         ids: List[str] = []

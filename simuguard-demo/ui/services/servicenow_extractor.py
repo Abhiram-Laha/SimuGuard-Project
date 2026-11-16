@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import json
 from pathlib import Path
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from config.settings import CHANGES_DIR
 
@@ -104,6 +104,32 @@ class ExtractedConfig:
     approval_status: str = "APPROVED"
     privileged_access_requested: bool = False
 
+    # AWS IAM & Cloud Identity Governance Fields
+    role_name: str = ""
+    role_arn: str = ""
+    target_role_name: str = ""
+    target_role_arn: str = ""
+    source_role_name: str = ""
+    source_role_arn: str = ""
+    identity_record_id: str = ""
+    source_identity_record_id: str = ""
+    aws_account: str = ""
+    source_aws_account: str = ""
+    target_aws_account: str = ""
+    assigned_workload: str = ""
+    current_attached_policies: List[str] = field(default_factory=list)
+    permission_boundary: str = ""
+    permission_boundary_arn: str = ""
+    boundary_action: str = ""  # "RETAIN", "REMOVE", "NONE"
+    trust_relationship_id: str = ""
+    trusted_principal: str = ""
+    mfa_condition: str = ""
+    external_id_condition: str = ""
+    requested_policy_name: str = ""
+    requested_policy_arn: str = ""
+    requested_policy_action: str = ""
+    requested_policy_resource: str = ""
+
     # Raw Payload & Metadata
     raw_hcl: str = ""
     scenario_source_path: Optional[str] = None
@@ -138,7 +164,12 @@ class ServiceNowExtractor:
         identity_keywords = [
             "sailpoint", "identity", "entitlement", "access profile",
             "identitynow", "governance", "sod conflict", "grant role",
-            "iam", "access request", "joiner", "mover", "leaver", "offboarding", "ritm"
+            "iam", "access request", "joiner", "mover", "leaver", "offboarding", "ritm",
+            "employee", "employee id", "worker", "worker id", "emp id", "user id",
+            "department", "new department", "current department", "new role", "current role",
+            "job title", "onboarding", "lifecycle", "access to add", "access to remove",
+            "revoke access", "grant access", "privileged access", "sap finance", "role transfer",
+            "deprovision", "provision", "contractor"
         ]
         firewall_keywords = [
             "firewall", "panos", "palo alto", "security rule", "nat rule",
@@ -148,7 +179,22 @@ class ServiceNowExtractor:
         id_score = sum(1 for kw in identity_keywords if kw in lower_text)
         fw_score = sum(1 for kw in firewall_keywords if kw in lower_text)
 
-        if id_score > fw_score and id_score >= 2:
+        iam_structural_match = bool(re.search(
+            r"^(?:Employee|Worker|Target Identity|New department|Current department|New role|Current role|Remove|Add|Revoke|Grant|Lifecycle|Authoritative Source|Entitlement|Access Profile)\s*[:=]",
+            clean_text,
+            re.MULTILINE | re.IGNORECASE,
+        ))
+        fw_structural_match = bool(re.search(
+            r"^(?:Source Zone|Destination Zone|From Zone|To Zone|Target Firewall|Firewall Platform|NAT Rule|App-ID|Security Policy)\s*[:=]",
+            clean_text,
+            re.MULTILINE | re.IGNORECASE,
+        ))
+
+        if fw_structural_match:
+            cfg.domain = "NETWORK_SECURITY"
+        elif iam_structural_match or id_score > fw_score:
+            cfg.domain = "IDENTITY_GOVERNANCE"
+        elif id_score >= 2:
             cfg.domain = "IDENTITY_GOVERNANCE"
         else:
             cfg.domain = "NETWORK_SECURITY"
@@ -319,7 +365,7 @@ class ServiceNowExtractor:
     @classmethod
     def _extract_approvals(cls, text: str, cfg: ExtractedConfig) -> None:
         """Extract multi-line approvals section and determine composite approval status."""
-        pat = r"(?:^|\n)Approvals(?: and confirmations)?\s*[:=]\s*\n?([\s\S]+?)(?=\n(?:Additional note|Dependencies|Implementation|Validation|Backout|Exception handling|Fulfilment|Worker|Requested|Risk|\n\s*\n)|\Z)"
+        pat = r"(?:^|\n)Approvals(?: and confirmations)?\s*[:=]\s*\n?([\s\S]+?)(?=\n(?:Assessment note|Additional note|Dependencies|Implementation|Validation|Backout|Exception handling|Fulfilment|Worker|Requested|Risk|\n\s*\n)|\Z)"
         m = re.search(pat, text, re.IGNORECASE)
         approvals_block = m.group(1).strip() if m else ""
         if not approvals_block:
@@ -331,7 +377,12 @@ class ServiceNowExtractor:
                 line = line.strip().lstrip("-*• ")
                 if ":" in line:
                     role, status = line.split(":", 1)
-                    cfg.approvals[role.strip()] = status.strip()
+                    role_clean = role.strip()
+                    status_clean = status.strip()
+                    if role_clean.lower() in ["assessment note", "additional note", "note"]:
+                        continue
+                    if status_clean:
+                        cfg.approvals[role_clean] = status_clean
 
         # Check overall approval status
         pending_statuses = ["pending", "pending confirmation", "required", "not started", "in progress", "tbd"]
@@ -470,43 +521,352 @@ class ServiceNowExtractor:
         )
 
     @classmethod
+    def _split_items(cls, raw: str) -> List[str]:
+        """Split raw section text into clean individual entitlement or role items."""
+        lines = raw.splitlines()
+        bullet_items = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith(("-", "*", "•")):
+                cleaned = line.lstrip("-*• ").strip()
+                if cleaned:
+                    bullet_items.append(cleaned)
+            elif re.match(r"^\d+[\.\)]\s+", line):
+                cleaned = re.sub(r"^\d+[\.\)]\s+", "", line).strip()
+                if cleaned:
+                    bullet_items.append(cleaned)
+
+        if bullet_items:
+            return bullet_items
+
+        # Check for comma-separated or single-line list
+        clean_lines = [l.strip() for l in lines if l.strip()]
+        if len(clean_lines) == 1 and "," in clean_lines[0]:
+            return [part.strip() for part in clean_lines[0].split(",") if part.strip()]
+        elif len(clean_lines) > 1:
+            res = []
+            for l in clean_lines:
+                if "," in l:
+                    res.extend([part.strip() for part in l.split(",") if part.strip()])
+                else:
+                    res.append(l)
+            return res
+        elif clean_lines:
+            return clean_lines
+        return []
+
+    @classmethod
+    def _is_header_or_noise_line(cls, line: str) -> bool:
+        """Filter out explanatory guidance headers or instructions."""
+        low = line.lower()
+        noise_prefixes = [
+            "revoke access associated with",
+            "standard employee access",
+            "access must be removed",
+            "provide the standard access",
+            "confirm the worker id",
+            "match employee id",
+            "note:",
+            "risk and review",
+            "the contractor's engagement",
+            "the employee is transferring",
+            "all linked accounts",
+        ]
+        return any(low.startswith(np) for np in noise_prefixes)
+
+    @classmethod
+    def _extract_access_lists(cls, text: str) -> Tuple[List[str], List[str]]:
+        """Extract lists of access/roles to add and remove across varied enterprise formats."""
+        to_add: List[str] = []
+        to_remove: List[str] = []
+
+        # 1. Match REMOVE / REVOKE blocks
+        rem_m = re.search(
+            r"(?:^|\n)(?:REMOVE|REVOKE|DEPROVISION|ACCESS TO REMOVE|ROLES TO REMOVE)\s*[:=]\s*(.*?)(?=\n(?:ADD|GRANT|ASSIGN|PROVISION|ACCESS TO ADD|ROLES TO ADD|[A-Z][A-Za-z0-9 ]+:\s*)|\Z)",
+            text,
+            re.DOTALL | re.IGNORECASE,
+        )
+        if rem_m:
+            raw_rem = rem_m.group(1).strip()
+            to_remove.extend(cls._split_items(raw_rem))
+
+        # 2. Match ADD / GRANT blocks
+        add_m = re.search(
+            r"(?:^|\n)(?:ADD|GRANT|ASSIGN|PROVISION|ACCESS TO ADD|ROLES TO ADD|REQUESTED ACCESS)\s*[:=]\s*(.*?)(?=\n(?:REMOVE|REVOKE|DEPROVISION|[A-Z][A-Za-z0-9 ]+:\s*)|\Z)",
+            text,
+            re.DOTALL | re.IGNORECASE,
+        )
+        if add_m:
+            raw_add = add_m.group(1).strip()
+            to_add.extend(cls._split_items(raw_add))
+
+        # 3. Check for 'Requested action:' block (common in Leaver requests)
+        if not to_remove:
+            action_sec = cls._extract_multiline_section(text, "Requested action")
+            if action_sec and ("revoke" in action_sec.lower() or "remove" in action_sec.lower()):
+                to_remove.extend(cls._split_items(action_sec))
+
+        # 4. Check for 'Requested access changes:' block
+        changes_sec = cls._extract_multiline_section(text, "Requested access changes")
+        if changes_sec:
+            sub_rem = re.search(r"REMOVE\s*[:=]\s*(.*?)(?=\nADD|\Z)", changes_sec, re.DOTALL | re.IGNORECASE)
+            sub_add = re.search(r"ADD\s*[:=]\s*(.*?)(?=\nREMOVE|\Z)", changes_sec, re.DOTALL | re.IGNORECASE)
+            if sub_rem and not to_remove:
+                to_remove.extend(cls._split_items(sub_rem.group(1)))
+            if sub_add and not to_add:
+                to_add.extend(cls._split_items(sub_add.group(1)))
+            if not to_add and not sub_rem and not sub_add:
+                to_add.extend(cls._split_items(changes_sec))
+
+        # Clean and deduplicate
+        clean_add = []
+        for a in to_add:
+            if a and not cls._is_header_or_noise_line(a):
+                if a not in clean_add:
+                    clean_add.append(a)
+
+        clean_remove = []
+        for r in to_remove:
+            if r and not cls._is_header_or_noise_line(r):
+                if r not in clean_remove:
+                    clean_remove.append(r)
+
+        return clean_add, clean_remove
+
+    @classmethod
+    def _extract_aws_iam_fields(cls, text: str, cfg: ExtractedConfig) -> None:
+        """Extract AWS IAM roles, boundaries, policies, and trust relationships."""
+        cfg.identity_source = "AWS IAM (Apex Global)"
+        cfg.worker_type = "IAM Role"
+
+        # Split source vs target identity blocks
+        src_block = ""
+        tgt_block = text
+        if "Source identity:" in text:
+            parts = re.split(r"(?:Target identity:|Target role:)", text, flags=re.IGNORECASE)
+            src_block = parts[0]
+            tgt_block = parts[1] if len(parts) > 1 else text
+        elif "Target IAM identity:" in text:
+            tgt_block = text.split("Target IAM identity:")[1]
+
+        # Target Role Name & ARN
+        r_name_m = re.search(r"Role name:\s*([A-Za-z0-9_-]+)", tgt_block)
+        r_arn_m = re.search(r"Role ARN:\s*(arn:aws:iam::[0-9]+:role/[A-Za-z0-9_-]+)", tgt_block)
+        if not r_name_m and r_arn_m:
+            r_name = r_arn_m.group(1).split("/")[-1]
+        else:
+            r_name = r_name_m.group(1).strip() if r_name_m else ""
+        cfg.role_name = r_name
+        cfg.target_role_name = r_name
+        cfg.role_arn = r_arn_m.group(1).strip() if r_arn_m else ""
+        cfg.target_role_arn = cfg.role_arn
+
+        # Target Identity Record ID
+        id_rec_m = re.search(r"Identity record:\s*([A-Za-z0-9_-]+)", tgt_block)
+        cfg.identity_record_id = id_rec_m.group(1).strip() if id_rec_m else ""
+
+        # Target AWS Account
+        acct_m = re.search(r"(?:AWS account|Target AWS account):\s*([0-9]+)", tgt_block)
+        cfg.aws_account = acct_m.group(1).strip() if acct_m else ""
+        cfg.target_aws_account = cfg.aws_account
+        cfg.account_id = cfg.aws_account
+
+        # Assigned Workload
+        wl_m = re.search(r"Assigned workload:\s*([A-Za-z0-9_-]+)", tgt_block)
+        cfg.assigned_workload = wl_m.group(1).strip() if wl_m else ""
+
+        # Source Identity (Cross-Account Scenarios)
+        if src_block:
+            s_name_m = re.search(r"Role name:\s*([A-Za-z0-9_-]+)", src_block)
+            s_arn_m = re.search(r"Role ARN:\s*(arn:aws:iam::[0-9]+:role/[A-Za-z0-9_-]+)", src_block)
+            cfg.source_role_name = s_name_m.group(1).strip() if s_name_m else ""
+            cfg.source_role_arn = s_arn_m.group(1).strip() if s_arn_m else ""
+            s_id_m = re.search(r"Identity record:\s*([A-Za-z0-9_-]+)", src_block)
+            cfg.source_identity_record_id = s_id_m.group(1).strip() if s_id_m else ""
+            s_acct_m = re.search(r"(?:AWS account|Source AWS account):\s*([0-9]+)", src_block)
+            cfg.source_aws_account = s_acct_m.group(1).strip() if s_acct_m else ""
+
+        # Current Attached Policies
+        curr_pols: List[str] = []
+        for p_match in re.finditer(r"(?:Attached policy|Policy ARN|\d+\.)\s*:\s*\n?\s*([A-Za-z0-9_-]+)", text):
+            p_val = p_match.group(1).strip()
+            if p_val and p_val not in curr_pols and p_val.lower() != "arn" and not p_val.startswith("arn:") and p_val not in ["Pending", "Approved", "None"]:
+                curr_pols.append(p_val)
+        known_pols = ["S3TelemetryWriteOnly", "CustomerPortalDatabaseAccess", "PCITokenVaultAccess", "KmsDecryptPaymentScoped", "SecurityAudit", "CrossAccountSecOpsAuditPolicy", "AdministratorAccess", "PowerUserAccess"]
+        for kp in known_pols:
+            if kp in text and kp not in curr_pols and kp != cfg.requested_policy_name:
+                curr_pols.append(kp)
+        cfg.current_attached_policies = curr_pols
+
+        # Permission Boundary
+        b_m = re.search(r"(?:Current permission boundary|Permission boundary)\s*:\s*\n?\s*([A-Za-z0-9_-]+)", text)
+        if b_m:
+            cfg.permission_boundary = b_m.group(1).strip()
+        barn_m = re.search(r"Boundary ARN:\s*(arn:aws:iam::[0-9]+:policy/[A-Za-z0-9_-]+)", text)
+        if barn_m:
+            cfg.permission_boundary_arn = barn_m.group(1).strip()
+
+        # Boundary Removal Change
+        rem_b_m = re.search(r"Remove the\s+([A-Za-z0-9_-]+)\s+permission boundary", text, re.IGNORECASE)
+        if rem_b_m:
+            cfg.boundary_action = "REMOVE"
+            cfg.permission_boundary = rem_b_m.group(1).strip()
+            cfg.lifecycle_type = "BOUNDARY_REMOVAL"
+            cfg.subcategory = "Permission Boundary Removal"
+            cfg.change_operation = f"Remove Boundary '{cfg.permission_boundary}'"
+
+        # Requested AWS Managed Policy
+        pol_m = re.search(r"Attach AWS managed policy:\s*\n?\s*([A-Za-z0-9_-]+)", text)
+        if pol_m:
+            cfg.requested_policy_name = pol_m.group(1).strip()
+            cfg.requested_role = cfg.requested_policy_name
+            if cfg.requested_policy_name in cfg.current_attached_policies:
+                cfg.current_attached_policies = [p for p in cfg.current_attached_policies if p != cfg.requested_policy_name]
+            if cfg.requested_policy_name not in cfg.access_to_add:
+                cfg.access_to_add.append(cfg.requested_policy_name)
+            cfg.entitlement = f"Attach AWS managed policy: {cfg.requested_policy_name}"
+            cfg.lifecycle_type = "POLICY_ATTACHMENT"
+            cfg.subcategory = "AWS Managed Policy Attachment"
+            cfg.change_operation = f"Attach Policy '{cfg.requested_policy_name}'"
+            if cfg.requested_policy_name in ["AmazonS3FullAccess", "AdministratorAccess"]:
+                cfg.privileged_access_requested = True
+                cfg.privileged_entitlements = [cfg.requested_policy_name]
+
+            scope_m = re.search(r"Requested policy scope:\s*\n?\s*Action:\s*([^\r\n]+)\s*\n?\s*Resource:\s*([^\r\n]+)", text)
+            if scope_m:
+                cfg.requested_policy_action = scope_m.group(1).strip()
+                cfg.requested_policy_resource = scope_m.group(2).strip()
+            elif "s3fullaccess" in cfg.requested_policy_name.lower():
+                cfg.requested_policy_action = "s3:*"
+                cfg.requested_policy_resource = "*"
+            elif "administratoraccess" in cfg.requested_policy_name.lower():
+                cfg.requested_policy_action = "*"
+                cfg.requested_policy_resource = "*"
+            else:
+                act_m = re.search(r"(?:Policy effect|Action)\s*:\s*(.+)", text)
+                if act_m:
+                    cfg.requested_policy_action = act_m.group(1).strip()
+
+        # Trust Relationship
+        tr_m = re.search(r"Relationship ID:\s*([A-Za-z0-9_-]+)", text)
+        if tr_m or "cross-account trust" in text.lower():
+            if tr_m:
+                cfg.trust_relationship_id = tr_m.group(1).strip()
+            tp_m = re.search(r"Trusted principal:\s*([A-Za-z0-9_:\-\*]+)", text)
+            if tp_m:
+                cfg.trusted_principal = tp_m.group(1).strip()
+            mfa_m = re.search(r"MFA condition:\s*(.+)", text)
+            if mfa_m:
+                cfg.mfa_condition = mfa_m.group(1).strip()
+            ext_m = re.search(r"External ID condition:\s*(.+)", text)
+            if ext_m:
+                cfg.external_id_condition = ext_m.group(1).strip()
+            if not cfg.lifecycle_type or cfg.lifecycle_type == "ACCESS_REQUEST":
+                cfg.lifecycle_type = "TRUST_REVIEW"
+                cfg.subcategory = "Cross-Account Trust Review"
+                cfg.change_operation = f"Review Trust '{cfg.trust_relationship_id or 'cross-account'}'"
+
+        # Approvals Block
+        appr_m = re.search(r"Approvals:\s*\n(.*?)(?:\n\n|\n[A-Z][a-z]+:|\Z)", text, re.DOTALL)
+        if appr_m:
+            for line in appr_m.group(1).splitlines():
+                line = line.strip()
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    cfg.approvals[k.strip()] = v.strip()
+            if any(v.lower() == "pending" for v in cfg.approvals.values()):
+                cfg.approval_status = "PENDING"
+            else:
+                cfg.approval_status = "APPROVED"
+
+        # Construct identity display name and profile
+        if cfg.role_name and cfg.identity_record_id:
+            cfg.identity_name = f"{cfg.role_name} ({cfg.identity_record_id})"
+        elif cfg.role_name:
+            cfg.identity_name = cfg.role_name
+        cfg.employee_id = cfg.identity_record_id or cfg.role_name
+        cfg.identity_profile = f"AWS IAM ({cfg.aws_account})" if cfg.aws_account else "AWS IAM"
+
+    @classmethod
     def _extract_sailpoint_fields(cls, text: str, cfg: ExtractedConfig) -> None:
-        """Extract SailPoint identity governance attributes dynamically without hardcoded defaults."""
-        name_val = cls._extract_field(
-            text,
-            [
-                r"^Employee [Nn]ame\s*[:=]\s*(.+)",
-                r"^Worker [Nn]ame\s*[:=]\s*(.+)",
-                r"^Target Identity\s*[:=]\s*(.+)",
-                r"^Identity [Nn]ame\s*[:=]\s*(.+)",
-                r"^Identity\s*[:=]\s*(.+)",
-                r"^Name\s*[:=]\s*(.+)",
-            ],
-            default="",
-        )
-        eid_val = cls._extract_field(
-            text,
-            [
-                r"^Employee ID\s*[:=]\s*([A-Za-z0-9_\-]+)",
-                r"^Worker ID\s*[:=]\s*([A-Za-z0-9_\-]+)",
-                r"^Employee Number\s*[:=]\s*([A-Za-z0-9_\-]+)",
-                r"^Worker Number\s*[:=]\s*([A-Za-z0-9_\-]+)",
-            ],
-            default="",
-        )
+        """Extract SailPoint & AWS IAM identity governance attributes dynamically without hardcoded defaults."""
+        is_aws_iam = any([
+            "cloud identity and access management - aws iam" in text.lower(),
+            "arn:aws:iam:" in text.lower(),
+            "target iam identity" in text.lower(),
+            "ident-role-" in text.lower(),
+            "attach aws managed policy" in text.lower(),
+            "relationship id: trust-" in text.lower(),
+            "permission boundary:" in text.lower(),
+            "current permission boundary:" in text.lower(),
+        ])
+
+        if is_aws_iam:
+            cls._extract_aws_iam_fields(text, cfg)
+
+        if is_aws_iam and cfg.role_name:
+            name_val = cfg.role_name
+            eid_val = cfg.identity_record_id
+        else:
+            name_val = cls._extract_field(
+                text,
+                [
+                    r"^(?:Employee [Nn]ame|Worker [Nn]ame|Target Identity|Identity [Nn]ame|Employee|Worker|Target User|User|Name|Identity)\s*[:=]\s*(.+)",
+                ],
+                default="",
+            )
+            eid_val = cls._extract_field(
+                text,
+                [
+                    r"^(?:Employee ID|Worker ID|Emp ID|User ID|Employee Number|Worker Number|Identity ID|Contractor ID)\s*[:=]\s*([A-Za-z0-9_\-]+)",
+                ],
+                default="",
+            )
+            if not eid_val:
+                eid_search = re.search(r"\b(EMP-[A-Za-z0-9_\-]+|CTR-[A-Za-z0-9_\-]+)\b", text, re.IGNORECASE)
+                if eid_search:
+                    eid_val = eid_search.group(1).strip()
         cfg.employee_id = eid_val
-        if name_val and eid_val:
-            cfg.identity_name = f"{name_val} ({eid_val})"
+
+        # Clean name_val if it contains embedded (EMP-...)
+        if name_val:
+            emb_eid = re.search(r"\((EMP-[A-Za-z0-9_\-]+|CTR-[A-Za-z0-9_\-]+)\)", name_val, re.IGNORECASE)
+            if emb_eid and not cfg.employee_id:
+                cfg.employee_id = emb_eid.group(1).strip()
+            name_val = re.sub(r"\s*\([^)]*\)", "", name_val).strip()
+
+        if name_val and cfg.employee_id:
+            cfg.identity_name = f"{name_val} ({cfg.employee_id})"
         elif name_val:
             cfg.identity_name = name_val
-        elif eid_val:
-            cfg.identity_name = eid_val
+        elif cfg.employee_id:
+            cfg.identity_name = cfg.employee_id
 
-        cfg.worker_type = cls._extract_field(text, [r"^Worker [Tt]ype\s*[:=]\s*(.+)"], default="")
-        if "contractor" in cfg.worker_type.lower():
+        # Corporate email
+        cfg.corporate_email = cls._extract_field(
+            text,
+            [
+                r"^(?:Corporate Email|Email Address|Work Email|User Email|Email)\s*[:=]\s*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})",
+            ],
+            default="",
+        )
+        if not cfg.corporate_email:
+            em_search = re.search(r"\b([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\b", text)
+            if em_search:
+                cfg.corporate_email = em_search.group(1).strip()
+
+        # Worker type & profile
+        cfg.worker_type = cls._extract_field(text, [r"^(?:Worker [Tt]ype|Employment [Tt]ype)\s*[:=]\s*(.+)"], default="")
+        if "contractor" in cfg.worker_type.lower() or (cfg.employee_id and cfg.employee_id.startswith("CTR-")):
             cfg.identity_profile = "External Contractors"
-        elif "employee" in cfg.worker_type.lower():
+            if not cfg.worker_type:
+                cfg.worker_type = "External contractor"
+        elif "employee" in cfg.worker_type.lower() or (cfg.employee_id and cfg.employee_id.startswith("EMP-")):
             cfg.identity_profile = "Corporate Full-Time Employees"
+            if not cfg.worker_type:
+                cfg.worker_type = "Full-time employee"
 
         cfg.identity_profile = cls._extract_field(
             text,
@@ -514,51 +874,139 @@ class ServiceNowExtractor:
             default=cfg.identity_profile or "",
         )
 
-        cfg.requested_role = cls._extract_field(
+        # Departments
+        cfg.current_department = cls._extract_field(
             text,
             [
-                r"^Requested Role\s*[:=]\s*(.+)",
-                r"^Role Name\s*[:=]\s*(.+)",
-                r"^Role\s*[:=]\s*(.+)",
-                r"^New [Jj]ob [Tt]itle\s*[:=]\s*(.+)",
-                r"^Job [Tt]itle\s*[:=]\s*(.+)",
+                r"^(?:Current Department|Previous Department|Old Department|From Department)\s*[:=]\s*(.+)",
             ],
             default="",
         )
-        cfg.access_profile = cls._extract_field(
+        cfg.new_department = cls._extract_field(
             text,
-            [r"^Access Profile\s*[:=]\s*(.+)"],
+            [
+                r"^(?:New Department|Target Department|Proposed Department|To Department)\s*[:=]\s*(.+)",
+            ],
             default="",
         )
+        dept_gen = cls._extract_field(text, [r"^Department\s*[:=]\s*(.+)"], default="")
+        if dept_gen:
+            if "->" in dept_gen or " to " in dept_gen.lower():
+                parts = re.split(r"\s*(?:->|to)\s*", dept_gen, flags=re.IGNORECASE)
+                if len(parts) >= 2:
+                    cfg.current_department = cfg.current_department or parts[0].strip()
+                    cfg.new_department = cfg.new_department or parts[1].strip()
+            else:
+                cfg.department = dept_gen
+                if not cfg.current_department and not cfg.new_department:
+                    cfg.current_department = dept_gen
 
-        # Entitlements extraction
-        req_access_sec = (
-            cls._extract_multiline_section(text, "Requested access changes")
-            or cls._extract_multiline_section(text, "Requested access")
-            or cls._extract_multiline_section(text, "Requested action")
+        # Roles
+        cfg.current_role = cls._extract_field(
+            text,
+            [
+                r"^(?:Current Role|Previous Role|Old Role|Current Job Title|Old Job Title)\s*[:=]\s*(.+)",
+            ],
+            default="",
         )
-        if req_access_sec:
-            lines = [l.strip() for l in req_access_sec.splitlines() if l.strip()]
-            clean_items = []
-            for l in lines:
-                if l.startswith(("-", "*", "•")):
-                    clean_items.append(l.lstrip("-*• ").strip())
-                elif l.upper().startswith(("ADD:", "REMOVE:")):
-                    clean_items.append(l)
-            if clean_items:
-                cfg.entitlement = "; ".join(clean_items)
+        cfg.new_role = cls._extract_field(
+            text,
+            [
+                r"^(?:New Role|Target Role|Proposed Role|Requested Role|New Job Title|Target Job Title)\s*[:=]\s*(.+)",
+            ],
+            default="",
+        )
+        role_gen = cls._extract_field(text, [r"^(?:Role|Job Title)\s*[:=]\s*(.+)"], default="")
+        cfg.requested_role = cfg.new_role or role_gen or cfg.current_role or ""
 
-        if not cfg.entitlement:
+        # Manager & Location
+        cfg.manager = cls._extract_field(
+            text,
+            [r"^(?:Manager Name|Reporting Manager|Manager|Supervisor)\s*[:=]\s*(.+)"],
+            default="",
+        )
+        cfg.manager_id = cls._extract_field(
+            text,
+            [r"^(?:Manager Employee ID|Manager ID|Reporting Manager ID|Manager Emp ID)\s*[:=]\s*([A-Za-z0-9_\-]+)"],
+            default="",
+        )
+        cfg.location = cls._extract_field(text, [r"^(?:Location|Office Location|Site|Cost Center)\s*[:=]\s*(.+)"], default="")
+
+        # Dates
+        cfg.effective_date = cls._extract_field(text, [r"^(?:Effective Date|Transfer Date|Change Date)\s*[:=]\s*(.+)"], default="")
+        cfg.start_date = cls._extract_field(text, [r"^(?:Requested Start Date|Start Date|Hire Date|Join Date|Onboarding Date)\s*[:=]\s*(.+)"], default="")
+        cfg.termination_date = cls._extract_field(text, [r"^(?:Termination Date|End Date|Offboarding Date|Last Working Day|Departure Date)\s*[:=]\s*(.+)"], default="")
+
+        # Access lists (ADD / REMOVE)
+        to_add, to_remove = cls._extract_access_lists(text)
+        cfg.access_to_add = to_add
+        cfg.access_to_remove = to_remove
+
+        # Entitlements summary
+        ent_parts = []
+        if cfg.access_to_add:
+            ent_parts.append(f"ADD: {', '.join(cfg.access_to_add)}")
+        if cfg.access_to_remove:
+            ent_parts.append(f"REMOVE: {', '.join(cfg.access_to_remove)}")
+        if ent_parts:
+            cfg.entitlement = "; ".join(ent_parts)
+        elif not cfg.entitlement:
             cfg.entitlement = cls._extract_field(
                 text,
                 [r"^Entitlement\s*[:=]\s*(.+)", r"^Permission\s*[:=]\s*(.+)"],
                 default="",
             )
 
-        # Check for privileged access request
-        all_ent_text = (cfg.entitlement + " " + cfg.requested_role + " " + text).lower()
-        if "sap - finance administrator" in all_ent_text or ("admin" in all_ent_text and "finance" in all_ent_text):
+        cfg.access_profile = cls._extract_field(
+            text,
+            [r"^Access Profile\s*[:=]\s*(.+)"],
+            default="",
+        )
+
+        # Lifecycle Classification
+        low = text.lower()
+        if (
+            "mover" in low
+            or "transfer" in low
+            or "relocation" in low
+            or (cfg.current_department and cfg.new_department and cfg.current_department.lower() != cfg.new_department.lower())
+            or (cfg.access_to_remove and cfg.access_to_add)
+        ):
+            cfg.lifecycle_type = "MOVER"
+            cfg.subcategory = "Mover Access Modification"
+            cfg.change_operation = "Role Transfer & Update (Mover)"
+        elif "joiner" in low or "new starter" in low or "new hire" in low or "onboarding" in low or (cfg.start_date and not cfg.access_to_remove):
+            cfg.lifecycle_type = "JOINER"
+            cfg.subcategory = "Joiner Access Request"
+            cfg.change_operation = "Provision Standard Role (Joiner)"
+        elif "leaver" in low or "offboarding" in low or "termination" in low or "contractor offboarding" in low or (cfg.termination_date and not cfg.access_to_add):
+            cfg.lifecycle_type = "LEAVER"
+            cfg.subcategory = "Leaver Access Revocation"
+            cfg.change_operation = "Revoke Access (Leaver Offboarding)"
+        else:
+            cfg.lifecycle_type = "ACCESS_REQUEST"
+            cfg.subcategory = "Access Request"
+            cfg.change_operation = "Grant Role & Entitlements"
+
+        # Check for privileged access request (e.g. SAP Finance Administrator)
+        all_access_items = list(cfg.access_to_add) + ([cfg.requested_role] if cfg.requested_role else [])
+        if not all_access_items and cfg.entitlement:
+            all_access_items = [x.strip() for x in cfg.entitlement.split(";") if x.strip()]
+        priv_keywords = ["admin", "administrator", "root", "fullaccess", "superadmin", "domain admin", "pci-admin", "security-admin", "sap finance administrator", "sap - finance administrator"]
+        priv_found = []
+        for item in all_access_items:
+            # Strip ADD: / REMOVE: prefixes if present
+            clean_item = re.sub(r"^(?:ADD|REMOVE):\s*", "", item, flags=re.IGNORECASE).strip()
+            item_low = clean_item.lower()
+            if any(pk in item_low for pk in priv_keywords):
+                if clean_item not in priv_found:
+                    priv_found.append(clean_item)
+        if ("sap - finance administrator" in low or "sap finance administrator" in low) and not priv_found:
+            priv_found.append("SAP - Finance Administrator")
+
+        if priv_found:
             cfg.privileged_access_requested = True
+            cfg.privileged_entitlements = priv_found
 
         cfg.account_id = cls._extract_field(
             text,
@@ -568,11 +1016,11 @@ class ServiceNowExtractor:
         cfg.identity_source = cls._extract_field(
             text,
             [r"^Authoritative Source\s*[:=]\s*(.+)", r"^Identity Source\s*[:=]\s*(.+)"],
-            default="",
+            default="SailPoint ISC",
         )
 
         # Dynamic attribute enrichment via CentralizedIdentityResolver if identity was extracted
-        if cfg.identity_name:
+        if cfg.identity_name or cfg.employee_id:
             try:
                 from simuguard.graph.dataset_loader import EnterpriseDatasetLoader
                 from simuguard.identity import CentralizedIdentityResolver, IdentityResolutionStatus
@@ -580,6 +1028,7 @@ class ServiceNowExtractor:
                 res = CentralizedIdentityResolver(sp_data).resolve_identity(
                     query=cfg.identity_name,
                     employee_id=cfg.employee_id,
+                    email=cfg.corporate_email,
                 )
                 if res.status == IdentityResolutionStatus.RESOLVED and res.identity:
                     if not cfg.identity_profile and res.identity_profile_id:
@@ -750,23 +1199,34 @@ resource "panos_security_policy" "{rule_ident}" {{
                 )
 
         elif cfg.domain == "IDENTITY_GOVERNANCE":
-            if not cfg.identity_name:
-                cfg.missing_fields.append("Target Identity")
-            if not (cfg.requested_role or cfg.access_profile or cfg.entitlement):
-                cfg.missing_fields.append("At least one requested entitlement or role")
+            if not cfg.identity_name and not cfg.employee_id:
+                cfg.missing_fields.append("Target Identity / Employee Name")
+            if not (cfg.requested_role or cfg.access_profile or cfg.entitlement or cfg.access_to_add or cfg.access_to_remove):
+                cfg.missing_fields.append("At least one requested entitlement, role, or access change")
+
+            if cfg.lifecycle_type == "MOVER":
+                if not cfg.new_department and not cfg.current_department:
+                    cfg.missing_fields.append("Department Transition Details")
+                if not cfg.access_to_remove:
+                    cfg.warnings.append("Mover Privilege Creep Risk: Department transfer does not specify prior departmental access to revoke.")
 
             if cfg.privileged_access_requested:
-                cfg.warnings.append("Privileged Access Warning: 'SAP - Finance Administrator' is a privileged entitlement requested without separate privileged justification, expiry date, or privileged access approval.")
+                priv_str = ", ".join(cfg.privileged_entitlements) if cfg.privileged_entitlements else "SAP - Finance Administrator"
+                cfg.warnings.append(f"Privileged Access Warning: '{priv_str}' is a privileged entitlement requested without separate privileged justification, expiry date, or privileged access approval.")
 
             if cfg.approval_status == "PENDING" and cfg.approvals:
                 pending_roles = [r for r, s in cfg.approvals.items() if any(ps in s.lower() for ps in ["pending", "required", "not started"])]
                 if pending_roles:
                     cfg.warnings.append(f"In-Flight Unapproved Access: Pending approvals [{', '.join(pending_roles)}]. In-flight requests convey zero valid permissions under PENDING_IS_NOT_ACCESS.")
 
-            if "contractor" in (cfg.identity_name + " " + cfg.worker_type).lower() and ("admin" in cfg.requested_role.lower() or "cui" in cfg.entitlement.lower()):
+            is_contractor = (
+                "contractor" in (cfg.identity_name + " " + cfg.worker_type + " " + cfg.identity_profile).lower()
+                or (cfg.employee_id and cfg.employee_id.startswith("CTR-"))
+            )
+            if is_contractor and any(kw in (cfg.requested_role + " " + cfg.entitlement).lower() for kw in ["admin", "cui", "root"]):
                 cfg.warnings.append("Contractor identity requesting privileged CUI/Admin access (Potential SoD violation)")
 
-            if "leaver" in cfg.subcategory.lower() or "offboarding" in cfg.subcategory.lower() or "contractor" in cfg.worker_type.lower():
+            if cfg.lifecycle_type == "LEAVER" or "contractor" in cfg.worker_type.lower():
                 cfg.warnings.append("Downstream Account Reconciliation: Disabling primary identity does not automatically revoke downstream accounts. Multi-system verification required.")
 
     @classmethod
@@ -809,15 +1269,75 @@ resource "panos_security_policy" "{rule_ident}" {{
                     f"from {src_z} ({src_ip}) to {dst_z} ({dst_ip}) using application '{app_n}' over {svc_n}."
                 )
         else:
-            ident = cfg.identity_name or "Not specified"
-            role = cfg.requested_role or "Not specified"
-            ap = cfg.access_profile or "Not specified"
-            ent = cfg.entitlement or "Not specified"
-            src = cfg.identity_source or "Not specified"
-            summary.what_is_requested = (
-                f"Identity Access Request: Grant user '{ident}' the role of '{role}' with access profile '{ap}' "
-                f"and entitlement '{ent}' within authoritative source '{src}'."
-            )
+            is_aws_iam = bool(cfg.role_name or cfg.role_arn or cfg.identity_record_id or cfg.trust_relationship_id or "iam role" in cfg.worker_type.lower() or "aws" in (cfg.identity_source or "").lower())
+            if is_aws_iam:
+                target_role = cfg.target_role_name or cfg.role_name or cfg.identity_name or "IAM Role"
+                if cfg.lifecycle_type == "POLICY_ATTACHMENT" or cfg.requested_policy_name:
+                    pol = cfg.requested_policy_name or "specified policy"
+                    scope_desc = f"Action: {cfg.requested_policy_action or ('s3:*' if 's3' in pol.lower() else '*')} on Resource: {cfg.requested_policy_resource or '*'}"
+                    wl_str = f" assigned to workload '{cfg.assigned_workload}'" if cfg.assigned_workload else ""
+                    summary.what_is_requested = (
+                        f"AWS IAM Policy Attachment: Attach AWS managed policy '{pol}' ({scope_desc}) to workload IAM role "
+                        f"'{target_role}'{wl_str} in AWS account {cfg.aws_account or '111122223333'}."
+                    )
+                elif cfg.lifecycle_type == "BOUNDARY_REMOVAL" or cfg.boundary_action == "REMOVE":
+                    b_name = cfg.permission_boundary or "ApexStrictPCIBoundary"
+                    wl_str = f" assigned to workload '{cfg.assigned_workload}'" if cfg.assigned_workload else ""
+                    summary.what_is_requested = (
+                        f"AWS IAM Permission Boundary Removal: Remove the '{b_name}' permission boundary from Critical "
+                        f"IAM role '{target_role}'{wl_str} in AWS account {cfg.aws_account or '111122223333'}."
+                    )
+                elif cfg.lifecycle_type == "TRUST_REVIEW" or cfg.trust_relationship_id:
+                    rel_id = cfg.trust_relationship_id or "cross-account-trust"
+                    if "secops" in rel_id.lower():
+                        summary.what_is_requested = (
+                            f"AWS IAM Cross-Account Trust Review: Review and validate existing MFA-protected audit trust relationship "
+                            f"'{rel_id}' allowing SecOps incident responder '{cfg.source_role_name or 'role-secops-incident-responder'}' (Account {cfg.source_aws_account or '333344445555'}) "
+                            f"to assume production audit role '{cfg.target_role_name or target_role}' (Account {cfg.target_aws_account or cfg.aws_account or '111122223333'})."
+                        )
+                    else:
+                        src_str = f"development identity '{cfg.source_role_name}' (Account {cfg.source_aws_account})" if cfg.source_role_name else "source identity"
+                        tgt_str = f"production deployment role '{target_role}' (Account {cfg.target_aws_account or cfg.aws_account})" if cfg.target_aws_account else f"role '{target_role}'"
+                        summary.what_is_requested = (
+                            f"AWS IAM Cross-Account Trust Review: Retain or formalize cross-account trust '{rel_id}' allowing "
+                            f"{src_str} to assume {tgt_str}."
+                        )
+                else:
+                    summary.what_is_requested = (
+                        f"AWS IAM Governance Request: Review and evaluate IAM configuration for role '{target_role}' "
+                        f"in AWS account {cfg.aws_account or '111122223333'}."
+                    )
+            else:
+                ident = cfg.identity_name or cfg.employee_id or "Not specified"
+                if cfg.lifecycle_type == "MOVER":
+                    rem_desc = f"Revoke prior departmental entitlements ({', '.join(cfg.access_to_remove)})" if cfg.access_to_remove else "Review prior access for revocation"
+                    add_desc = f"grant requested {cfg.new_department or 'Finance'} access ({', '.join(cfg.access_to_add)})" if cfg.access_to_add else f"grant role '{cfg.new_role or cfg.requested_role}'"
+                    summary.what_is_requested = (
+                        f"Mover Lifecycle Request: Transition {ident} from {cfg.current_department or 'Operations'} "
+                        f"to {cfg.new_department or 'Finance'} as {cfg.new_role or cfg.requested_role or 'Finance Operations Analyst'}. "
+                        f"{rem_desc} and {add_desc}."
+                    )
+                elif cfg.lifecycle_type == "JOINER":
+                    add_desc = f"requested entitlements ({', '.join(cfg.access_to_add)})" if cfg.access_to_add else (cfg.entitlement or "standard role entitlements")
+                    summary.what_is_requested = (
+                        f"Joiner Lifecycle Request: Onboard new hire {ident} into {cfg.new_department or cfg.department or 'Finance'} "
+                        f"as {cfg.new_role or cfg.requested_role or 'Financial Analyst'}. Provision corporate baseline and {add_desc}."
+                    )
+                elif cfg.lifecycle_type == "LEAVER":
+                    rem_desc = f"entitlements ({', '.join(cfg.access_to_remove)})" if cfg.access_to_remove else (cfg.entitlement or "all corporate accounts")
+                    summary.what_is_requested = (
+                        f"Leaver Lifecycle Request: Offboard {ident} ({cfg.worker_type or 'External contractor'}) "
+                        f"from {cfg.department or cfg.current_department or 'organization'}. Revoke all corporate access, active sessions, and {rem_desc}."
+                    )
+                else:
+                    role = cfg.requested_role or "Not specified"
+                    ap = cfg.access_profile or "Not specified"
+                    ent = cfg.entitlement or "Not specified"
+                    src = cfg.identity_source or "SailPoint ISC"
+                    summary.what_is_requested = (
+                        f"Identity Access Request: Grant user '{ident}' the role of '{role}' with access profile '{ap}' "
+                        f"and entitlement '{ent}' within authoritative source '{src}'."
+                    )
 
         # 2. Why is this change requested?
         if cfg.justification and cfg.justification.strip():
@@ -856,13 +1376,93 @@ resource "panos_security_policy" "{rule_ident}" {{
                 key_changes["Destination NAT"] = "None (Direct routed security policy)"
                 key_changes["Inbound Destination NAT"] = "None (Direct routed security policy)"
         else:
-            key_changes["Target Identity"] = cfg.identity_name or "Not specified"
-            key_changes["Identity Profile"] = cfg.identity_profile or "Not specified"
-            key_changes["Authoritative Source"] = cfg.identity_source or "Not specified"
-            key_changes["Account ID"] = cfg.account_id or "Not specified"
-            key_changes["Requested Role"] = cfg.requested_role or "Not specified"
-            key_changes["Access Profile"] = cfg.access_profile or "Not specified"
-            key_changes["Entitlement"] = cfg.entitlement or "Not specified"
+            is_aws_iam = bool(cfg.role_name or cfg.role_arn or cfg.identity_record_id or cfg.trust_relationship_id or "iam role" in cfg.worker_type.lower() or "aws" in (cfg.identity_source or "").lower())
+            if is_aws_iam:
+                target_role = cfg.target_role_name or cfg.role_name or cfg.identity_name or "Not specified"
+                key_changes["Target IAM Identity"] = target_role
+                key_changes["Role ARN"] = cfg.role_arn or cfg.target_role_arn or "Not specified"
+                if cfg.identity_record_id:
+                    key_changes["Identity Record"] = cfg.identity_record_id
+                key_changes["AWS Account"] = cfg.aws_account or cfg.target_aws_account or "Not specified"
+                if cfg.source_role_name:
+                    key_changes["Source Identity"] = cfg.source_role_name
+                    if cfg.source_role_arn:
+                        key_changes["Source Role ARN"] = cfg.source_role_arn
+                    if cfg.source_identity_record_id:
+                        key_changes["Source Identity Record"] = cfg.source_identity_record_id
+                    if cfg.source_aws_account:
+                        key_changes["Source AWS Account"] = cfg.source_aws_account
+                if cfg.assigned_workload:
+                    key_changes["Assigned Workload"] = cfg.assigned_workload
+                if cfg.requested_policy_name:
+                    key_changes["Requested Managed Policy"] = cfg.requested_policy_name
+                    key_changes["Requested Policy ARN"] = cfg.requested_policy_arn or f"arn:aws:iam::aws:policy/{cfg.requested_policy_name}"
+                    key_changes["Requested Policy Scope"] = f"Action: {cfg.requested_policy_action or ('s3:*' if 's3' in cfg.requested_policy_name.lower() else '*')} | Resource: {cfg.requested_policy_resource or '*'}"
+                if cfg.current_attached_policies:
+                    key_changes["Current Attached Policies"] = ", ".join(cfg.current_attached_policies)
+                if cfg.boundary_action == "REMOVE":
+                    key_changes["Requested Boundary Action"] = f"REMOVE ({cfg.permission_boundary or 'ApexStrictPCIBoundary'})"
+                    key_changes["Permission Boundary"] = f"{cfg.permission_boundary or 'ApexStrictPCIBoundary'} (Pending Removal)"
+                else:
+                    key_changes["Permission Boundary"] = cfg.permission_boundary or "None"
+                if cfg.trust_relationship_id:
+                    key_changes["Trust Relationship ID"] = cfg.trust_relationship_id
+                    key_changes["Trusted Principal"] = cfg.trusted_principal or "Not specified"
+                    key_changes["MFA Condition"] = cfg.mfa_condition or "Not configured"
+                    key_changes["External ID Condition"] = cfg.external_id_condition or "Not configured"
+                key_changes["Approval Status"] = cfg.approval_status
+                if cfg.approvals:
+                    key_changes["Approvals Breakdown"] = ", ".join(f"{r}: {s}" for r, s in cfg.approvals.items())
+            elif cfg.lifecycle_type == "MOVER":
+                key_changes["Target Identity"] = cfg.identity_name or "Not specified"
+                key_changes["Employee ID"] = cfg.employee_id or "Not specified"
+                key_changes["Corporate Email"] = cfg.corporate_email or "Not specified"
+                key_changes["Lifecycle Event"] = "Mover (Internal Department Transfer)"
+                key_changes["Current Department"] = cfg.current_department or "Not specified"
+                key_changes["New Department"] = cfg.new_department or "Not specified"
+                key_changes["Department Transition"] = f"{cfg.current_department or 'Not specified'} → {cfg.new_department or 'Not specified'}"
+                key_changes["Current Role"] = cfg.current_role or "Not specified"
+                key_changes["New Role"] = cfg.new_role or cfg.requested_role or "Not specified"
+                key_changes["Access to Remove"] = ", ".join(cfg.access_to_remove) if cfg.access_to_remove else "None specified"
+                key_changes["Access to Add"] = ", ".join(cfg.access_to_add) if cfg.access_to_add else "None specified"
+                priv_val = ", ".join(cfg.privileged_entitlements) if cfg.privileged_entitlements else ("SAP Finance Administrator" if cfg.privileged_access_requested else "None (Standard Access)")
+                key_changes["Privileged Entitlements"] = priv_val
+                key_changes["Effective Date"] = cfg.effective_date or "Next Scheduled Cycle"
+                key_changes["Approval Status"] = cfg.approval_status
+            elif cfg.lifecycle_type == "JOINER":
+                key_changes["Target Identity"] = cfg.identity_name or "Not specified"
+                key_changes["Employee ID"] = cfg.employee_id or "Not specified"
+                key_changes["Corporate Email"] = cfg.corporate_email or "Not specified"
+                key_changes["Lifecycle Event"] = "Joiner (New Hire Onboarding)"
+                key_changes["Department"] = cfg.new_department or cfg.department or "Not specified"
+                key_changes["Requested Role"] = cfg.new_role or cfg.requested_role or "Not specified"
+                key_changes["Access to Add"] = ", ".join(cfg.access_to_add) if cfg.access_to_add else (cfg.entitlement or "None specified")
+                priv_val = ", ".join(cfg.privileged_entitlements) if cfg.privileged_entitlements else "None (Standard Access)"
+                key_changes["Privileged Entitlements"] = priv_val
+                key_changes["Start Date"] = cfg.start_date or "Not specified"
+                key_changes["Authoritative Source"] = cfg.identity_source or "SailPoint ISC"
+                key_changes["Approval Status"] = cfg.approval_status
+            elif cfg.lifecycle_type == "LEAVER":
+                key_changes["Target Identity"] = cfg.identity_name or "Not specified"
+                key_changes["Worker / Employee ID"] = cfg.employee_id or cfg.worker_id or "Not specified"
+                key_changes["Worker Type"] = cfg.worker_type or "External contractor"
+                key_changes["Lifecycle Event"] = "Leaver (Personnel Offboarding / Revocation)"
+                key_changes["Department"] = cfg.current_department or cfg.department or "Not specified"
+                key_changes["Access to Remove"] = ", ".join(cfg.access_to_remove) if cfg.access_to_remove else (cfg.entitlement or "All linked application accounts")
+                key_changes["Termination Date"] = cfg.termination_date or "Immediate"
+                key_changes["Approval Status"] = cfg.approval_status
+            else:
+                key_changes["Target Identity"] = cfg.identity_name or "Not specified"
+                key_changes["Employee / Account ID"] = cfg.employee_id or cfg.account_id or "Not specified"
+                key_changes["Lifecycle Event"] = "Standard Access Request"
+                key_changes["Identity Profile"] = cfg.identity_profile or "Not specified"
+                key_changes["Authoritative Source"] = cfg.identity_source or "SailPoint ISC"
+                key_changes["Account ID"] = cfg.account_id or "Not specified"
+                key_changes["Requested Role"] = cfg.requested_role or "Not specified"
+                key_changes["Access Profile"] = cfg.access_profile or "Not specified"
+                key_changes["Entitlement"] = cfg.entitlement or "Not specified"
+                priv_val = ", ".join(cfg.privileged_entitlements) if cfg.privileged_entitlements else ("SAP Finance Administrator" if cfg.privileged_access_requested else "None")
+                key_changes["Privileged Entitlements"] = priv_val
 
         if cfg.approvals:
             key_changes["Approval Status"] = cfg.approval_status
@@ -906,19 +1506,49 @@ resource "panos_security_policy" "{rule_ident}" {{
                 obs.append("✅ Scoped Baseline: No perimeter wildcards detected. Destination CIDR, App-ID, security profile group, and logging comply with baseline security policy.")
 
         else:
-            if cfg.privileged_access_requested:
-                obs.append("⚠️ Privileged Entitlement: Request includes elevated administrative permissions ('SAP - Finance Administrator') without dedicated justification or expiry.")
+            is_aws_iam = bool(cfg.role_name or cfg.role_arn or cfg.identity_record_id or cfg.trust_relationship_id or "iam role" in cfg.worker_type.lower() or "aws" in (cfg.identity_source or "").lower())
+            if is_aws_iam:
+                if cfg.requested_policy_name == "AmazonS3FullAccess":
+                    obs.append("⚠️ Overprivileged Managed Policy: Requested policy 'AmazonS3FullAccess' grants wildcard s3:* on all resources. While ApexWorkloadBoundary denies direct access to the Restricted CUI Financial Vault, unrestricted access across all other S3 buckets violates least privilege.")
+                elif cfg.requested_policy_name == "AdministratorAccess":
+                    obs.append("⚠️ Catastrophic Privileged Access: Requested policy 'AdministratorAccess' grants root-equivalent wildcard access (* on *). ApexWorkloadBoundary only protects the CUI vault, leaving all compute, database, IAM, KMS, and network APIs unconstrained.")
 
-            if cfg.approval_status == "PENDING":
-                obs.append(f"⏳ In-Flight Access: Approvals pending ({cfg.approval_status}). In-flight requests convey zero valid permissions under PENDING_IS_NOT_ACCESS.")
+                if cfg.boundary_action == "REMOVE":
+                    obs.append("⚠️ Governance Boundary Degradation: Removing 'ApexStrictPCIBoundary' strips the explicit Deny on s3:* and dynamodb:*, weakening PCI DSS cardholder data environment enclave isolation.")
 
-            if "contractor" in (cfg.identity_name or "").lower() and ("admin" in (cfg.requested_role or "").lower() or "cui" in (cfg.entitlement or "").lower()):
-                obs.append("⚠️ Contractor Privileged Access: External contractor requesting elevated CUI/Administrator entitlements (Potential SoD conflict).")
+                if cfg.trust_relationship_id == "trust-excessive-dev-to-prod" or (cfg.trust_relationship_id and "not configured" in (cfg.mfa_condition or "").lower()):
+                    obs.append("⚠️ Insecure Cross-Account Trust: Trust relationship lacks MFA and ExternalId conditions while granting access to a production role holding AdministratorAccess with no permission boundary.")
+                elif cfg.trust_relationship_id == "trust-secops-cross-account-prod" or (cfg.trust_relationship_id and "true" in (cfg.mfa_condition or "").lower()):
+                    obs.append("✅ Secure Cross-Account Audit Trust: Trust relationship enforces mandatory MFA (aws:MultiFactorAuthPresent = true) and restricts assume-role actions to the named audit role.")
 
-            if "leaver" in cfg.subcategory.lower() or "offboarding" in cfg.subcategory.lower():
-                obs.append("ℹ️ Offboarding Verification: Account revocation requires multi-system verification across Microsoft 365, AWS, ServiceNow, and VPN.")
-            elif not obs:
-                obs.append("✅ Standard Identity Request: Identity attributes match standard corporate role assignment lifecycle.")
+                if cfg.approval_status == "PENDING" and cfg.approvals:
+                    pending_apps = [k for k, v in cfg.approvals.items() if v.lower() == "pending"]
+                    obs.append(f"⏳ Pending Approvals: Ticket holds pending approval sign-offs ({', '.join(pending_apps)}). PENDING_IS_NOT_ACCESS.")
+                elif not obs:
+                    obs.append("✅ Baseline Validated: Requested IAM configuration aligns with approved least-privilege security baseline.")
+            else:
+                if cfg.privileged_access_requested or cfg.privileged_entitlements:
+                    priv_names = ", ".join(cfg.privileged_entitlements) if cfg.privileged_entitlements else "SAP - Finance Administrator"
+                    obs.append(f"⚠️ Privileged Entitlement: Request grants elevated administrative privilege ('{priv_names}'). Requires separate privileged justification, expiry, and privileged access owner approval.")
+
+                if cfg.lifecycle_type == "MOVER":
+                    if cfg.privileged_access_requested:
+                        obs.append("⚠️ SoD / Toxic Combination Alert: Granting administrative rights ('SAP Finance Administrator') combined with operational transition introduces Segregation of Duties (SoD) risk.")
+                    if not cfg.access_to_remove:
+                        obs.append("⚠️ Privilege Creep Warning: Departmental transfer does not specify revocation of prior operational access, creating privilege accumulation risk.")
+                    else:
+                        obs.append(f"ℹ️ Transfer Revocation Verification: Ensure scheduled deprovisioning of {len(cfg.access_to_remove)} prior departmental access entitlement(s) upon effective transfer date.")
+
+                if cfg.approval_status == "PENDING":
+                    obs.append(f"⏳ In-Flight Access: Approvals pending ({cfg.approval_status}). In-flight requests convey zero valid permissions under principle PENDING_IS_NOT_ACCESS.")
+
+                if "contractor" in (cfg.identity_name + " " + cfg.worker_type).lower() and any(p in (cfg.requested_role + " " + cfg.entitlement).lower() for p in ["admin", "cui", "root"]):
+                    obs.append("⚠️ Contractor Privileged Access: External contractor requesting elevated CUI/Administrator entitlements (Potential SoD conflict).")
+
+                if cfg.lifecycle_type == "LEAVER":
+                    obs.append("ℹ️ Offboarding Verification: Account revocation requires multi-system verification across Microsoft 365, AWS, ServiceNow, and VPN.")
+                elif not obs:
+                    obs.append("✅ Standard Identity Request: Identity attributes match standard corporate role assignment lifecycle.")
 
         summary.initial_observations = obs
         return summary

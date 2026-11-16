@@ -1,0 +1,65 @@
+CHANGE REQUEST: CHG-NET-2026-3104
+Title: Allow development Kubernetes workloads to connect to production PostgreSQL
+Company: Apex Global Technologies
+Environment: Development to Production
+Service: Network Security - Palo Alto
+Assignment group: Network Security Operations
+Priority: 1 - Critical
+Requested window: 27-Nov-2026, 21:00-21:30 IST
+
+Business justification:
+Developers need to test a database migration using the production PostgreSQL endpoint because the development database is not synchronized with the latest schema.
+
+Target firewall:
+Firewall ID: fw-internal-01-primary
+Device: Apex Internal Segmentation Firewall 01 (Primary Active)
+Device group: DG-Internal-Segmentation
+HA peer: fw-internal-02-secondary
+
+Existing related rule:
+Rule ID: RULE-PAN-016
+Rule name: Allow-Dev-To-Prod-DB-Lateral-Access
+Source zone: Dev-App-Workloads
+Source address: obj-dev-app-subnet (10.200.10.0/23)
+Destination zone: Database-Backend
+Destination address: obj-db-postgres-cluster-vip (10.100.20.10/32)
+Application: postgresql
+Service: service-postgresql (TCP/5432)
+Action: allow
+Security profile: none
+Session-end logging: enabled
+
+Target subnet:
+Production Database & Storage Subnet
+CIDR: 10.100.20.0/24
+Zone trust level: INTERNAL_RESTRICTED
+Database endpoint: 10.100.20.10/32
+
+Requested configuration:
+Source zone: Dev-App-Workloads
+Source address: 10.200.10.0/23
+Destination zone: Database-Backend
+Destination address: 10.100.20.10/32
+Application: postgresql
+Service: service-postgresql (TCP/5432)
+Action: allow
+Security profile group: none
+Log at session end: enabled
+
+Implementation:
+Permit the development subnet to reach the production PostgreSQL endpoint on TCP/5432.
+
+Validation:
+Ask the development team to confirm database connectivity and run the migration test.
+
+Backout:
+Disable the rule and confirm that development-to-production database connectivity is blocked.
+
+Approvals:
+Development owner: Pending
+Production database owner: Pending
+Information Security: Pending
+Change manager: Pending
+
+Assessment note:
+The supplied dataset marks RULE-PAN-016 as INTENTIONAL_MISCONFIG_ENVIRONMENT_BLEED. Evaluate non-production to production lateral access, critical database exposure and the absence of a security profile.

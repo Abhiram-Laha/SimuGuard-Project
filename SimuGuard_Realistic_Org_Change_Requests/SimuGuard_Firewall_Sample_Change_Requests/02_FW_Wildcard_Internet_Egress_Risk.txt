@@ -1,0 +1,62 @@
+CHANGE REQUEST: CHG-NET-2026-3102
+Title: Expand analytics DMZ egress from partner subnet to any Internet destination
+Company: Apex Global Technologies
+Environment: Production
+Service: Network Security - Palo Alto
+Assignment group: Network Security Operations
+Priority: 1 - Critical
+Requested window: 25-Nov-2026, 23:00-23:30 IST
+
+Business justification:
+The analytics team reports that the partner webhook endpoint may change and requests unrestricted outbound HTTPS connectivity to avoid repeated firewall changes.
+
+Target management platform:
+Panorama: pan-mgmt-01.mgmt.apex-global.example
+Device group: DG-Internet-Perimeter
+
+Target firewall:
+Firewall ID: fw-edge-01-primary
+Device: Apex Internet Edge Firewall 01 (Primary Active)
+HA peer: fw-edge-02-secondary
+
+Existing related rule:
+Rule ID: RULE-PAN-013
+Rule name: Allow-Analytics-Outbound-Wildcard-Destination
+Source zone: Trust-DMZ
+Source address: obj-dmz-analytics-subnet (10.100.4.0/24)
+Destination zone: Untrust-Internet
+Current destination: any (0.0.0.0/0)
+Application: ssl
+Service: service-https (TCP/443)
+Action: allow
+Security profile: Strict-Enterprise-Security
+Session-end logging: enabled
+
+Requested configuration:
+Source zone: Trust-DMZ
+Source address: obj-dmz-analytics-subnet (10.100.4.0/24)
+Destination zone: Untrust-Internet
+Destination address: any (0.0.0.0/0)
+Application: ssl
+Service: service-https (TCP/443)
+Action: allow
+Security profile group: Strict-Enterprise-Security
+Log at session end: enabled
+
+Implementation:
+Retain or create the wildcard destination rule to permit outbound HTTPS from the analytics DMZ subnet to any Internet destination.
+
+Validation:
+Confirm outbound HTTPS connectivity from the analytics subnet.
+
+Backout:
+Restore the destination to obj-partner-webhook-cidr (198.51.100.0/24).
+
+Approvals:
+Analytics application owner: Pending
+Information Security: Pending
+Network Security manager: Pending
+Change manager: Pending
+
+Assessment note:
+The supplied security policy dataset marks RULE-PAN-013 as INTENTIONAL_MISCONFIG_DESTINATION_WILDCARD. Evaluate unrestricted destination scope and potential data-exfiltration paths. Do not infer that the security profile makes wildcard destination scope safe.

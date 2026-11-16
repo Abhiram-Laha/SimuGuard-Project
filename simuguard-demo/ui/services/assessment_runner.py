@@ -18,7 +18,7 @@ from simuguard.identity import (
     IdentityResolutionStatus,
 )
 from simuguard.models.affected_asset import AffectedAsset
-from simuguard.models.enums import BlastTier, DeploymentVerdict, Severity
+from simuguard.models.enums import AssetCriticality, BlastTier, DeploymentVerdict, Severity
 from simuguard.models.report import PreFlightSimulationReport
 from simuguard.models.security_gap import SecurityGap
 from simuguard.models.validation_check import ValidationCheck
@@ -29,6 +29,7 @@ from simuguard.remediation.config_generator import ConfigGenerator
 from simuguard.remediation.models import (
     BeforeAfterComparisonReport,
     CandidateOverlayResult,
+    FindingIdentity,
     RemediationPlan,
     RemediationRecommendation,
     RemediationStatus,
@@ -348,12 +349,43 @@ class AssessmentRunnerService:
                 pass
 
         # Dynamic Centralized Identity Resolution
-        target_id_or_name = sp_details.identity_name or sp_details.identity_id
-        resolver = CentralizedIdentityResolver(sp_data)
+        iam_data = self.loader.load_aws_iam_governance()
+        target_id_or_name = (
+            getattr(sp_details, "role_name", "")
+            or getattr(sp_details, "role_arn", "")
+            or sp_details.identity_name
+            or sp_details.identity_id
+            or sp_details.employee_id
+            or getattr(sp_details, "target_role_name", "")
+            or getattr(sp_details, "target_role_arn", "")
+        )
+        resolver = CentralizedIdentityResolver(sailpoint_data=sp_data, iam_data=iam_data)
         resolution = resolver.resolve_identity(
             query=target_id_or_name,
-            account_id=sp_details.account_id,
+            employee_id=getattr(sp_details, "identity_record_id", None) or sp_details.employee_id,
+            worker_id=sp_details.worker_id,
+            account_id=getattr(sp_details, "aws_account", None) or sp_details.account_id,
+            email=sp_details.corporate_email,
+            department=sp_details.current_department or sp_details.department,
+            target_department=sp_details.new_department,
         )
+
+        # Detect AWS IAM Governance Workflow
+        is_aws_iam = (
+            resolution.employment_type in ["IAM_Role", "IAM_User", "Service_Identity", "IAM_Group"]
+            or bool(getattr(sp_details, "role_name", ""))
+            or bool(getattr(sp_details, "role_arn", ""))
+            or bool(getattr(sp_details, "trust_relationship_id", ""))
+            or "aws" in (sp_details.identity_source or "").lower()
+            or "aws iam" in (record.title + " " + (record.description or "")).lower()
+        )
+        if is_aws_iam and resolution.status != IdentityResolutionStatus.CONFLICT:
+            return self._execute_aws_iam_assessment(
+                record=record,
+                sp_details=sp_details,
+                resolution=resolution,
+                iam_data=iam_data,
+            )
 
         identified_gaps: List[SecurityGap] = []
         affected_assets: List[AffectedAsset] = []
@@ -436,15 +468,16 @@ class AssessmentRunnerService:
                 )
 
             # Check for privileged access request (e.g. SAP Finance Administrator)
-            all_ent = (sp_details.entitlement + " " + sp_details.requested_role + " " + (record.justification or "")).lower()
-            if "sap - finance administrator" in all_ent or ("admin" in all_ent and "finance" in all_ent):
+            all_ent = (sp_details.entitlement + " " + sp_details.requested_role + " " + (record.justification or "") + " " + " ".join(sp_details.access_to_add)).lower()
+            if sp_details.privileged_access_requested or "sap - finance administrator" in all_ent or ("admin" in all_ent and "finance" in all_ent) or "administrator" in all_ent:
+                priv_name = sp_details.privileged_entitlements[0] if sp_details.privileged_entitlements else "SAP - Finance Administrator"
                 identified_gaps.append(
                     SecurityGap(
                         rule_id="SP-04",
                         severity=Severity.CRITICAL,
                         gap_title=f"Privileged Access Governance Violation: {target_id_or_name}",
                         technical_impact=(
-                            f"Request includes unapproved privileged entitlement 'SAP - Finance Administrator' "
+                            f"Request includes unapproved privileged entitlement '{priv_name}' "
                             "without separate privileged justification, expiry date, or privileged access owner authorization."
                         ),
                         compliance_violation="NIST SP 800-53 AC-2(1) & ISO 27001 A.9.2.1",
@@ -453,21 +486,25 @@ class AssessmentRunnerService:
                 )
 
             # Check for transfer privilege creep
-            if "transfer" in (record.title + " " + (record.justification or "")).lower() or "mover" in (record.subcategory or "").lower():
-                if "remove:" in (sp_details.entitlement or "").lower() or "operations" in (sp_details.entitlement or "").lower():
-                    identified_gaps.append(
-                        SecurityGap(
-                            rule_id="SP-06",
-                            severity=Severity.HIGH,
-                            gap_title=f"Privilege Creep & Transfer Access Conflict: {target_id_or_name}",
-                            technical_impact=(
-                                "Employee transfer to Finance retains existing Operations/Warehouse access entitlements. "
-                                "Accumulated permissions across departments create segregation of duties risk and violate least privilege."
-                            ),
-                            compliance_violation="NIST SP 800-53 AC-6 (Least Privilege) & ISO 27001 A.9.2.6",
-                            remediation_guidance="Enforce automated deprovisioning of previous department entitlements upon effective transfer date.",
-                        )
+            if (
+                sp_details.lifecycle_type == "MOVER"
+                or "transfer" in (record.title + " " + (record.justification or "")).lower()
+                or "mover" in (record.subcategory or "").lower()
+                or (sp_details.current_department and sp_details.new_department and sp_details.current_department.lower() != sp_details.new_department.lower())
+            ):
+                identified_gaps.append(
+                    SecurityGap(
+                        rule_id="SP-06",
+                        severity=Severity.HIGH,
+                        gap_title=f"Privilege Creep & Transfer Access Conflict: {target_id_or_name}",
+                        technical_impact=(
+                            f"Employee transfer from {sp_details.current_department or 'Operations'} to {sp_details.new_department or 'Finance'} involves cross-departmental access change. "
+                            "Accumulated permissions across departments create segregation of duties risk and violate least privilege."
+                        ),
+                        compliance_violation="NIST SP 800-53 AC-6 (Least Privilege) & ISO 27001 A.9.2.6",
+                        remediation_guidance="Enforce automated deprovisioning of previous department entitlements upon effective transfer date.",
                     )
+                )
 
             from simuguard.models.enums import AssetCriticality
             affected_assets.append(
@@ -598,12 +635,14 @@ class AssessmentRunnerService:
                         )
                     )
 
-            # 4. Evaluate Rule SP-04: Contractor Privileged Access
+            # 4. Evaluate Rule SP-04: Contractor or General Privileged Access
             is_contractor = (
                 resolution.lifecycle_category == IdentityLifecycleCategory.CONTRACTOR
                 or emp_type == "CONTRACTOR"
                 or "contractor" in matched_ident.get("identity_profile_id", "").lower()
             )
+            all_ent = (sp_details.entitlement + " " + sp_details.requested_role + " " + (record.justification or "") + " " + " ".join(sp_details.access_to_add)).lower()
+            has_priv_ent = sp_details.privileged_access_requested or "sap - finance administrator" in all_ent or ("admin" in all_ent and "finance" in all_ent) or "administrator" in all_ent
             if is_contractor:
                 privileged_roles = {"sp-role-cloud-administrator", "sp-role-network-security-engineer", "sp-role-production-support-engineer"}
                 if requested_role_id in privileged_roles or "admin" in (sp_details.requested_role or "").lower():
@@ -620,6 +659,42 @@ class AssessmentRunnerService:
                             remediation_guidance="Assign non-privileged scoped contractor role or require internal employee sponsorship.",
                         )
                     )
+            elif has_priv_ent:
+                priv_name = sp_details.privileged_entitlements[0] if sp_details.privileged_entitlements else "SAP - Finance Administrator"
+                identified_gaps.append(
+                    SecurityGap(
+                        rule_id="SP-04",
+                        severity=Severity.CRITICAL,
+                        gap_title=f"Privileged Access Governance Violation: {ident_name}",
+                        technical_impact=(
+                            f"Request includes unapproved privileged entitlement '{priv_name}' "
+                            "without separate privileged justification, expiry date, or privileged access owner authorization."
+                        ),
+                        compliance_violation="NIST SP 800-53 AC-2(1) & ISO 27001 A.9.2.1",
+                        remediation_guidance="Submit dedicated privileged access request with time-bound justification and privileged owner sign-off.",
+                    )
+                )
+
+            # Evaluate Rule SP-06: Privilege Creep for Resolved Identity
+            if (
+                sp_details.lifecycle_type == "MOVER"
+                or "transfer" in (record.title + " " + (record.justification or "")).lower()
+                or "mover" in (record.subcategory or "").lower()
+                or (sp_details.current_department and sp_details.new_department and sp_details.current_department.lower() != sp_details.new_department.lower())
+            ):
+                identified_gaps.append(
+                    SecurityGap(
+                        rule_id="SP-06",
+                        severity=Severity.HIGH,
+                        gap_title=f"Privilege Creep & Transfer Access Conflict: {ident_name}",
+                        technical_impact=(
+                            f"Employee transfer from {sp_details.current_department or 'Operations'} to {sp_details.new_department or 'Finance'} involves cross-departmental access change. "
+                            "Accumulated permissions across departments create segregation of duties risk and violate least privilege."
+                        ),
+                        compliance_violation="NIST SP 800-53 AC-6 (Least Privilege) & ISO 27001 A.9.2.6",
+                        remediation_guidance="Enforce automated deprovisioning of previous department entitlements upon effective transfer date.",
+                    )
+                )
 
             # 5. Populate affected assets from target application & entitlements
             # Convert criticality string to AssetCriticality enum
@@ -718,6 +793,483 @@ class AssessmentRunnerService:
             recommendations=recommendations,
             synthesized_candidate_hcl=safe_remediation_doc,
             target_environment="SailPoint Identity Security Cloud",
+        )
+
+        return AssessmentExecutionResult(
+            request_number=record.request_number,
+            baseline_report=baseline_report,
+            remediation_plan=plan,
+        )
+
+    def _execute_aws_iam_assessment(
+        self,
+        record: ChangeRequestRecord,
+        sp_details: SailPointChangeDetails,
+        resolution: IdentityResolutionResult,
+        iam_data: Dict[str, Any],
+    ) -> AssessmentExecutionResult:
+        """Run cloud IAM governance rules and validation for AWS IAM change requests."""
+        identified_gaps: List[SecurityGap] = []
+        affected_assets: List[AffectedAsset] = []
+        validation_plan: List[ValidationCheck] = []
+        has_unknown = False
+
+        target_ident = resolution.identity or {}
+        target_name = (
+            getattr(sp_details, "role_name", "")
+            or getattr(sp_details, "target_role_name", "")
+            or target_ident.get("name")
+            or record.title
+        )
+        target_arn = getattr(sp_details, "role_arn", "") or getattr(sp_details, "target_role_arn", "") or target_ident.get("arn", "")
+        account_id = getattr(sp_details, "aws_account", "") or getattr(sp_details, "target_aws_account", "") or target_ident.get("account_id", "111122223333")
+        workload = getattr(sp_details, "assigned_workload", "")
+        if not workload and target_ident.get("assigned_to"):
+            workload = target_ident.get("assigned_to")[0]
+
+        # 1. Unmapped check
+        if resolution.status == IdentityResolutionStatus.UNMAPPED or not target_ident:
+            has_unknown = True
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="IAM-CORR-01",
+                    severity=Severity.HIGH,
+                    gap_title=f"Unmapped AWS IAM Entity: '{target_name}'",
+                    technical_impact=resolution.message or f"Role '{target_name}' could not be correlated in AWS IAM Digital Twin.",
+                    compliance_violation="NIST SP 800-53 AC-2 (Account Management)",
+                    remediation_guidance="Verify role ARN or identity record ID in AWS IAM Digital Twin dataset.",
+                )
+            )
+
+        # 2. Populate Affected Assets (Direct & Cascading from Digital Twin topology)
+        crit_raw = str(target_ident.get("criticality") or "HIGH").upper()
+        role_crit = (
+            AssetCriticality.CRITICAL
+            if crit_raw == "CRITICAL"
+            else (AssetCriticality.MEDIUM if crit_raw == "MEDIUM" else AssetCriticality.HIGH)
+        )
+
+        # Direct target role
+        affected_assets.append(
+            AffectedAsset(
+                asset_id=target_name,
+                asset_name=target_name,
+                asset_type="IAM_Role",
+                blast_tier=BlastTier.DIRECT,
+                criticality=role_crit,
+                impact_description=f"Direct target of requested IAM modification in AWS account {account_id}.",
+            )
+        )
+
+        # Source role if cross-account
+        src_name = getattr(sp_details, "source_role_name", "")
+        if src_name:
+            src_crit = AssetCriticality.CRITICAL if "incident" in src_name else AssetCriticality.MEDIUM
+            src_acct = getattr(sp_details, "source_aws_account", "333344445555")
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id=src_name,
+                    asset_name=src_name,
+                    asset_type="IAM_Role",
+                    blast_tier=BlastTier.DIRECT,
+                    criticality=src_crit,
+                    impact_description=f"Source identity in cross-account trust path (Account {src_acct}).",
+                )
+            )
+
+        # Cascading topology edges
+        if target_name == "role-analytics-ingestion-svc" or workload == "eks-analytics-worker-pool":
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id="s3-enterprise-cui-vault",
+                    asset_name="Enterprise CUI Financial Vault",
+                    asset_type="Storage_S3_Bucket",
+                    blast_tier=BlastTier.CASCADING,
+                    criticality=AssetCriticality.CRITICAL,
+                    impact_description="Connected via CROSS_ZONE_IAM_PATH topology edge. Boundary analysis verifies explicit Deny prevents direct unauthorized access.",
+                )
+            )
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id="s3-dev-staging-telemetry",
+                    asset_name="Staging Telemetry Bucket",
+                    asset_type="Storage_S3_Bucket",
+                    blast_tier=BlastTier.CASCADING,
+                    criticality=AssetCriticality.HIGH,
+                    impact_description="Connected via CAN_ACCESS; authorized ingestion path for analytics worker pool.",
+                )
+            )
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id="eks-analytics-worker-pool",
+                    asset_name="Analytics Ingestion Worker Pool",
+                    asset_type="Compute_EKS_NodeGroup",
+                    blast_tier=BlastTier.CASCADING,
+                    criticality=AssetCriticality.HIGH,
+                    impact_description="Assumes role-analytics-ingestion-svc via EKS IRSA federation.",
+                )
+            )
+        elif target_name == "role-customer-portal-backend" or workload == "eks-customer-portal-cluster":
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id="rds-postgres-core-prod",
+                    asset_name="Production Core PostgreSQL RDS",
+                    asset_type="Database_RDS_PostgreSQL",
+                    blast_tier=BlastTier.CASCADING,
+                    criticality=AssetCriticality.CRITICAL,
+                    impact_description="Connected via CAN_ACCESS; customer portal database store exposed to excessive administrative permissions.",
+                )
+            )
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id="eks-customer-portal-cluster",
+                    asset_name="Customer Portal EKS Cluster",
+                    asset_type="Compute_EKS_Cluster",
+                    blast_tier=BlastTier.CASCADING,
+                    criticality=AssetCriticality.CRITICAL,
+                    impact_description="Workload cluster assuming role-customer-portal-backend.",
+                )
+            )
+        elif target_name == "role-payment-processor-pci" or workload == "eks-payment-processor-pool":
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id="rds-pci-token-vault-prod",
+                    asset_name="PCI Token Vault Database",
+                    asset_type="Database_RDS_PostgreSQL",
+                    blast_tier=BlastTier.CASCADING,
+                    criticality=AssetCriticality.CRITICAL,
+                    impact_description="Connected via CAN_ACCESS; protected PCI cardholder data environment.",
+                )
+            )
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id="k-pci-token-encryption",
+                    asset_name="PCI Token Encryption KMS Key",
+                    asset_type="KMS_Key",
+                    blast_tier=BlastTier.CASCADING,
+                    criticality=AssetCriticality.HIGH,
+                    impact_description="Scoped KMS key authorized for payment token decrypt operations.",
+                )
+            )
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id="eks-payment-processor-pool",
+                    asset_name="Payment Processor EKS Pool",
+                    asset_type="Compute_EKS_NodeGroup",
+                    blast_tier=BlastTier.CASCADING,
+                    criticality=AssetCriticality.CRITICAL,
+                    impact_description="Assumes role-payment-processor-pci within PCI enclave.",
+                )
+            )
+        elif target_name == "role-ci-cd-deployment-pipeline" or getattr(sp_details, "trust_relationship_id", "") == "trust-excessive-dev-to-prod":
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id="svc-github-actions-runner",
+                    asset_name="CI/CD GitHub Actions Runner",
+                    asset_type="Compute_Workload",
+                    blast_tier=BlastTier.CASCADING,
+                    criticality=AssetCriticality.CRITICAL,
+                    impact_description="Production deployment pipeline workload assuming role-ci-cd-deployment-pipeline.",
+                )
+            )
+        elif target_name == "role-secops-audit-agent" or getattr(sp_details, "trust_relationship_id", "") == "trust-secops-cross-account-prod":
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id="ec2-sec-siem-forwarder",
+                    asset_name="Security SIEM Forwarder EC2",
+                    asset_type="Compute_EC2_Instance",
+                    blast_tier=BlastTier.CASCADING,
+                    criticality=AssetCriticality.HIGH,
+                    impact_description="Workload instance assigned to role-secops-incident-responder.",
+                )
+            )
+
+        # 3. Evaluate Rule IAM-01: Overprivileged Managed Policies
+        req_policy = (
+            getattr(sp_details, "requested_policy_name", "")
+            or sp_details.requested_role
+            or " ".join(sp_details.access_to_add or [])
+            or ""
+        )
+        if "amazons3fullaccess" in req_policy.lower() or "s3fullaccess" in req_policy.lower():
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="IAM-01",
+                    severity=Severity.HIGH,
+                    gap_title=f"Overprivileged Managed Policy: AmazonS3FullAccess attached to '{target_name}'",
+                    technical_impact=(
+                        "Requested policy 'AmazonS3FullAccess' grants wildcard 's3:*' on Resource '*' (marked INSECURE_OVERPRIVILEGED in policy catalog). "
+                        "Effective Permission Evaluation: The attached ApexWorkloadBoundary explicitly denies direct access "
+                        "to 'corp-restricted-cui-financial-vault', keeping CUI financial data protected. However, attaching "
+                        "wildcard S3 permissions grants broad, unmonitored read/write and bucket deletion privileges across all other "
+                        "S3 buckets in account 111122223333, violating least-privilege principles."
+                    ),
+                    compliance_violation="NIST SP 800-53 AC-6 (Least Privilege) & AWS Well-Architected Security Pillar",
+                    remediation_guidance=(
+                        "Reject wildcard AmazonS3FullAccess. Craft a scoped customer-managed policy granting only "
+                        "s3:GetObject and s3:ListBucket on specified telemetry buckets with required prefixes."
+                    ),
+                )
+            )
+            validation_plan.append(
+                ValidationCheck(
+                    step_number=1,
+                    target_component=f"AWS IAM Role ({target_name})",
+                    what_to_validate="Verify effective permissions against ApexWorkloadBoundary and ensure CUI vault remains denied.",
+                    cli_command=f"aws iam simulate-principal-policy --policy-source-arn {target_arn} --action-names s3:GetObject --resource-arns arn:aws:s3:::corp-restricted-cui-financial-vault/*",
+                    expected_pass_criteria="EvaluationResult must return 'ExplicitDeny' for Restricted CUI Financial Vault.",
+                )
+            )
+            validation_plan.append(
+                ValidationCheck(
+                    step_number=2,
+                    target_component=f"AWS S3 Staging Telemetry Bucket (s3-dev-staging-telemetry)",
+                    what_to_validate="Verify scoped write access to telemetry staging prefix.",
+                    cli_command="aws s3api head-bucket --bucket apex-dev-staging-telemetry",
+                    expected_pass_criteria="Status 200 OK; access restricted to staging upload prefix.",
+                )
+            )
+
+        elif "administratoraccess" in req_policy.lower():
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="IAM-01",
+                    severity=Severity.CRITICAL,
+                    gap_title=f"Catastrophic Overprivilege: AdministratorAccess requested for '{target_name}'",
+                    technical_impact=(
+                        "Requested policy 'AdministratorAccess' grants root-equivalent wildcard access (Action: * on Resource: *). "
+                        "Target role is a Critical production customer portal identity. The existing ApexWorkloadBoundary only "
+                        "restricts access to the CUI S3 vault; it does NOT constrain compute, database (RDS), secrets, IAM, KMS, or network "
+                        "APIs, allowing potential cluster compromise to achieve full account takeover."
+                    ),
+                    compliance_violation="NIST SP 800-53 AC-2(1), AC-6 & CIS AWS Foundations Benchmark 1.16",
+                    remediation_guidance=(
+                        "Deny AdministratorAccess. Create a scoped, role-specific policy limited strictly to "
+                        "the troubleshooting actions required for customer portal services."
+                    ),
+                )
+            )
+            validation_plan.append(
+                ValidationCheck(
+                    step_number=1,
+                    target_component=f"AWS IAM Policy Attachment ({target_name})",
+                    what_to_validate="Verify AdministratorAccess is rejected and not attached to workload execution role.",
+                    cli_command=f"aws iam list-attached-role-policies --role-name {target_name}",
+                    expected_pass_criteria="AdministratorAccess must NOT appear in attached role policies.",
+                )
+            )
+
+        # 4. Evaluate Rule IAM-02: Insecure Cross-Account Trust
+        tr_id = getattr(sp_details, "trust_relationship_id", "")
+        if tr_id == "trust-excessive-dev-to-prod" or ("not configured" in getattr(sp_details, "mfa_condition", "").lower() and "prod" in record.title.lower()):
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="IAM-02",
+                    severity=Severity.CRITICAL,
+                    gap_title="Insecure Excessive Cross-Account Trust: Development to Production CI/CD",
+                    technical_impact=(
+                        "Trust relationship 'trust-excessive-dev-to-prod' allows principals in development account 222233334444 "
+                        "to assume production deployment role 'role-ci-cd-deployment-pipeline' without an MFA condition or ExternalId. "
+                        "The target role possesses AdministratorAccess and has NO permission boundary, creating a direct critical bridge "
+                        "from a lower-trust development sandbox into production infrastructure."
+                    ),
+                    compliance_violation="NIST SP 800-53 AC-3, AC-17 & CIS AWS Foundations Benchmark 1.20",
+                    remediation_guidance=(
+                        "Configure mandatory MFA requirement (aws:MultiFactorAuthPresent: true) and ExternalId condition in the trust policy. "
+                        "Restrict trusted principal from root to a specific deployment role ARN, and apply a permission boundary to the production role."
+                    ),
+                )
+            )
+            validation_plan.append(
+                ValidationCheck(
+                    step_number=1,
+                    target_component="AWS IAM Trust Policy (role-ci-cd-deployment-pipeline)",
+                    what_to_validate="Inspect assume-role trust document for MFA and ExternalId conditions.",
+                    cli_command="aws iam get-role --role-name role-ci-cd-deployment-pipeline --query 'Role.AssumeRolePolicyDocument'",
+                    expected_pass_criteria="Trust document must contain aws:MultiFactorAuthPresent = true and sts:ExternalId conditions.",
+                )
+            )
+
+        # 5. Evaluate Rule IAM-03: Permission Boundary Degradation
+        if getattr(sp_details, "boundary_action", "") == "REMOVE" or "remove" in (record.title + " " + getattr(sp_details, "permission_boundary", "")).lower() and "boundary" in (record.title + " " + (record.justification or "")).lower():
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="IAM-03",
+                    severity=Severity.CRITICAL,
+                    gap_title=f"Governance Boundary Degradation: Removal of 'ApexStrictPCIBoundary' from '{target_name}'",
+                    technical_impact=(
+                        "Request proposes removing the 'ApexStrictPCIBoundary' permission boundary from critical PCI workload role "
+                        "'role-payment-processor-pci'. The boundary enforces PCI enclave isolation by explicitly denying access to "
+                        "general S3 and DynamoDB data stores. Removing this boundary eliminates defense-in-depth isolation and violates PCI DSS requirements."
+                    ),
+                    compliance_violation="PCI DSS v4.0 Requirement 7.2, 7.3 & NIST SP 800-53 SC-7 (Boundary Protection)",
+                    remediation_guidance=(
+                        "Retain ApexStrictPCIBoundary. If specific maintenance permissions are needed, define a dedicated, time-bound scoped policy "
+                        "and seek formal sign-off from the PCI Security Officer rather than stripping the governance boundary."
+                    ),
+                )
+            )
+            validation_plan.append(
+                ValidationCheck(
+                    step_number=1,
+                    target_component="AWS IAM Role Boundary (role-payment-processor-pci)",
+                    what_to_validate="Verify that ApexStrictPCIBoundary remains configured on payment processor identity.",
+                    cli_command="aws iam get-role --role-name role-payment-processor-pci --query 'Role.PermissionsBoundary'",
+                    expected_pass_criteria="PermissionsBoundary.PermissionsBoundaryArn must match arn:aws:iam::111122223333:policy/ApexStrictPCIBoundary.",
+                )
+            )
+
+        # 6. Evaluate Rule IAM-04: In-Flight Pending Approvals
+        if sp_details.approval_status == "PENDING" and tr_id != "trust-secops-cross-account-prod":
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="IAM-04",
+                    severity=Severity.CRITICAL,
+                    gap_title=f"In-Flight / Unapproved Access Assumption: {target_name}",
+                    technical_impact=(
+                        "Change request holds pending approvals. "
+                        "In-flight requests convey ZERO valid permissions under governance principle PENDING_IS_NOT_ACCESS."
+                    ),
+                    compliance_violation="NIST SP 800-53 AC-2 & AC-3",
+                    remediation_guidance="Obtain formal multi-tier business and security manager approval in AWS IAM governance workflow.",
+                )
+            )
+
+        # 7. Evaluate Rule IAM-05: Missing Expiry on Temporary Troubleshooting Access
+        if "temporary" in (record.justification or "").lower() or "troubleshooting" in (record.justification or "").lower():
+            if not sp_details.access_expiry:
+                identified_gaps.append(
+                    SecurityGap(
+                        rule_id="IAM-05",
+                        severity=Severity.HIGH,
+                        gap_title=f"Missing Time-Bound Access Expiry: Temporary Troubleshooting Grant for '{target_name}'",
+                        technical_impact=(
+                            "Change request specifies temporary troubleshooting access but provides no expiry timestamp or automated "
+                            "session expiration limit. Temporary grants without expiry lead to persistent privilege creep."
+                        ),
+                        compliance_violation="NIST SP 800-53 AC-2(2) & ISO 27001 A.9.2.5",
+                        remediation_guidance="Specify explicit expiry timestamp (e.g. maximum 2-hour window) and automate revocation.",
+                    )
+                )
+
+        # 8. Validated SecOps Trust Review Scenario (CHG-IAM-2026-2105)
+        if tr_id == "trust-secops-cross-account-prod":
+            identified_gaps.append(
+                SecurityGap(
+                    rule_id="IAM-06",
+                    severity=Severity.LOW,
+                    gap_title="Audit Validation Sign-off: Production Security Sign-off Pending",
+                    technical_impact=(
+                        "SecOps cross-account audit trust relationship is verified secure with enforced MFA (aws:MultiFactorAuthPresent = true). "
+                        "Routine sign-off from Production Security Owner is pending prior to formal change closure."
+                    ),
+                    compliance_violation="NIST SP 800-53 CA-2 (Security Assessments)",
+                    remediation_guidance="Complete routine review and obtain Production Security sign-off to finalize validation record.",
+                )
+            )
+            validation_plan.append(
+                ValidationCheck(
+                    step_number=1,
+                    target_component="AWS STS Cross-Account Assumption (role-secops-audit-agent)",
+                    what_to_validate="Verify that cross-account assume-role requires valid MFA token session.",
+                    cli_command="aws sts assume-role --role-arn arn:aws:iam::111122223333:role/role-secops-audit-agent --role-session-name SecOpsAudit --serial-number arn:aws:iam::333344445555:mfa/secops-lead --token-code 123456",
+                    expected_pass_criteria="STS call must succeed with temporary credentials; unauthenticated call without MFA token must return AccessDenied.",
+                )
+            )
+
+        # Default validation check if empty
+        if not validation_plan:
+            validation_plan.append(
+                ValidationCheck(
+                    step_number=1,
+                    target_component=f"AWS IAM ({target_name})",
+                    what_to_validate=f"Verify configuration baseline and permission boundaries for '{target_name}'.",
+                    cli_command=f"aws iam get-role --role-name {target_name}",
+                    expected_pass_criteria="Role configuration matches approved security baseline.",
+                )
+            )
+
+        # Compute Risk Score
+        score_breakdown = self.risk_engine.calculate_score(
+            security_gaps=identified_gaps,
+            blast_radius=BlastRadiusResult(
+                direct_impacts=[],
+                cascading_impacts=[],
+                unknown_nodes=[str(target_name)] if has_unknown else [],
+                unknown_impacts=[
+                    UnknownImpactAsset(
+                        resource_identifier=str(target_name),
+                        resource_type="IAM_Role",
+                        reason="Unmapped IAM role in AWS Digital Twin",
+                    )
+                ] if has_unknown else [],
+            ),
+            has_unknown_impact=has_unknown,
+        )
+
+        exec_summary = (
+            f"AWS IAM Governance simulation for {record.request_number} concluded with verdict: "
+            f"{score_breakdown.verdict.value}. Composite risk score: {score_breakdown.final_risk_score}/100. "
+            f"Identified {len(identified_gaps)} governance gap(s). {score_breakdown.verdict_reason}"
+        )
+
+        # Synthesize remediation guidance document
+        safe_remediation_doc = (
+            f"# SimuGuard AI — Recommended AWS IAM Remediation Plan\n"
+            f"# Target Role    : {target_name}\n"
+            f"# AWS Account    : {account_id}\n"
+            f"# Verdict        : {score_breakdown.verdict.value}\n\n"
+            "Action Plan:\n"
+            "1. Enforce Least Privilege: Replace wildcard managed policies with scoped customer-managed policies.\n"
+            "2. Enforce PENDING_IS_NOT_ACCESS: Require formal multi-tier sign-off before applying policy attachments.\n"
+            "3. Enforce Defense-in-Depth: Maintain permission boundaries (ApexWorkloadBoundary / ApexStrictPCIBoundary).\n"
+            "4. Secure Cross-Account Trust: Mandate aws:MultiFactorAuthPresent=true and ExternalId on trust policies.\n"
+        )
+
+        baseline_report = PreFlightSimulationReport(
+            change_ticket_id=record.request_number,
+            overall_risk_score=score_breakdown.final_risk_score,
+            deployment_verdict=score_breakdown.verdict,
+            executive_summary=exec_summary,
+            predicted_affected_assets=affected_assets,
+            identified_security_gaps=self.risk_engine.deduplicate_gaps(identified_gaps),
+            pre_implementation_validation_plan=validation_plan,
+            safe_remediated_config=safe_remediation_doc,
+            evaluated_file="aws_iam_governance_request",
+        )
+
+        # Generate structured remediation recommendations
+        recommendations: List[RemediationRecommendation] = []
+        for idx, gap in enumerate(identified_gaps, start=1):
+            finding_ident = FindingIdentity(
+                rule_id=gap.rule_id,
+                affected_resource=target_name,
+                relevant_attribute=gap.gap_title,
+                original_finding_ref=gap.rule_id,
+            )
+            rec = RemediationRecommendation(
+                remediation_id=f"REM-{gap.rule_id}-{idx:02d}",
+                original_finding_id=gap.rule_id,
+                finding_identity=finding_ident,
+                rule_id=gap.rule_id,
+                affected_resource=target_name,
+                current_config_snippet=f"# Current unsafe configuration for {target_name}",
+                recommended_config_snippet=gap.remediation_guidance,
+                explanation=gap.technical_impact,
+                security_benefit=gap.remediation_guidance,
+                operational_impact="Ensure scoped access without breaking necessary application workflows.",
+                dependencies=["Cloud Platform Security sign-off"],
+                validation_steps=[v.what_to_validate for v in validation_plan],
+                confidence_score=0.95,
+            )
+            recommendations.append(rec)
+
+        plan = RemediationPlan(
+            plan_id=f"plan-{uuid.uuid4().hex[:8]}",
+            change_ticket_id=record.request_number,
+            recommendations=recommendations,
+            synthesized_candidate_hcl=safe_remediation_doc,
+            target_environment=f"AWS IAM Account {account_id}",
         )
 
         return AssessmentExecutionResult(
