@@ -1,0 +1,61 @@
+CHANGE REQUEST: CHG-IAM-2026-2102
+Title: Review cross-account trust from developer sandbox to production deployment role
+Company: Apex Global Technologies
+Environment: Production and Development
+Service: Cloud Identity and Access Management - AWS IAM
+Assignment group: Cloud Platform Security
+Priority: 1 - Critical
+Requested window: 25-Nov-2026, 21:00-21:45 IST
+
+Business justification:
+The DevOps team requests deployment access from the development account to the production CI/CD deployment role to support a release pipeline migration.
+
+Source identity:
+Identity type: IAM Role
+Role name: role-dev-developer-sandbox
+Role ARN: arn:aws:iam::222233334444:role/role-dev-developer-sandbox
+Identity record: ident-role-dev-developer-sandbox
+Source AWS account: 222233334444
+Criticality: Medium
+
+Target identity:
+Identity type: IAM Role
+Role name: role-ci-cd-deployment-pipeline
+Role ARN: arn:aws:iam::111122223333:role/role-ci-cd-deployment-pipeline
+Identity record: ident-role-ci-cd-deployment-pipeline
+Target AWS account: 111122223333
+Criticality: Critical
+
+Existing trust relationship:
+Relationship ID: trust-excessive-dev-to-prod
+Trusted principal: arn:aws:iam::222233334444:root
+Target role: role-dev-developer-sandbox
+Assumable production role: arn:aws:iam::111122223333:role/role-ci-cd-deployment-pipeline
+MFA condition: Not configured
+External ID condition: Not configured
+
+Requested change:
+Retain or formalize the cross-account trust that allows the development account to assume the production CI/CD deployment role. The request does not specify an MFA condition, external ID, source-role restriction or session-duration limit.
+
+Target role permissions:
+Attached policy: AdministratorAccess
+Policy ARN: arn:aws:iam::aws:policy/AdministratorAccess
+Permission boundary: None
+
+Implementation:
+Update the cross-account trust relationship to support the development deployment workflow. Exact trust conditions and source principal restrictions have not been supplied.
+
+Validation:
+Inspect the resulting trust policy, principal scope, MFA requirements and effective permissions. Verify that the development account cannot obtain broader production access than explicitly approved.
+
+Backout:
+Restore the previously approved trust policy and verify that the cross-account assumption path is removed or returned to its prior state.
+
+Approvals:
+DevOps owner: Pending
+Production platform owner: Pending
+Cloud security: Pending
+Change manager: Pending
+
+Assessment note:
+The supplied trust dataset marks this relationship INSECURE_EXCESSIVE_CROSS_ACCOUNT_TRUST because development-account users can assume the production CI/CD role without MFA or external ID. The target role has AdministratorAccess and no permission boundary.

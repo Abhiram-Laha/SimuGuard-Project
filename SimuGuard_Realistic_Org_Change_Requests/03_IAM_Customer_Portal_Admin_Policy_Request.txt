@@ -1,0 +1,55 @@
+CHANGE REQUEST: CHG-IAM-2026-2103
+Title: Request elevated AWS permissions for Customer Portal backend role
+Company: Apex Global Technologies
+Environment: Production
+Service: Cloud Identity and Access Management - AWS IAM
+Assignment group: Cloud Platform Security
+Priority: 1 - Critical
+Requested window: 26-Nov-2026, 22:00-22:30 IST
+
+Business justification:
+The Customer Portal team is investigating deployment failures and requests temporary broad AWS permissions for the backend workload role.
+
+Target IAM identity:
+Identity type: IAM Role
+Role name: role-customer-portal-backend
+Role ARN: arn:aws:iam::111122223333:role/role-customer-portal-backend
+Identity record: ident-role-customer-portal-backend
+AWS account: 111122223333
+Assigned workload: eks-customer-portal-cluster
+Criticality: Critical
+
+Current permissions:
+Attached policy: CustomerPortalDatabaseAccess
+Policy ARN: arn:aws:iam::111122223333:policy/CustomerPortalDatabaseAccess
+Current actions: s3:GetObject, s3:PutObject
+Current resource: arn:aws:s3:::apex-customer-pii-lake-prod/portal-assets/*
+Permission boundary: ApexWorkloadBoundary
+Boundary ARN: arn:aws:iam::111122223333:policy/ApexWorkloadBoundary
+
+Requested change:
+Attach AWS managed policy:
+AdministratorAccess
+Policy ARN: arn:aws:iam::aws:policy/AdministratorAccess
+Policy effect: Action * on Resource *
+
+Duration:
+Temporary access requested for troubleshooting. Exact expiry timestamp has not been provided.
+
+Implementation:
+Attach AdministratorAccess to role-customer-portal-backend only after required approvals and confirmation of a time-bound access mechanism.
+
+Validation:
+Evaluate effective permissions, including the permission boundary. Confirm whether the role could access unrelated production resources and verify the expiry/revocation process.
+
+Backout:
+Detach AdministratorAccess and verify that CustomerPortalDatabaseAccess and ApexWorkloadBoundary remain in place.
+
+Approvals:
+Customer Portal service owner: Pending
+Data owner: Pending
+Cloud security: Pending
+Change manager: Pending
+
+Assessment note:
+The target role is Critical and handles customer portal resources. AdministratorAccess is marked INSECURE_CATASTROPHIC_OVERPRIVILEGED in the supplied policy dataset. Do not assume the permission boundary makes this request safe.

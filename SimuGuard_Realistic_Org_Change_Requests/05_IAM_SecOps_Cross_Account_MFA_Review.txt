@@ -1,0 +1,55 @@
+CHANGE REQUEST: CHG-IAM-2026-2105
+Title: Validate MFA-protected cross-account audit access for SecOps incident response
+Company: Apex Global Technologies
+Environment: Security and Production Accounts
+Service: Cloud Identity and Access Management - AWS IAM
+Assignment group: Security Engineering
+Priority: 3 - Moderate
+Requested window: 28-Nov-2026, 20:00-20:30 IST
+
+Business justification:
+Security Operations is validating the cross-account read-only audit path used during incident response. The team wants to confirm that the production audit role can only be assumed through the approved MFA-protected trust relationship.
+
+Source identity:
+Identity type: IAM Role
+Role name: role-secops-incident-responder
+Role ARN: arn:aws:iam::333344445555:role/role-secops-incident-responder
+Identity record: ident-role-secops-incident-responder
+AWS account: 333344445555
+Criticality: Critical
+
+Target role:
+Role ARN: arn:aws:iam::111122223333:role/role-secops-audit-agent
+Target AWS account: 111122223333
+
+Existing trust relationship:
+Relationship ID: trust-secops-cross-account-prod
+Trusted principal: arn:aws:iam::333344445555:root
+MFA condition: aws:MultiFactorAuthPresent = true
+
+Attached source-role policies:
+- AWS managed SecurityAudit
+- CrossAccountSecOpsAuditPolicy
+Policy ARN: arn:aws:iam::333344445555:policy/CrossAccountSecOpsAuditPolicy
+Allowed action: sts:AssumeRole
+Resource: arn:aws:iam::111122223333:role/role-secops-audit-agent
+
+Requested action:
+Review and validate the existing MFA-protected trust relationship. Do not broaden the trusted principal or remove the MFA condition.
+
+Implementation:
+No policy change is requested unless validation identifies a deviation from the supplied baseline.
+
+Validation:
+Confirm that the trust relationship requires MFA and that the source role's assume-role policy is scoped to the named production audit role.
+
+Backout:
+Not applicable unless a separately approved corrective change is proposed.
+
+Approvals:
+SecOps service owner: Approved
+Production security owner: Pending
+Cloud security: Pending
+
+Assessment note:
+The supplied trust dataset describes this relationship as an approved cross-account SecOps audit path with mandatory MFA. The request is intended as a controlled validation scenario, not a request to expand privileges.

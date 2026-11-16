@@ -1,0 +1,58 @@
+CHANGE REQUEST: CHG-IAM-2026-2104
+Title: Remove restrictive permission boundary from PCI payment processor role
+Company: Apex Global Technologies
+Environment: Production - PCI
+Service: Cloud Identity and Access Management - AWS IAM
+Assignment group: Cloud Platform Security
+Priority: 1 - Critical
+Requested window: 27-Nov-2026, 23:00-23:30 IST
+
+Business justification:
+The payment platform team reports that a planned maintenance task may require additional data-store permissions. The team requests removal of the current permission boundary before the maintenance window.
+
+Target IAM identity:
+Identity type: IAM Role
+Role name: role-payment-processor-pci
+Role ARN: arn:aws:iam::111122223333:role/role-payment-processor-pci
+Identity record: ident-role-payment-processor-pci
+AWS account: 111122223333
+Assigned workload: eks-payment-processor-pool
+Criticality: Critical
+
+Current attached policies:
+1. PCITokenVaultAccess
+   ARN: arn:aws:iam::111122223333:policy/PCITokenVaultAccess
+   Action: rds-db:connect
+   Resource: arn:aws:rds-db:us-east-1:111122223333:dbuser:rds-pci-token-vault-prod/token_svc_user
+
+2. KmsDecryptPaymentScoped
+   ARN: arn:aws:iam::111122223333:policy/KmsDecryptPaymentScoped
+   Actions: kms:Decrypt, kms:GenerateDataKey
+   Resource: arn:aws:kms:us-east-1:111122223333:key/k-pci-token-encryption
+
+Current permission boundary:
+ApexStrictPCIBoundary
+ARN: arn:aws:iam::111122223333:policy/ApexStrictPCIBoundary
+Boundary control: Denies s3:* and dynamodb:* on all resources to enforce PCI enclave isolation.
+
+Requested change:
+Remove the ApexStrictPCIBoundary permission boundary from role-payment-processor-pci.
+No replacement boundary or specific additional permission policy has been provided.
+
+Implementation:
+Remove the permission boundary only if formally approved by the PCI security owner and cloud security governance.
+
+Validation:
+Verify the effective permission set before and after the proposed boundary change. Confirm whether the role gains access to general corporate S3 or DynamoDB resources.
+
+Backout:
+Reattach ApexStrictPCIBoundary and verify that the PCI isolation controls are restored.
+
+Approvals:
+PCI application owner: Pending
+PCI security officer: Pending
+Cloud security: Pending
+Change manager: Pending
+
+Assessment note:
+The target role is Critical and is described in the organization dataset as strictly constrained to the tokenization vault and KMS key. Removing its boundary weakens an explicit governance control.

@@ -17,6 +17,7 @@ class IdentityResolutionStatus(str, Enum):
     UNMAPPED = "UNMAPPED"
     AMBIGUOUS = "AMBIGUOUS"
     CONFLICT = "CONFLICT"
+    IDENTITY_MISMATCH = "CONFLICT"
 
 
 class IdentityLifecycleCategory(str, Enum):
@@ -73,18 +74,21 @@ class CentralizedIdentityResolver:
         employee_id: Optional[str] = None,
         worker_id: Optional[str] = None,
         account_id: Optional[str] = None,
+        email: Optional[str] = None,
+        department: Optional[str] = None,
         target_department: Optional[str] = None,
     ) -> IdentityResolutionResult:
-        """Resolve identity dynamically from query, employee_id, worker_id, or account_id.
+        """Resolve identity dynamically from query, employee_id, worker_id, account_id, or email.
 
         Never defaults to any hardcoded identity when matching fails.
-        Detects conflicts between employee_id and query name.
+        Detects conflicts between employee_id, email, and query name.
         Detects duplicate/ambiguous matches when multiple identities match.
         Strictly requires exact employee/worker ID resolution when provided; never substitutes another identity.
         """
         raw_query = (query or "").strip()
         raw_eid = (employee_id or worker_id or "").strip()
         raw_acct = (account_id or "").strip()
+        raw_email = (email or "").strip().lower()
 
         # If query contains an embedded ID, extract it
         if raw_query:
@@ -92,7 +96,7 @@ class CentralizedIdentityResolver:
             if embedded_eid and not raw_eid:
                 raw_eid = embedded_eid.group(1).strip()
 
-        if not raw_query and not raw_eid and not raw_acct:
+        if not raw_query and not raw_eid and not raw_acct and not raw_email:
             return IdentityResolutionResult(
                 status=IdentityResolutionStatus.UNMAPPED,
                 message="No target identity specified. Identity resolution cannot proceed without an identity reference.",
@@ -112,7 +116,31 @@ class CentralizedIdentityResolver:
                     ident_by_eid = ident
                     break
 
-        # 2. Match by account_id if provided
+        # 2. Match by email if provided
+        ident_by_email: Optional[Dict[str, Any]] = None
+        if raw_email:
+            for ident in self._identities:
+                em = (ident.get("email") or ident.get("attributes", {}).get("email") or "").strip().lower()
+                if em and em == raw_email:
+                    ident_by_email = ident
+                    break
+
+        # Check for Conflict between employee_id and email
+        if ident_by_eid and ident_by_email and ident_by_eid.get("id") != ident_by_email.get("id"):
+            return IdentityResolutionResult(
+                status=IdentityResolutionStatus.CONFLICT,
+                message=(
+                    f"Identity Conflict Detected: Employee ID '{raw_eid}' resolves to '{ident_by_eid.get('display_name')}' "
+                    f"({ident_by_eid.get('id')}), but Email '{raw_email}' resolves to '{ident_by_email.get('display_name')}' "
+                    f"({ident_by_email.get('id')}). Identity verification failed."
+                ),
+                candidate_matches=[
+                    f"{ident_by_eid.get('display_name')} ({ident_by_eid.get('id')})",
+                    f"{ident_by_email.get('display_name')} ({ident_by_email.get('id')})",
+                ],
+            )
+
+        # 3. Match by account_id if provided
         ident_by_acct: Optional[Dict[str, Any]] = None
         if raw_acct:
             matched_ident_id = None
@@ -130,7 +158,7 @@ class CentralizedIdentityResolver:
                         ident_by_acct = ident
                         break
 
-        # 3. Match by query text (ID, display_name, email)
+        # 4. Match by query text (ID, display_name, email)
         candidates_by_query: List[Dict[str, Any]] = []
         if raw_query:
             # Check for embedded ID in parentheses, e.g. "Sarah Chen (sp-ident-sarah-chen)"
@@ -209,6 +237,8 @@ class CentralizedIdentityResolver:
                     f"Substitution with another identity based on name query '{raw_query}' is strictly prohibited."
                 ),
             )
+        elif ident_by_email:
+            resolved_ident = ident_by_email
         elif candidates_by_query:
             resolved_ident = candidates_by_query[0]
         elif ident_by_acct:

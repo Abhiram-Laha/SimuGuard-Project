@@ -68,16 +68,38 @@ class ExtractedConfig:
     nat_translated_destination_port: str = ""
 
     # Identity Governance / SailPoint Fields
+    lifecycle_type: str = ""  # "JOINER", "MOVER", "LEAVER", "ACCESS_REQUEST", "ACCESS_MODIFICATION", "ACCESS_REVOCATION"
     identity_name: str = ""
     employee_id: str = ""
+    worker_id: str = ""
+    contractor_id: str = ""
+    corporate_email: str = ""
     worker_type: str = ""
-    identity_profile: str = "Corporate Full-Time Employees"
-    identity_source: str = "Corporate Active Directory"
+    identity_profile: str = ""
+    identity_source: str = ""
     account_id: str = ""
     account_status: str = "ACTIVE"
+    manager: str = ""
+    manager_id: str = ""
+    department: str = ""
+    current_department: str = ""
+    new_department: str = ""
+    current_role: str = ""
+    new_role: str = ""
+    location: str = ""
     requested_role: str = ""
     access_profile: str = ""
     entitlement: str = ""
+    access_to_add: List[str] = field(default_factory=list)
+    access_to_remove: List[str] = field(default_factory=list)
+    privileged_entitlements: List[str] = field(default_factory=list)
+    accounts_to_disable: List[str] = field(default_factory=list)
+    entitlements_to_revoke: List[str] = field(default_factory=list)
+    applications_deprovision: List[str] = field(default_factory=list)
+    access_duration: str = ""
+    start_date: str = ""
+    effective_date: str = ""
+    termination_date: str = ""
     approvals: Dict[str, str] = field(default_factory=dict)
     approval_status: str = "APPROVED"
     privileged_access_requested: bool = False

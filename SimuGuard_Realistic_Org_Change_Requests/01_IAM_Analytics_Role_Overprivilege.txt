@@ -1,0 +1,54 @@
+CHANGE REQUEST: CHG-IAM-2026-2101
+Title: Expand permissions for production analytics ingestion workload
+Company: Apex Global Technologies
+Environment: Production
+Service: Cloud Identity and Access Management - AWS IAM
+Assignment group: Cloud Platform Security
+Priority: 2 - High
+Requested window: 24-Nov-2026, 22:00-22:30 IST
+
+Business justification:
+The Analytics platform team reports that the telemetry ingestion workload may need to read historical objects and list buckets during troubleshooting. The team requests broader S3 permissions to reduce support delays.
+
+Target IAM identity:
+Identity type: IAM Role
+Role name: role-analytics-ingestion-svc
+Role ARN: arn:aws:iam::111122223333:role/role-analytics-ingestion-svc
+Identity record: ident-role-analytics-ingestion-svc
+AWS account: 111122223333
+Assigned workload: eks-analytics-worker-pool
+Criticality: High
+
+Current permissions:
+Attached policy: S3TelemetryWriteOnly
+Policy ARN: arn:aws:iam::111122223333:policy/S3TelemetryWriteOnly
+Current allowed actions: s3:PutObject, s3:AbortMultipartUpload
+Current resource: arn:aws:s3:::apex-dev-staging-telemetry/incoming/*
+Permission boundary: ApexWorkloadBoundary
+Boundary ARN: arn:aws:iam::111122223333:policy/ApexWorkloadBoundary
+
+Requested change:
+Attach AWS managed policy:
+AmazonS3FullAccess
+Policy ARN: arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+Requested policy scope:
+Action: s3:*
+Resource: *
+
+Implementation:
+Attach AmazonS3FullAccess to role-analytics-ingestion-svc. Retain existing policies and permission boundary.
+
+Validation:
+Verify the new policy attachment and evaluate effective permissions against the existing ApexWorkloadBoundary. Confirm whether access to the restricted CUI financial vault remains denied by the boundary.
+
+Backout:
+Detach AmazonS3FullAccess and verify that S3TelemetryWriteOnly remains attached.
+
+Approvals:
+Analytics service owner: Pending
+Cloud security: Pending
+Change manager: Pending
+
+Assessment note:
+The requested AWS managed policy is marked INSECURE_OVERPRIVILEGED in the supplied organization policy dataset. The role is a High-criticality production workload identity.
