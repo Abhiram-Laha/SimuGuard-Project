@@ -27,28 +27,28 @@ APP_DESCRIPTION = (
     "enterprise Network Security and Identity Operations."
 )
 
-# Navigation Pages
+# Navigation Pages (Simplified Engineer Experience)
+PAGE_NEW_ASSESSMENT = "New Assessment"
+PAGE_HISTORY = "Assessment History"
+PAGE_REPORTS = "Reports"
+PAGE_SETTINGS = "Settings & Diagnostics"
+
+NAV_PAGES = [
+    PAGE_NEW_ASSESSMENT,
+    PAGE_HISTORY,
+    PAGE_REPORTS,
+    PAGE_SETTINGS,
+]
+
+# Legacy Page Constants (Maintained for backward compatibility and sub-routes)
 PAGE_OVERVIEW = "Overview"
 PAGE_NEW_CHANGE = "New Change Request"
-PAGE_HISTORY = "Assessment History"
 PAGE_RESULTS = "Assessment Results"
 PAGE_REMEDIATION = "Remediation Center"
 PAGE_COMPARISON = "Before & After Comparison"
 PAGE_DIGITAL_TWIN = "Digital Twin Explorer"
-PAGE_REPORTS = "Reports & Exports"
 PAGE_ABOUT = "Settings / About"
-
-NAV_PAGES = [
-    PAGE_OVERVIEW,
-    PAGE_NEW_CHANGE,
-    PAGE_HISTORY,
-    PAGE_RESULTS,
-    PAGE_REMEDIATION,
-    PAGE_COMPARISON,
-    PAGE_DIGITAL_TWIN,
-    PAGE_REPORTS,
-    PAGE_ABOUT,
-]
+PAGE_REPORTS_EXPORTS = "Reports & Exports"
 
 # Color Palette (ServiceNow-inspired dark sidebar, clean light workspace)
 COLORS = {

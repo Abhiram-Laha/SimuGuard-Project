@@ -21,8 +21,13 @@ from ui.navigation import route_page
 
 def main() -> None:
     """Main application entry point."""
+    from config.settings import PAGE_NEW_ASSESSMENT
+
     if "environment_mode" not in st.session_state:
         st.session_state["environment_mode"] = "DEMO"
+
+    if "active_page" not in st.session_state:
+        st.session_state["active_page"] = PAGE_NEW_ASSESSMENT
 
     from ui.services.demo_service import DemoEnvironmentService
 

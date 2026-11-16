@@ -4,7 +4,7 @@ import math
 from typing import Any, Dict, List, Optional
 import streamlit as st
 
-from config.settings import PAGE_NEW_CHANGE
+from config.settings import PAGE_NEW_ASSESSMENT, PAGE_NEW_CHANGE
 from storage.repository import ChangeRepository
 from ui.components.status_badges import (
     render_priority_badge,
@@ -21,7 +21,7 @@ def render_history_page(repository: ChangeRepository) -> None:
         title="Change Assessment History",
         description="Audit log and historical repository of all submitted, analyzed, and remediated security change requests.",
         action_button=True,
-        button_label="➕ New Change Request",
+        button_label="➕ New Assessment",
     )
 
     # 1. Search and Filter Bar
@@ -202,9 +202,14 @@ def render_history_page(repository: ChangeRepository) -> None:
                 unsafe_allow_html=True,
             )
 
-            col_act1, col_act2 = st.columns([6, 1])
+            col_act1, col_act2, col_act3 = st.columns([5, 2, 2])
             with col_act2:
-                if st.button("Inspect Record →", key=f"btn_view_{req_no}", use_container_width=True):
+                if st.button("⚡ Open in Workspace", key=f"btn_ws_{req_no}", use_container_width=True):
+                    st.session_state["workspace_request_number"] = req_no
+                    st.session_state["active_page"] = PAGE_NEW_ASSESSMENT
+                    st.rerun()
+            with col_act3:
+                if st.button("Inspect Details →", key=f"btn_view_{req_no}", use_container_width=True):
                     st.session_state["viewing_request_number"] = req_no
                     st.session_state["active_page"] = "Record Detail"
                     st.rerun()

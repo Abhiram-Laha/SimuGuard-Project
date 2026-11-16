@@ -7,11 +7,13 @@ from config.settings import (
     PAGE_COMPARISON,
     PAGE_DIGITAL_TWIN,
     PAGE_HISTORY,
+    PAGE_NEW_ASSESSMENT,
     PAGE_NEW_CHANGE,
     PAGE_OVERVIEW,
     PAGE_REMEDIATION,
     PAGE_REPORTS,
     PAGE_RESULTS,
+    PAGE_SETTINGS,
 )
 from storage.repository import ChangeRepository
 from ui.layout import render_page_header
@@ -25,6 +27,7 @@ from ui.pages.record_detail import render_record_detail_page
 from ui.pages.remediation import render_remediation_page
 from ui.pages.reports import render_reports_page
 from ui.pages.results import render_results_page
+from ui.pages.workspace import render_single_workspace_page
 
 
 def _render_placeholder_page(title: str, description: str, milestone_phase: str, details: str) -> None:
@@ -58,8 +61,8 @@ def _render_placeholder_page(title: str, description: str, milestone_phase: str,
         unsafe_allow_html=True,
     )
 
-    if st.button("← Return to Overview", key=f"btn_return_{title}"):
-        st.session_state["active_page"] = PAGE_OVERVIEW
+    if st.button("← Return to Assessment", key=f"btn_return_{title}"):
+        st.session_state["active_page"] = PAGE_NEW_ASSESSMENT
         st.rerun()
 
 
@@ -68,14 +71,23 @@ def route_page(active_page: str, repository: ChangeRepository) -> None:
     if active_page == "Record Detail":
         render_record_detail_page(repository)
 
-    elif active_page == PAGE_OVERVIEW:
-        render_overview_page(repository)
+    elif active_page == PAGE_NEW_ASSESSMENT:
+        render_single_workspace_page(repository)
 
     elif active_page == PAGE_NEW_CHANGE:
-        render_new_change_page(repository)
+        render_single_workspace_page(repository)
 
     elif active_page == PAGE_HISTORY:
         render_history_page(repository)
+
+    elif active_page == PAGE_REPORTS or active_page == "Reports & Exports":
+        render_reports_page(repository)
+
+    elif active_page == PAGE_SETTINGS or active_page == PAGE_ABOUT:
+        render_diagnostics_page(repository)
+
+    elif active_page == PAGE_OVERVIEW:
+        render_overview_page(repository)
 
     elif active_page == PAGE_RESULTS:
         render_results_page(repository)
@@ -89,12 +101,6 @@ def route_page(active_page: str, repository: ChangeRepository) -> None:
     elif active_page == PAGE_DIGITAL_TWIN:
         render_digital_twin_page(repository)
 
-    elif active_page == PAGE_REPORTS:
-        render_reports_page(repository)
-
-    elif active_page == PAGE_ABOUT:
-        render_diagnostics_page(repository)
-
     else:
-        # Fallback to Overview
-        render_overview_page(repository)
+        # Fallback to New Assessment (primary workspace)
+        render_single_workspace_page(repository)

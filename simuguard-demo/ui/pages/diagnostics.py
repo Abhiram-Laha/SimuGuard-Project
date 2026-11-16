@@ -239,9 +239,76 @@ def _run_system_health_checks(repository: ChangeRepository) -> List[Dict[str, An
 def render_diagnostics_page(repository: ChangeRepository) -> None:
     """Render the comprehensive System Diagnostics & Runtime Health dashboard."""
     render_page_header(
-        title="System Diagnostics & Runtime Health",
-        description="Comprehensive runtime integrity inspection of local database, synthetic datasets, digital twin topology, simulation engines, and export pipelines.",
+        title="Settings & System Diagnostics",
+        description="Administrative environment controls, database management, and comprehensive runtime integrity inspection.",
     )
+
+    # =========================================================================
+    # 0. ADMINISTRATIVE ENVIRONMENT & DATABASE CONTROLS
+    # =========================================================================
+    st.markdown(
+        """
+        <div class="sg-card" style="margin-bottom: 1.5rem; border-left: 4px solid #0f62fe;">
+            <div class="sg-card-header">
+                <span>ITSM Environment & Database Administration</span>
+                <span class="sg-badge sg-badge-info">Administrative Gate</span>
+            </div>
+            <div style="font-size: 0.88rem; color: #475569; margin: 0.5rem 0 1rem 0;">
+                Configure runtime database modes and manage demonstration sandbox states. Production database is isolated from demo resets.
+            </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col_env1, col_env2 = st.columns([2, 1])
+    current_env = st.session_state.get("environment_mode", "DEMO")
+
+    with col_env1:
+        env_choice = st.selectbox(
+            "Active Environment Mode",
+            options=["Demo Sandbox (Apex Global Technologies)", "Production Mode (Isolated ITSM History)"],
+            index=0 if current_env == "DEMO" else 1,
+            help="Switch between synthetic demonstration data and clean production audit repository.",
+            key="admin_env_mode_selector",
+        )
+        new_env = "DEMO" if "Demo" in env_choice else "PRODUCTION"
+        if new_env != current_env:
+            st.session_state["environment_mode"] = new_env
+            st.rerun()
+
+        if current_env == "DEMO":
+            st.markdown(
+                """
+                <div style="font-size: 0.85rem; color: #10b981; margin-top: 6px;">
+                    ● <strong>Active Database:</strong> <code>data/simuguard_demo.db</code> (Pre-seeded with 5 certified demonstration scenarios)
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                """
+                <div style="font-size: 0.85rem; color: #3b82f6; margin-top: 6px;">
+                    ● <strong>Active Database:</strong> <code>data/simuguard_history.db</code> (Production audit-compliant repository)
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    with col_env2:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if current_env == "DEMO":
+            if st.button("🔄 Reset Demo Sandbox Data", use_container_width=True, key="btn_reset_demo_admin"):
+                from ui.services.demo_service import DemoEnvironmentService
+                DemoEnvironmentService.reset_demo_database()
+                st.toast("✅ Demo environment reset successfully with 5 certified scenarios!", icon="🛡️")
+                st.rerun()
+            st.caption("Restores demo database to initial certified baseline. Never touches production.")
+        else:
+            st.info("ℹ️ Production mode active. Demo reset is disabled in production.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
 
     # 1. Execute live diagnostics
     checks = _run_system_health_checks(repository)

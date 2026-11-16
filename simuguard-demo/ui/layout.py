@@ -1,7 +1,7 @@
 """Layout and page container utilities for SimuGuard AI."""
 
 import streamlit as st
-from config.settings import APP_TITLE
+from config.settings import APP_TITLE, PAGE_NEW_ASSESSMENT
 from ui.theme import apply_theme
 
 
@@ -33,5 +33,5 @@ def render_page_header(title: str, description: str, action_button: bool = False
         if action_button and button_label:
             st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
             if st.button(button_label, use_container_width=True):
-                st.session_state["active_page"] = "New Change Request"
+                st.session_state["active_page"] = PAGE_NEW_ASSESSMENT
                 st.rerun()
