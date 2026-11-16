@@ -268,6 +268,34 @@ section[data-testid="stSidebar"] div.stRadio > div[role="radiogroup"] > label:ha
     max-width: 480px;
     margin: 0 auto 1.25rem auto;
 }
+
+/* Primary Change Request Intake Text Area (Single Assessment Workspace) */
+div.st-key-txt_servicenow_input textarea,
+div[data-testid="stTextArea"]:has(textarea[aria-label*="ServiceNow Change Request Input"]) textarea {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    font-size: 0.88rem !important;
+    line-height: 1.55 !important;
+    border: 1px solid #334155 !important;
+    border-radius: 6px !important;
+    width: 100% !important;
+    overflow-y: auto !important;
+    resize: vertical !important;
+}
+
+div.st-key-txt_servicenow_input textarea:focus,
+div[data-testid="stTextArea"]:has(textarea[aria-label*="ServiceNow Change Request Input"]) textarea:focus {
+    border-color: #0f62fe !important;
+    box-shadow: 0 0 0 2px rgba(15, 98, 254, 0.25) !important;
+    outline: none !important;
+}
+
+div.st-key-txt_servicenow_input textarea::placeholder,
+div[data-testid="stTextArea"]:has(textarea[aria-label*="ServiceNow Change Request Input"]) textarea::placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.85;
+}
 </style>
 """
 

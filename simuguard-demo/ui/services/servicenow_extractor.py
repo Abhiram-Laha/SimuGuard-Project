@@ -69,6 +69,8 @@ class ExtractedConfig:
 
     # Identity Governance / SailPoint Fields
     identity_name: str = ""
+    employee_id: str = ""
+    worker_type: str = ""
     identity_profile: str = "Corporate Full-Time Employees"
     identity_source: str = "Corporate Active Directory"
     account_id: str = ""
@@ -76,6 +78,9 @@ class ExtractedConfig:
     requested_role: str = ""
     access_profile: str = ""
     entitlement: str = ""
+    approvals: Dict[str, str] = field(default_factory=dict)
+    approval_status: str = "APPROVED"
+    privileged_access_requested: bool = False
 
     # Raw Payload & Metadata
     raw_hcl: str = ""
@@ -110,7 +115,8 @@ class ServiceNowExtractor:
         lower_text = clean_text.lower()
         identity_keywords = [
             "sailpoint", "identity", "entitlement", "access profile",
-            "identitynow", "governance", "sod conflict", "grant role"
+            "identitynow", "governance", "sod conflict", "grant role",
+            "iam", "access request", "joiner", "mover", "leaver", "offboarding", "ritm"
         ]
         firewall_keywords = [
             "firewall", "panos", "palo alto", "security rule", "nat rule",
@@ -128,7 +134,7 @@ class ServiceNowExtractor:
         # 2. Extract Common Header Fields
         cfg.request_number = cls._extract_field(
             clean_text,
-            [r"^(?:CHANGE REQUEST|Change Request|Request Number|Ticket Number|Req #)\s*[:=]\s*([A-Za-z0-9_\-]+)"],
+            [r"^(?:CHANGE REQUEST|Change Request|Request Number|Ticket Number|Req #|REQUEST|Request)\s*[:=]\s*([A-Za-z0-9_\-]+)"],
             default="",
         )
         cfg.title = cls._extract_field(
@@ -136,12 +142,17 @@ class ServiceNowExtractor:
             [r"^(?:Short Description|Summary|Title)\s*[:=]\s*(.+)"],
             default="",
         )
-        cfg.priority = cls._extract_field(
-            clean_text,
-            [r"^Priority\s*[:=]\s*(Critical|High|Medium|Low|Emergency|Expedited)"],
-            default="HIGH",
-        ).upper()
-        if cfg.priority not in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
+        raw_prio = cls._extract_field(clean_text, [r"^Priority\s*[:=]\s*(.+)"], default="HIGH")
+        prio_upper = raw_prio.upper()
+        if "CRITICAL" in prio_upper or "1 -" in prio_upper:
+            cfg.priority = "CRITICAL"
+        elif "HIGH" in prio_upper or "2 -" in prio_upper:
+            cfg.priority = "HIGH"
+        elif "MODERATE" in prio_upper or "MEDIUM" in prio_upper or "3 -" in prio_upper:
+            cfg.priority = "MEDIUM"
+        elif "LOW" in prio_upper or "4 -" in prio_upper or "5 -" in prio_upper or "PLANNING" in prio_upper:
+            cfg.priority = "LOW"
+        else:
             cfg.priority = "HIGH"
 
         cfg.change_type = cls._extract_field(
@@ -154,16 +165,31 @@ class ServiceNowExtractor:
             [r"^Change Operation\s*[:=]\s*(.+)"],
             default="Create Security Policy",
         )
-        cfg.category = cls._extract_field(
-            clean_text,
-            [r"^Category\s*[:=]\s*(.+)"],
-            default="Network Security" if cfg.domain == "NETWORK_SECURITY" else "Identity Governance",
-        )
-        cfg.subcategory = cls._extract_field(
-            clean_text,
-            [r"^Subcategory\s*[:=]\s*(.+)"],
-            default="Firewall Rule Modification",
-        )
+        if cfg.domain == "IDENTITY_GOVERNANCE":
+            cfg.category = "Identity Governance"
+            low_text = clean_text.lower()
+            if "joiner" in low_text or "new starter" in low_text:
+                cfg.subcategory = "Joiner Access Request"
+                cfg.change_operation = "Provision Standard Role (Joiner)"
+            elif "mover" in low_text or "transfer" in low_text:
+                cfg.subcategory = "Mover Access Modification"
+                cfg.change_operation = "Role Transfer & Update (Mover)"
+            elif "leaver" in low_text or "offboarding" in low_text or "revocation" in low_text:
+                cfg.subcategory = "Leaver Access Revocation"
+                cfg.change_operation = "Revoke Access (Leaver Offboarding)"
+            else:
+                cfg.subcategory = "Access Request"
+        else:
+            cfg.category = cls._extract_field(
+                clean_text,
+                [r"^Category\s*[:=]\s*(.+)"],
+                default="Network Security",
+            )
+            cfg.subcategory = cls._extract_field(
+                clean_text,
+                [r"^Subcategory\s*[:=]\s*(.+)"],
+                default="Firewall Rule Modification",
+            )
         cfg.business_service = cls._extract_field(
             clean_text,
             [r"^Business Service\s*[:=]\s*(.+)"],
@@ -236,10 +262,13 @@ class ServiceNowExtractor:
         else:
             cls._extract_sailpoint_fields(clean_text, cfg)
 
-        # 5. Check if matches known baseline files in changes/
+        # 5. Extract Approvals & Governance Status
+        cls._extract_approvals(clean_text, cfg)
+
+        # 6. Check if matches known baseline files in changes/
         cls._match_known_scenario(clean_text, cfg)
 
-        # 6. Validate Missing and Ambiguous Fields
+        # 7. Validate Missing and Ambiguous Fields
         cls._validate_fields(cfg)
 
         return cfg
@@ -258,12 +287,40 @@ class ServiceNowExtractor:
     @classmethod
     def _extract_multiline_section(cls, text: str, section_header: str) -> str:
         """Extract multi-line body under a section header until the next uppercase header."""
-        pat = rf"(?:^|\n){re.escape(section_header)}\s*[:=]\s*\n?([\s\S]+?)(?=\n[A-Z][A-Za-z0-9 ]+:\s*|\Z)"
+        pat = rf"(?:^|\n){re.escape(section_header)}\s*[:=]\s*\n?([\s\S]+?)(?=\n(?!ADD:|REMOVE:)[A-Z][A-Za-z0-9 ]+:\s*|\Z)"
         m = re.search(pat, text, re.IGNORECASE)
         if m:
             body = m.group(1).strip()
             return body
         return ""
+
+    @classmethod
+    def _extract_approvals(cls, text: str, cfg: ExtractedConfig) -> None:
+        """Extract multi-line approvals section and determine composite approval status."""
+        pat = r"(?:^|\n)Approvals(?: and confirmations)?\s*[:=]\s*\n?([\s\S]+?)(?=\n(?:Additional note|Dependencies|Implementation|Validation|Backout|Exception handling|Fulfilment|Worker|Requested|Risk|\n\s*\n)|\Z)"
+        m = re.search(pat, text, re.IGNORECASE)
+        approvals_block = m.group(1).strip() if m else ""
+        if not approvals_block:
+            approvals_block = cls._extract_multiline_section(text, "Approval Status")
+
+        cfg.approvals = {}
+        if approvals_block:
+            for line in approvals_block.splitlines():
+                line = line.strip().lstrip("-*• ")
+                if ":" in line:
+                    role, status = line.split(":", 1)
+                    cfg.approvals[role.strip()] = status.strip()
+
+        # Check overall approval status
+        pending_statuses = ["pending", "pending confirmation", "required", "not started", "in progress", "tbd"]
+        if cfg.approvals:
+            has_pending = any(
+                any(ps in s.lower() for ps in pending_statuses)
+                for s in cfg.approvals.values()
+            )
+            cfg.approval_status = "PENDING" if has_pending else "APPROVED"
+        else:
+            cfg.approval_status = "APPROVED"
 
     @classmethod
     def _extract_firewall_and_nat_fields(cls, text: str, cfg: ExtractedConfig) -> None:
@@ -338,9 +395,37 @@ class ServiceNowExtractor:
             cfg.applications = cls._extract_field(text, [r"^App-ID\s*[:=]\s*(.+)"], default="any")
 
         # --- Service, Protocol & Port ---
-        cfg.services = cls._extract_field(text, [r"^Service\s*[:=]\s*(.+)"], default="service-https")
-        cfg.protocol = cls._extract_field(text, [r"^Protocol\s*[:=]\s*(.+)"], default="TCP").upper()
-        cfg.destination_port = cls._extract_field(text, [r"^Destination Port\s*[:=]\s*(.+)"], default="443")
+        fw_section = cls._extract_multiline_section(text, "Firewall details")
+        target_srv_text = fw_section if fw_section else text
+
+        srv_candidates = re.findall(r"^Service\s*[:=]\s*(.+)$", target_srv_text, re.IGNORECASE | re.MULTILINE)
+        found_srv = ""
+        for sc in srv_candidates:
+            sc_val = sc.strip()
+            if any(it_kw in sc_val.lower() for it_kw in ["network security", "palo alto", "firewall management", "identity"]):
+                if not cfg.business_service:
+                    cfg.business_service = sc_val
+            else:
+                found_srv = sc_val
+                break
+
+        if not found_srv:
+            std_srv = re.search(r"^Service\s*[:=]\s*(tcp/\d+|udp/\d+|service-[a-zA-Z0-9_-]+|any|application-default|\d+)", text, re.IGNORECASE | re.MULTILINE)
+            if std_srv:
+                found_srv = std_srv.group(1).strip()
+
+        cfg.services = found_srv or "service-https"
+
+        port_m = re.search(r"(?:tcp|udp)/(\d+)", cfg.services, re.IGNORECASE)
+        if port_m:
+            cfg.destination_port = port_m.group(1)
+            cfg.protocol = "TCP" if "tcp" in cfg.services.lower() else "UDP"
+        elif cfg.services.lower() == "any":
+            cfg.destination_port = "any"
+            cfg.protocol = "any"
+        else:
+            cfg.protocol = cls._extract_field(text, [r"^Protocol\s*[:=]\s*(.+)"], default="TCP").upper()
+            cfg.destination_port = cls._extract_field(text, [r"^Destination Port\s*[:=]\s*(.+)"], default="443")
 
         # --- Action ---
         act = cls._extract_field(text, [r"^Action\s*[:=]\s*(Allow|Deny|Drop)"], default="allow").lower()
@@ -349,31 +434,73 @@ class ServiceNowExtractor:
         # --- Security Profile & Logging ---
         cfg.security_profile = cls._extract_field(
             text,
-            [r"^Security Profile Group\s*[:=]\s*(.+)", r"^Security Profile\s*[:=]\s*(.+)"],
+            [
+                r"^Security Profile(?:s| Group)?\s*[:=]\s*(.+)",
+            ],
             default="Strict-Enterprise-Security",
         )
         cfg.logging = cls._extract_field(
             text,
-            [r"^Logging\s*[:=]\s*(.+)"],
+            [
+                r"^Log(?:ging| at session end)?\s*[:=]\s*(.+)",
+            ],
             default="Enabled at session end",
         )
 
     @classmethod
     def _extract_sailpoint_fields(cls, text: str, cfg: ExtractedConfig) -> None:
         """Extract SailPoint identity governance attributes dynamically without hardcoded defaults."""
-        cfg.identity_name = cls._extract_field(
+        name_val = cls._extract_field(
             text,
-            [r"^Target Identity\s*[:=]\s*(.+)", r"^Identity Name\s*[:=]\s*(.+)", r"^Identity\s*[:=]\s*(.+)"],
+            [
+                r"^Employee [Nn]ame\s*[:=]\s*(.+)",
+                r"^Worker [Nn]ame\s*[:=]\s*(.+)",
+                r"^Target Identity\s*[:=]\s*(.+)",
+                r"^Identity [Nn]ame\s*[:=]\s*(.+)",
+                r"^Identity\s*[:=]\s*(.+)",
+                r"^Name\s*[:=]\s*(.+)",
+            ],
             default="",
         )
+        eid_val = cls._extract_field(
+            text,
+            [
+                r"^Employee ID\s*[:=]\s*([A-Za-z0-9_\-]+)",
+                r"^Worker ID\s*[:=]\s*([A-Za-z0-9_\-]+)",
+                r"^Employee Number\s*[:=]\s*([A-Za-z0-9_\-]+)",
+                r"^Worker Number\s*[:=]\s*([A-Za-z0-9_\-]+)",
+            ],
+            default="",
+        )
+        cfg.employee_id = eid_val
+        if name_val and eid_val:
+            cfg.identity_name = f"{name_val} ({eid_val})"
+        elif name_val:
+            cfg.identity_name = name_val
+        elif eid_val:
+            cfg.identity_name = eid_val
+
+        cfg.worker_type = cls._extract_field(text, [r"^Worker [Tt]ype\s*[:=]\s*(.+)"], default="")
+        if "contractor" in cfg.worker_type.lower():
+            cfg.identity_profile = "External Contractors"
+        elif "employee" in cfg.worker_type.lower():
+            cfg.identity_profile = "Corporate Full-Time Employees"
+
         cfg.identity_profile = cls._extract_field(
             text,
             [r"^Identity Profile\s*[:=]\s*(.+)"],
-            default="",
+            default=cfg.identity_profile or "",
         )
+
         cfg.requested_role = cls._extract_field(
             text,
-            [r"^Requested Role\s*[:=]\s*(.+)", r"^Role Name\s*[:=]\s*(.+)", r"^Role\s*[:=]\s*(.+)"],
+            [
+                r"^Requested Role\s*[:=]\s*(.+)",
+                r"^Role Name\s*[:=]\s*(.+)",
+                r"^Role\s*[:=]\s*(.+)",
+                r"^New [Jj]ob [Tt]itle\s*[:=]\s*(.+)",
+                r"^Job [Tt]itle\s*[:=]\s*(.+)",
+            ],
             default="",
         )
         cfg.access_profile = cls._extract_field(
@@ -381,11 +508,36 @@ class ServiceNowExtractor:
             [r"^Access Profile\s*[:=]\s*(.+)"],
             default="",
         )
-        cfg.entitlement = cls._extract_field(
-            text,
-            [r"^Entitlement\s*[:=]\s*(.+)", r"^Permission\s*[:=]\s*(.+)"],
-            default="",
+
+        # Entitlements extraction
+        req_access_sec = (
+            cls._extract_multiline_section(text, "Requested access changes")
+            or cls._extract_multiline_section(text, "Requested access")
+            or cls._extract_multiline_section(text, "Requested action")
         )
+        if req_access_sec:
+            lines = [l.strip() for l in req_access_sec.splitlines() if l.strip()]
+            clean_items = []
+            for l in lines:
+                if l.startswith(("-", "*", "•")):
+                    clean_items.append(l.lstrip("-*• ").strip())
+                elif l.upper().startswith(("ADD:", "REMOVE:")):
+                    clean_items.append(l)
+            if clean_items:
+                cfg.entitlement = "; ".join(clean_items)
+
+        if not cfg.entitlement:
+            cfg.entitlement = cls._extract_field(
+                text,
+                [r"^Entitlement\s*[:=]\s*(.+)", r"^Permission\s*[:=]\s*(.+)"],
+                default="",
+            )
+
+        # Check for privileged access request
+        all_ent_text = (cfg.entitlement + " " + cfg.requested_role + " " + text).lower()
+        if "sap - finance administrator" in all_ent_text or ("admin" in all_ent_text and "finance" in all_ent_text):
+            cfg.privileged_access_requested = True
+
         cfg.account_id = cls._extract_field(
             text,
             [r"^Source Account ID\s*[:=]\s*(.+)", r"^Account ID\s*[:=]\s*(.+)"],
@@ -403,7 +555,10 @@ class ServiceNowExtractor:
                 from simuguard.graph.dataset_loader import EnterpriseDatasetLoader
                 from simuguard.identity import CentralizedIdentityResolver, IdentityResolutionStatus
                 sp_data = EnterpriseDatasetLoader().load_sailpoint_governance()
-                res = CentralizedIdentityResolver(sp_data).resolve_identity(cfg.identity_name)
+                res = CentralizedIdentityResolver(sp_data).resolve_identity(
+                    query=cfg.identity_name,
+                    employee_id=cfg.employee_id,
+                )
                 if res.status == IdentityResolutionStatus.RESOLVED and res.identity:
                     if not cfg.identity_profile and res.identity_profile_id:
                         cfg.identity_profile = res.identity_profile_id
@@ -540,6 +695,14 @@ resource "panos_security_policy" "{rule_ident}" {{
                 else:
                     cfg.warnings.append("Unrestricted source 0.0.0.0/0 from Untrust perimeter (Inbound exposure)")
 
+            # Incomplete TBD Address Check
+            if any(kw in src_lower for kw in ["tbd", "confirm", "to be determined"]):
+                cfg.missing_fields.append("Source Address / CIDR (Unconfirmed / TBD)")
+            if any(kw in dest_lower for kw in ["tbd", "confirm", "to be determined"]):
+                cfg.missing_fields.append("Destination Address / CIDR (Unconfirmed / TBD)")
+            if any("tbd" in mf.lower() for mf in cfg.missing_fields):
+                cfg.warnings.append("Change Request is INCOMPLETE: Source/Destination addresses are unconfirmed (TBD).")
+
             if cfg.applications.lower() in ["any"]:
                 cfg.warnings.append("App-ID is set to 'any' (Bypasses Palo Alto Layer-7 deep packet inspection)")
 
@@ -551,6 +714,11 @@ resource "panos_security_policy" "{rule_ident}" {{
 
             if "disabled" in cfg.logging.lower():
                 cfg.warnings.append("Audit Logging is disabled (Violates enterprise compliance and forensic audit standards)")
+
+            if cfg.approval_status == "PENDING" and cfg.approvals:
+                pending_roles = [r for r, s in cfg.approvals.items() if any(ps in s.lower() for ps in ["pending", "required", "not started"])]
+                if pending_roles:
+                    cfg.warnings.append(f"Pending Approvals: [{', '.join(pending_roles)}]. Change execution requires completed sign-offs.")
 
             # NAT Specific Verification
             if cfg.is_nat_change:
@@ -565,8 +733,19 @@ resource "panos_security_policy" "{rule_ident}" {{
             if not (cfg.requested_role or cfg.access_profile or cfg.entitlement):
                 cfg.missing_fields.append("At least one requested entitlement or role")
 
-            if "contractor" in cfg.identity_name.lower() and ("admin" in cfg.requested_role.lower() or "cui" in cfg.entitlement.lower()):
+            if cfg.privileged_access_requested:
+                cfg.warnings.append("Privileged Access Warning: 'SAP - Finance Administrator' is a privileged entitlement requested without separate privileged justification, expiry date, or privileged access approval.")
+
+            if cfg.approval_status == "PENDING" and cfg.approvals:
+                pending_roles = [r for r, s in cfg.approvals.items() if any(ps in s.lower() for ps in ["pending", "required", "not started"])]
+                if pending_roles:
+                    cfg.warnings.append(f"In-Flight Unapproved Access: Pending approvals [{', '.join(pending_roles)}]. In-flight requests convey zero valid permissions under PENDING_IS_NOT_ACCESS.")
+
+            if "contractor" in (cfg.identity_name + " " + cfg.worker_type).lower() and ("admin" in cfg.requested_role.lower() or "cui" in cfg.entitlement.lower()):
                 cfg.warnings.append("Contractor identity requesting privileged CUI/Admin access (Potential SoD violation)")
+
+            if "leaver" in cfg.subcategory.lower() or "offboarding" in cfg.subcategory.lower() or "contractor" in cfg.worker_type.lower():
+                cfg.warnings.append("Downstream Account Reconciliation: Disabling primary identity does not automatically revoke downstream accounts. Multi-system verification required.")
 
     @classmethod
     def generate_summary(cls, cfg: ExtractedConfig) -> ChangeRequestSummary:
@@ -663,6 +842,10 @@ resource "panos_security_policy" "{rule_ident}" {{
             key_changes["Access Profile"] = cfg.access_profile or "Not specified"
             key_changes["Entitlement"] = cfg.entitlement or "Not specified"
 
+        if cfg.approvals:
+            key_changes["Approval Status"] = cfg.approval_status
+            key_changes["Approvals Breakdown"] = ", ".join(f"{r}: {s}" for r, s in cfg.approvals.items())
+
         summary.key_configuration_changes = key_changes
 
         # 4. Initial observations
@@ -675,6 +858,9 @@ resource "panos_security_policy" "{rule_ident}" {{
             src_lower = (cfg.source_addresses or "").lower()
             if src_lower in ["any", "0.0.0.0/0"] and "untrust" in (cfg.source_zone or "").lower():
                 obs.append("⚠️ Perimeter Exposure: Source address is set to wildcard 'any' (0.0.0.0/0) originating from Untrust perimeter.")
+
+            if any("tbd" in mf.lower() for mf in cfg.missing_fields):
+                obs.append("⚠️ Incomplete Specification: Source/destination addresses contain unconfirmed TBD placeholders. Requires technical confirmation.")
 
             if (cfg.applications or "").lower() in ["any"]:
                 obs.append("⚠️ App-ID Inspection Bypass: Application is set to 'any', bypassing Palo Alto Layer-7 deep packet inspection.")
@@ -691,13 +877,25 @@ resource "panos_security_policy" "{rule_ident}" {{
             if cfg.is_nat_change:
                 obs.append(f"ℹ️ Inbound NAT Architecture: Pre-NAT public IP {cfg.nat_original_destination_address} is translated to private host {cfg.nat_translated_destination_address}. Accompanying security policy target matches internal host.")
 
+            if cfg.approval_status == "PENDING" and cfg.approvals:
+                obs.append(f"⏳ Pending Approvals: Ticket holds pending approval sign-offs. Deployment authorization pending.")
+
             if not obs:
                 obs.append("✅ Scoped Baseline: No perimeter wildcards detected. Destination CIDR, App-ID, security profile group, and logging comply with baseline security policy.")
 
         else:
+            if cfg.privileged_access_requested:
+                obs.append("⚠️ Privileged Entitlement: Request includes elevated administrative permissions ('SAP - Finance Administrator') without dedicated justification or expiry.")
+
+            if cfg.approval_status == "PENDING":
+                obs.append(f"⏳ In-Flight Access: Approvals pending ({cfg.approval_status}). In-flight requests convey zero valid permissions under PENDING_IS_NOT_ACCESS.")
+
             if "contractor" in (cfg.identity_name or "").lower() and ("admin" in (cfg.requested_role or "").lower() or "cui" in (cfg.entitlement or "").lower()):
                 obs.append("⚠️ Contractor Privileged Access: External contractor requesting elevated CUI/Administrator entitlements (Potential SoD conflict).")
-            else:
+
+            if "leaver" in cfg.subcategory.lower() or "offboarding" in cfg.subcategory.lower():
+                obs.append("ℹ️ Offboarding Verification: Account revocation requires multi-system verification across Microsoft 365, AWS, ServiceNow, and VPN.")
+            elif not obs:
                 obs.append("✅ Standard Identity Request: Identity attributes match standard corporate role assignment lifecycle.")
 
         summary.initial_observations = obs

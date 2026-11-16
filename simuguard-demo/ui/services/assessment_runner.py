@@ -397,6 +397,110 @@ class AssessmentRunnerService:
                     remediation_guidance="Register identity in authoritative HR source before requesting role grants.",
                 )
             )
+
+            # Evaluate access approval and provisioning state even if identity is unmapped
+            access_state = CentralizedIdentityResolver.evaluate_access_state(
+                request_status=sp_details.request_status,
+                approval_status=sp_details.approval_status,
+                provisioning_status=sp_details.provisioning_status,
+            )
+            if not access_state.is_approved:
+                identified_gaps.append(
+                    SecurityGap(
+                        rule_id="SP-01",
+                        severity=Severity.CRITICAL,
+                        gap_title=f"In-Flight / Unapproved Access Assumption: {target_id_or_name}",
+                        technical_impact=(
+                            f"Access request for '{sp_details.requested_role or sp_details.entitlement}' "
+                            f"holds governance status '{sp_details.request_status}' / approval '{sp_details.approval_status}'. "
+                            "In-flight requests convey ZERO valid permissions under principle PENDING_IS_NOT_ACCESS."
+                        ),
+                        compliance_violation="NIST SP 800-53 AC-2 & AC-3",
+                        remediation_guidance="Obtain formal multi-tier business and security manager approval in SailPoint ISC.",
+                    )
+                )
+
+            if not access_state.is_provisioned:
+                identified_gaps.append(
+                    SecurityGap(
+                        rule_id="SP-02",
+                        severity=Severity.HIGH,
+                        gap_title=f"Unprovisioned Identity Provisioning State: {target_id_or_name}",
+                        technical_impact=(
+                            f"Requested access has not completed downstream connector provisioning "
+                            f"(status: '{sp_details.provisioning_status}'). Infrastructure changes cannot assume access is active."
+                        ),
+                        compliance_violation="NIST SP 800-53 AC-2",
+                        remediation_guidance="Trigger connector sync and verify account provisioning status.",
+                    )
+                )
+
+            # Check for privileged access request (e.g. SAP Finance Administrator)
+            all_ent = (sp_details.entitlement + " " + sp_details.requested_role + " " + (record.justification or "")).lower()
+            if "sap - finance administrator" in all_ent or ("admin" in all_ent and "finance" in all_ent):
+                identified_gaps.append(
+                    SecurityGap(
+                        rule_id="SP-04",
+                        severity=Severity.CRITICAL,
+                        gap_title=f"Privileged Access Governance Violation: {target_id_or_name}",
+                        technical_impact=(
+                            f"Request includes unapproved privileged entitlement 'SAP - Finance Administrator' "
+                            "without separate privileged justification, expiry date, or privileged access owner authorization."
+                        ),
+                        compliance_violation="NIST SP 800-53 AC-2(1) & ISO 27001 A.9.2.1",
+                        remediation_guidance="Submit dedicated privileged access request with time-bound justification and privileged owner sign-off.",
+                    )
+                )
+
+            # Check for transfer privilege creep
+            if "transfer" in (record.title + " " + (record.justification or "")).lower() or "mover" in (record.subcategory or "").lower():
+                if "remove:" in (sp_details.entitlement or "").lower() or "operations" in (sp_details.entitlement or "").lower():
+                    identified_gaps.append(
+                        SecurityGap(
+                            rule_id="SP-06",
+                            severity=Severity.HIGH,
+                            gap_title=f"Privilege Creep & Transfer Access Conflict: {target_id_or_name}",
+                            technical_impact=(
+                                "Employee transfer to Finance retains existing Operations/Warehouse access entitlements. "
+                                "Accumulated permissions across departments create segregation of duties risk and violate least privilege."
+                            ),
+                            compliance_violation="NIST SP 800-53 AC-6 (Least Privilege) & ISO 27001 A.9.2.6",
+                            remediation_guidance="Enforce automated deprovisioning of previous department entitlements upon effective transfer date.",
+                        )
+                    )
+
+            from simuguard.models.enums import AssetCriticality
+            affected_assets.append(
+                AffectedAsset(
+                    asset_id=str(target_id_or_name or "UNMAPPED-IDENTITY"),
+                    asset_name=str(target_id_or_name or "Unmapped Identity"),
+                    asset_type="SailPoint Identity",
+                    blast_tier=BlastTier.DIRECT,
+                    criticality=AssetCriticality.HIGH,
+                    impact_description="Target identity for requested governance change; unmapped in authoritative directory.",
+                )
+            )
+
+            if "leaver" in (record.subcategory or "").lower() or "offboarding" in (record.title or "").lower():
+                validation_plan.append(
+                    ValidationCheck(
+                        step_number=1,
+                        target_component="Downstream Target Systems (M365, AWS, ServiceNow, VPN)",
+                        what_to_validate="Verify downstream account deactivation and session termination across all linked systems.",
+                        cli_command=f"sailpoint accounts list --identity-id {target_id_or_name} --status REVOKED",
+                        expected_pass_criteria="All linked application accounts must confirm REVOKED status; no active sessions remain.",
+                    )
+                )
+            else:
+                validation_plan.append(
+                    ValidationCheck(
+                        step_number=1,
+                        target_component=f"SailPoint ISC Identity Profile ({target_id_or_name})",
+                        what_to_validate=f"Verify multi-tier approval workflow and connector provisioning for '{target_id_or_name}'",
+                        cli_command=f"sailpoint access-requests show --identity-id {target_id_or_name}",
+                        expected_pass_criteria="Status must be APPROVED and Provisioning must be VERIFIED on target source.",
+                    )
+                )
         else:
             matched_ident = resolution.identity
             ident_id = resolution.identity_id

@@ -151,7 +151,9 @@ class BlastRadiusAnalyzer:
             evaluated_res_labels.append(res_label)
 
             if isinstance(res, PanosSecurityPolicyResource):
-                self._evaluate_panos_policy(res, impacted_by_id, result)
+                was_mapped = self._evaluate_panos_policy(res, impacted_by_id, result)
+                if not was_mapped:
+                    has_unmapped_resource = True
 
             elif isinstance(res, AwsSecurityGroupRuleResource):
                 was_mapped = self._evaluate_aws_security_group_rule(res, impacted_by_id, result)
@@ -218,10 +220,14 @@ class BlastRadiusAnalyzer:
         res: PanosSecurityPolicyResource,
         impacted: Dict[str, ImpactedNode],
         result: BlastRadiusResult,
-    ) -> None:
-        """Evaluate blast propagation from a Palo Alto firewall security policy."""
+    ) -> bool:
+        """Evaluate blast propagation from a Palo Alto firewall security policy.
+
+        Returns True if all referenced zones and firewalls are mapped in Digital Twin, False if unmapped.
+        """
         res_label = f"{res.resource_type}.{res.resource_name}"
         fw_node = self.dt.get_perimeter_firewall()
+        is_fully_mapped = True
 
         if not fw_node:
             result.unmapped_resources.append(f"{res_label} (No perimeter firewall found in topology)")
@@ -232,7 +238,7 @@ class BlastRadiusAnalyzer:
                     reason="Perimeter firewall specified in topology metadata does not exist in graph.",
                 )
             )
-            return
+            return False
 
         # 1. Direct Impact: Perimeter Firewall
         rule_names = [r.name for r in res.rules]
@@ -258,6 +264,22 @@ class BlastRadiusAnalyzer:
             # 2. Check source zones (e.g. Trust-DMZ)
             for sz in rule.source_zones:
                 zone_nodes = self.dt.get_nodes_by_zone(sz)
+                if not zone_nodes and sz.lower() not in ["any", "all", "*"]:
+                    is_fully_mapped = False
+                    warn_msg = f"Network Zone '{sz}' (Source zone not found in Digital Twin topology)"
+                    if warn_msg not in result.unmapped_resources:
+                        result.unmapped_resources.append(warn_msg)
+                        result.unknown_impacts.append(
+                            UnknownImpactAsset(
+                                resource_identifier=sz,
+                                resource_type="Network_Zone",
+                                reason=(
+                                    f"Source zone '{sz}' is not declared in Digital Twin network topology. "
+                                    "Zone boundary isolation and downstream egress impact cannot be verified."
+                                ),
+                            )
+                        )
+
                 for zn in zone_nodes:
                     if zn.id == fw_node.id:
                         continue
@@ -358,6 +380,36 @@ class BlastRadiusAnalyzer:
                                                         sw_node, sw_path, sw_rels, res_label, impacted
                                                     )
 
+            # Check destination zones
+            for dz in rule.destination_zones:
+                dst_zone_nodes = self.dt.get_nodes_by_zone(dz)
+                if not dst_zone_nodes and dz.lower() not in ["any", "all", "*"]:
+                    is_fully_mapped = False
+                    warn_dst = f"Network Zone '{dz}' (Destination zone not found in Digital Twin topology)"
+                    if warn_dst not in result.unmapped_resources:
+                        result.unmapped_resources.append(warn_dst)
+                        result.unknown_impacts.append(
+                            UnknownImpactAsset(
+                                resource_identifier=dz,
+                                resource_type="Network_Zone",
+                                reason=(
+                                    f"Destination zone '{dz}' is not declared in Digital Twin network topology. "
+                                    "Zone boundary isolation and target protection cannot be verified."
+                                ),
+                            )
+                        )
+                for dzn in dst_zone_nodes:
+                    if dzn.id != fw_node.id and dzn.id not in impacted:
+                        self._record_impact(
+                            impacted=impacted,
+                            node=dzn,
+                            tier=BlastTier.DIRECT,
+                            reason=f"Security rule '{rule.name}' targets destination zone '{dz}'",
+                            path=[fw_node.id, dzn.id],
+                            relationships=["TARGETS_DESTINATION_ZONE"],
+                            trigger=res_label,
+                        )
+
             # 4. Conditional Traversal: Inter-zone routing if threat profiles are disabled
             # Blast condition: "Removing Security Profile Groups exposes inter-zone traffic..."
             if is_threat_disabled:
@@ -380,6 +432,8 @@ class BlastRadiusAnalyzer:
                                 relationships=["ZONE_INTERCONNECT_ROUTING"],
                                 trigger=res_label,
                             )
+
+        return is_fully_mapped
 
     def _evaluate_aws_security_group_rule(
         self,

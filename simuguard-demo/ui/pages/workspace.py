@@ -214,7 +214,7 @@ def render_single_workspace_page(repository: ChangeRepository) -> None:
     raw_input = st.text_area(
         label="ServiceNow Change Request Input",
         value=st.session_state.get("servicenow_raw_text", ""),
-        height=170,
+        height=300,
         placeholder="Paste your complete ServiceNow change request here...\n\nExample:\nChange Request: CHG004082\nShort Description: Allow direct database access for analytics\nSource Zone: Untrust-Internet\nDestination Zone: Prod-Database\nSource CIDR: 0.0.0.0/0\nDestination CIDR: 10.100.2.15/32\nApp-ID: any\nAction: allow",
         key="txt_servicenow_input",
     )
@@ -1115,6 +1115,7 @@ def _execute_assessment_from_workspace(repository: ChangeRepository, cfg: Extrac
         access_profile=cfg.access_profile,
         entitlement=cfg.entitlement,
         business_justification=cfg.justification,
+        approval_status=cfg.approval_status or "PENDING",
     ) if cfg.domain == "IDENTITY_GOVERNANCE" else None
 
     # 3. Construct and save ChangeRequestRecord in SQLite

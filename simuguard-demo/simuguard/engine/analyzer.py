@@ -266,6 +266,29 @@ class SimuGuardAnalyzer:
         iam_gaps = self._check_iam_least_privilege(parsed_file.resources, blast_result)
         identified_gaps.extend(iam_gaps)
 
+        # Check for unconfirmed / placeholder addresses in firewall rules
+        for res in parsed_file.resources:
+            if isinstance(res, PanosSecurityPolicyResource):
+                for rule in res.rules:
+                    placeholder_addrs = [
+                        a for a in (rule.source_addresses + rule.destination_addresses)
+                        if any(kw in a.lower() for kw in ["tbd", "to be confirmed", "to be determined", "confirm"])
+                    ]
+                    if placeholder_addrs:
+                        identified_gaps.append(
+                            SecurityGap(
+                                rule_id="INCOMPLETE-01",
+                                severity=Severity.HIGH,
+                                gap_title=f"Incomplete Change Specification: Unconfirmed CIDR/IP Address in '{rule.name}'",
+                                technical_impact=(
+                                    f"Security rule '{rule.name}' specifies unconfirmed placeholder addresses: {placeholder_addrs}. "
+                                    "Unconfirmed endpoints cannot be simulated or verified in the Digital Twin routing topology."
+                                ),
+                                compliance_violation="NIST SP 800-53 CM-3 & Enterprise Change Management Standard",
+                                remediation_guidance="Obtain confirmed source and destination CIDRs prior to change authorization.",
+                            )
+                        )
+
         # 5. Handle HCL Syntax Errors (AUDIT-01)
         for syntax_err in parsed_file.hcl_syntax_errors:
             line_info = f" (line {syntax_err.line_number})" if syntax_err.line_number else ""
@@ -319,6 +342,7 @@ class SimuGuardAnalyzer:
             len(blast_result.unknown_nodes) > 0
             or len(blast_result.unknown_impacts) > 0
             or len(blast_result.unmapped_resources) > 0
+            or any(g.rule_id == "INCOMPLETE-01" for g in identified_gaps)
         )
         for unmapped in blast_result.unmapped_resources:
             identified_gaps.append(

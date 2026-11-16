@@ -92,18 +92,39 @@ class SailPointChangeDetails(BaseModel):
     # Identity Information
     identity_id: str = ""
     identity_name: str = ""
+    employee_id: str = ""
+    worker_id: str = ""
+    worker_type: str = ""
+    corporate_email: str = ""
     identity_profile: str = ""
     identity_source: str = ""
     account_id: str = ""
     account_status: str = "ACTIVE"
+    manager: str = ""
+    manager_id: str = ""
+    department: str = ""
+    current_department: str = ""
+    new_department: str = ""
+    current_role: str = ""
+    new_role: str = ""
+    location: str = ""
 
     # Access Information
     requested_role: str = ""
     access_profile: str = ""
     entitlement: str = ""
+    access_to_add: List[str] = Field(default_factory=list)
+    access_to_remove: List[str] = Field(default_factory=list)
+    privileged_access_requested: bool = False
+    privileged_entitlements: List[str] = Field(default_factory=list)
     application_name: str = ""
     business_justification: str = ""
+    access_duration: str = ""
     access_expiry: Optional[str] = None
+    start_date: str = ""
+    effective_date: str = ""
+    termination_date: str = ""
+    lifecycle_type: str = ""
 
     # Governance Lifecycle
     request_status: str = "SUBMITTED"

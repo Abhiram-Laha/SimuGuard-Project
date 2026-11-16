@@ -177,11 +177,38 @@ class DigitalTwinGraph:
     def get_nodes_by_zone(self, zone_name: str) -> List[TopologyNode]:
         """Retrieve firewall or zone nodes associated with a given zone name."""
         matches: List[TopologyNode] = []
+        clean_z = (zone_name or "").strip().lower()
+        if not clean_z:
+            return matches
+
+        zone_aliases = {
+            "trust-application": "zone-prod-app-workloads",
+            "trust-app": "zone-prod-app-workloads",
+            "app-workloads": "zone-prod-app-workloads",
+            "application": "zone-prod-app-workloads",
+            "trust-database": "zone-database-backend",
+            "trust-db": "zone-database-backend",
+            "database-backend": "zone-database-backend",
+            "database": "zone-database-backend",
+            "untrust-internet": "zone-untrust-internet",
+            "untrust": "zone-untrust-internet",
+            "trust-dmz": "zone-trust-dmz",
+            "dmz": "zone-trust-dmz",
+            "corp-users": "zone-corp-users",
+            "users": "zone-corp-users",
+        }
+        target_alias = zone_aliases.get(clean_z)
+
         for n in self._node_lookup.values():
-            if n.zones and zone_name in n.zones:
-                matches.append(n)
-            elif zone_name.lower() in n.name.lower() or zone_name.lower() in n.id.lower():
-                matches.append(n)
+            if target_alias and n.id == target_alias:
+                if n not in matches:
+                    matches.append(n)
+            elif n.zones and zone_name in n.zones:
+                if n not in matches:
+                    matches.append(n)
+            elif clean_z in n.name.lower() or clean_z in n.id.lower():
+                if n not in matches:
+                    matches.append(n)
         return matches
 
     def get_perimeter_firewall(self) -> Optional[TopologyNode]:

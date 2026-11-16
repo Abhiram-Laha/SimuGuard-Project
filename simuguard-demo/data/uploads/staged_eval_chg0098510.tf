@@ -7,8 +7,8 @@ resource "panos_security_policy" "REPORTING_TO_FINANCE_DB" {
     destination_zones     = ["DC-DATABASE"]
     destination_addresses = ["TBD - DBA team to confirm"]
     applications          = ["postgresql"]
-    services              = ["Network Security - Palo Alto"]
+    services              = ["tcp/5432"]
     action                = "allow"
-    security_profile_group = "Strict-Enterprise-Security"
+    security_profile_group = "Standard-Internal"
   }
 }
