@@ -1,0 +1,73 @@
+================================================================================
+SIMUGUARD AI — DEMONSTRATION VIDEO TECHNICAL RECORDING NOTES
+================================================================================
+
+1. ENVIRONMENT & APPLICATION STACK
+--------------------------------------------------------------------------------
+- Application Framework: Streamlit 1.32+ on Python 3.13
+- Operating Host: Windows 11 Enterprise (Local Dev & Test Environment)
+- Local Server URL: http://127.0.0.1:8501
+- Test Baseline: 350 automated unit, integration, and risk-engine tests passing
+- Target Enterprise Profile: Apex Global Technologies (Synthetic Enterprise Dataset)
+
+2. RECORDING METHODOLOGY & CAPTURE PROOF
+--------------------------------------------------------------------------------
+- Headless Automation Engine: Playwright (v1.65.2) with Chromium 1255 browser
+- Screen Capture Resolution: Native 1920x1080 (16:9 Widescreen)
+- Frame Rate: 25.0 frames per second
+- Capture Source: Real user interaction with the live Streamlit server:
+  * Form inputs filled via real DOM events
+  * Native Streamlit buttons and select boxes activated
+  * Dynamic simulation computation captured as it occurred
+- Raw Capture Archive:
+  * File: prestation docs tuesday\demo_video\raw\SimuGuard_AI_Raw_Recording.webm
+  * Duration: 00:01:23.28 (83.28 seconds)
+  * Format: VP9 WebM, 1920x1080 @ 25fps
+
+3. POST-PRODUCTION & EDITING PIPELINE
+--------------------------------------------------------------------------------
+- Video Assembly Tool: FFmpeg v9.0.2 via imageio-ffmpeg
+- Pacing Adjustment:
+  * Raw capture playback stretched by factor of 1.70x (setpts=1.70*PTS) to allow 
+    judges and general audiences to comfortably read security findings and 
+    configuration parameters (effective UI duration: 141.5 seconds).
+- Visual Enhancements:
+  * Opening Title Card: 6.5 seconds (Deep Navy #0B132B, Cyber Blue borders, 
+    presenter credentials: Ameya Shree Kasa & Abhiram Laha).
+  * Timed Lower-Third Banners: 10 step caption overlays rendered at (x=80, y=930) 
+    with semi-transparent dark backdrop and high-contrast typography.
+  * Closing Takeaways Card: 10.0 seconds (Core architectural and business value).
+- Audio Design:
+  * Synthesized ambient cyber pad background audio (158 seconds, 44.1 kHz stereo, 
+    low-volume -18 dB mixing) to maintain professional engagement without distracting.
+- Final Output Deliverables:
+  * MP4 Video: prestation docs tuesday\demo_video\SimuGuard_AI_Working_Demo.mp4
+    (Codec: H.264 / AAC, 1920x1080, 25fps, Duration: 2m 38s)
+  * WebM Video: prestation docs tuesday\demo_video\SimuGuard_AI_Working_Demo.webm
+    (Codec: VP9 / Opus, 1920x1080, 25fps, Duration: 2m 38s)
+
+4. VERIFIED SCENARIO METRICS
+--------------------------------------------------------------------------------
+- Change Request Identifier: CHG-NET-2026-3105
+- Change Description: Enable direct Internet SSH access to DMZ analytics workers
+- Target Firewall: fw-edge-01-primary (Palo Alto PA-5450, DG-Internet-Perimeter)
+- Matched Rule: RULE-PAN-015 (Allow-Untrust-Inbound-SSH-Public)
+- Source / Destination: 0.0.0.0/0 (Untrust-Internet) -> 10.100.4.0/24 (Trust-DMZ)
+- Protocol / Port: SSH / TCP-22
+- Risk Verdict Issued: WARN_MANUAL_REVIEW
+- Risk Score Computed: 51.0 / 100 (Medium Risk Category)
+- Key Security Findings:
+  1. Excessive Inbound Access from untrusted public Internet.
+  2. Missing Threat Inspection Profiles (Security Profile = None).
+  3. Four mandatory approvals missing/bypassed.
+  4. Direct bypass of established Corporate Bastion Host (10.254.0.100/32).
+- Blast Radius:
+  1. fw-edge-01-primary perimeter firewall.
+  2. obj-dmz-analytics-subnet (10.100.4.0/24).
+- Remediation Guidance:
+  Route SSH access through corporate bastion host (10.254.0.100/32) with MFA 
+  and active Palo Alto vulnerability protection profiles.
+
+================================================================================
+END OF RECORDING NOTES
+================================================================================

@@ -1,0 +1,137 @@
+================================================================================
+SIMUGUARD AI — LIVE APPLICATION DEMONSTRATION VIDEO SCRIPT & TIMESTAMPS
+================================================================================
+
+Target Scenario: CHG-NET-2026-3105 (Apex Global Technologies Enterprise Dataset)
+Action: Enable Direct Inbound Internet SSH to Analytics DMZ Workers
+Target Firewall: fw-edge-01-primary (Palo Alto PA-5450, DG-Internet-Perimeter)
+Existing Rule ID: RULE-PAN-015 (Allow-Untrust-Inbound-SSH-Public)
+Classification: INTENTIONAL_MISCONFIG_EXCESSIVE_INBOUND
+Video Resolution: 1920x1080 (16:9 Widescreen)
+Target Duration: ~2 Minutes 38 Seconds (158 Seconds)
+
+--------------------------------------------------------------------------------
+VIDEO TIMELINE & NARRATION BREAKDOWN
+--------------------------------------------------------------------------------
+
+[00:00 - 00:06.5] SCENE 0: TITLE SEQUENCE & SCENARIO OVERVIEW
+• Visual: 
+  - Deep Navy cybersecurity title card with electric blue accents.
+  - Project Title: "SimuGuard AI — Pre-Deployment Risk Assessment Platform".
+  - Presenters: Ameya Shree Kasa (Security Engineer I) & Abhiram Laha (Managed Service Engineer I).
+  - Test Scenario: Live simulation of Change Request CHG-NET-2026-3105 on production perimeter firewall.
+• Narration Point:
+  "Welcome to the SimuGuard AI live demonstration. Today we demonstrate how our platform catches high-risk infrastructure misconfigurations before they reach production firewalls."
+
+[00:06.5 - 00:18.5] SCENE 1: SYSTEM DASHBOARD & ASSESSMENT WORKSPACE
+• Visual:
+  - Real SimuGuard AI Streamlit UI running on local host.
+  - Navigating to the Single Assessment Workspace.
+  - Selecting "Firewall Rule Assessment" mode.
+• Banner Caption:
+  "STEP 1: Accessing the SimuGuard AI Security Assessment Workspace"
+• Narration Point:
+  "We open the SimuGuard AI workspace. The platform provides unified pre-flight simulation for both network firewalls and cloud identity environments."
+
+[00:18.5 - 00:34.5] SCENE 2: CHANGE TICKET SUBMISSION (CHG-NET-2026-3105)
+• Visual:
+  - Submitting change ticket CHG-NET-2026-3105 into the automated intake form.
+  - Justification: Vendor requested direct Internet SSH to DMZ analytics servers.
+• Banner Caption:
+  "STEP 2: Ingesting Ticket CHG-NET-2026-3105 (Direct Internet SSH Access)"
+• Narration Point:
+  "A change ticket is ingested. A third-party vendor has requested direct inbound SSH access from the public internet (0.0.0.0/0) to analytics worker nodes in the DMZ."
+
+[00:34.5 - 00:48.5] SCENE 3: AUTOMATED ATTRIBUTE EXTRACTION & MAPPING
+• Visual:
+  - Platform automatically parses rule parameters:
+    * Target Device: fw-edge-01-primary (Palo Alto PA-5450)
+    * Source: any (0.0.0.0/0) | Source Zone: Untrust-Internet
+    * Destination: 10.100.4.0/24 (obj-dmz-analytics-subnet) | Dest Zone: Trust-DMZ
+    * Application: ssh | Service: TCP/22 | Action: allow
+• Banner Caption:
+  "STEP 3: Parsing Configuration: 0.0.0.0/0 to DMZ (10.100.4.0/24)"
+• Narration Point:
+  "SimuGuard AI extracts the exact technical parameters: source address any, destination subnet 10.100.4.0/24, application SSH on TCP port 22."
+
+[00:48.5 - 01:02.5] SCENE 4: PRE-FLIGHT PARAMETER WARNINGS
+• Visual:
+  - Immediate highlighting of missing security profiles (Antivirus/IPS = none).
+  - Highlighting lack of corporate bastion enforcement and pending approval flags.
+• Banner Caption:
+  "STEP 4: Detecting Dangerous Flags: Missing Threat Profiles & 4 Pending Approvals"
+• Narration Point:
+  "Before even touching the network, SimuGuard flags critical hygiene issues: zero security inspection profiles attached, and multiple mandatory approvals bypassed."
+
+[01:02.5 - 01:18.5] SCENE 5: DIGITAL TWIN PRE-FLIGHT SIMULATION
+• Visual:
+  - Clicking 'Simulate Security Impact'.
+  - Progress spinner running against the synthetic digital twin model.
+• Banner Caption:
+  "STEP 5: Running Pre-Flight Simulation Against the Digital Twin"
+• Narration Point:
+  "The engineer triggers the simulation. The digital twin models the rule change across perimeter security boundaries without touching production hardware."
+
+[01:18.5 - 01:38.5] SCENE 6: COMPOSITE RISK SCORING & VERDICT
+• Visual:
+  - Verdict Banner: WARN_MANUAL_REVIEW
+  - Composite Risk Score: 51.0 / 100 (Medium/Elevated Risk tier)
+  - Detailed dimension breakdown: Threat exposure, blast radius, posture impact.
+• Banner Caption:
+  "STEP 6: Simulation Verdict: WARN_MANUAL_REVIEW | Risk Score: 51.0 / 100"
+• Narration Point:
+  "The simulation completes. SimuGuard AI generates an objective composite score of 51.0 out of 100 and issues a WARN_MANUAL_REVIEW verdict, halting automated deployment."
+
+[01:38.5 - 01:54.5] SCENE 7: BLAST RADIUS & AFFECTED ASSET DISCOVERY
+• Visual:
+  - Direct asset impact analysis:
+    * Perimeter Firewall: fw-edge-01-primary
+    * Impacted Segment: obj-dmz-analytics-subnet (10.100.4.0/24)
+    * Exposed services: Direct external SSH listener exposed to brute-force attacks.
+• Banner Caption:
+  "STEP 7: Blast Radius Analysis: Perimeter Firewall & DMZ Subnet Exposed"
+• Narration Point:
+  "The blast radius view shows that opening this port exposes the entire 10.100.4.0/24 subnet directly to the public internet, violating zero-trust architecture."
+
+[01:54.5 - 02:06.5] SCENE 8: ENTERPRISE DATASET INTENTIONAL MISCONFIG MATCH
+• Visual:
+  - Correlation with rule RULE-PAN-015 in enterprise dataset.
+  - Classified as INTENTIONAL_MISCONFIG_EXCESSIVE_INBOUND.
+• Banner Caption:
+  "STEP 8: Verified Finding: INTENTIONAL_MISCONFIG_EXCESSIVE_INBOUND"
+• Narration Point:
+  "The engine cross-references the enterprise dataset, correctly classifying this change under intentional excessive inbound access misconfigurations."
+
+[02:06.5 - 02:18.5] SCENE 9: ARCHITECTURAL REMEDIATION (BASTION ROUTING)
+• Visual:
+  - Recommended safe architectural alternative:
+    * Enforce Corporate Bastion Host: obj-mgmt-bastion-vip (10.254.0.100/32)
+    * Restrict source to approved vendor VPN CIDR
+    * Attach Palo Alto Vulnerability Protection and Antivirus profiles.
+• Banner Caption:
+  "STEP 9: Architectural Remediation: Route Inbound SSH via Bastion (10.254.0.100)"
+• Narration Point:
+  "SimuGuard AI does not just block—it guides. It recommends routing access strictly through the corporate bastion host at 10.254.0.100 with mandatory MFA and threat logging."
+
+[02:18.5 - 02:28.0] SCENE 10: COMPLIANCE AUDIT EXPORT & CHANGE RECORD
+• Visual:
+  - Comprehensive assessment summary card with exportable audit logs.
+  - Change control record updated with simulation verdict and timestamp.
+• Banner Caption:
+  "STEP 10: Generating Exportable Security Audit & Change Governance Record"
+• Narration Point:
+  "Finally, the complete assessment is packaged into an auditable compliance record, preventing security blindspots from ever reaching production."
+
+[02:28.0 - 02:38.0] SCENE 11: CLOSING TAKEAWAYS & SUMMARY CARD
+• Visual:
+  - Closing summary card in deep navy theme.
+  - Summary Points:
+    * Zero Production Downtime: Simulations run safely in a sandbox.
+    * Multi-Domain Visibility: Covers Firewalls, IAM, and Identity Lifecycle.
+    * Defensible Decisions: Explainable risk metrics for SecOps & CAB.
+• Narration Point:
+  "SimuGuard AI delivers actionable security governance before deployment. Thank you for your time."
+
+================================================================================
+END OF DEMO SCRIPT
+================================================================================
