@@ -6,10 +6,11 @@ Phase 6: Foundation Shell and Enterprise Theme (Milestone B).
 from pathlib import Path
 import sys
 
-# Ensure repository root is in Python sys.path
+# Ensure package directory and repository root are in Python sys.path
 BASE_DIR = Path(__file__).parent.resolve()
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
+for path_str in [str(BASE_DIR), str(BASE_DIR.parent.resolve())]:
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
 
 import streamlit as st
 from storage.database import init_db
