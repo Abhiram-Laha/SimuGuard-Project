@@ -2,10 +2,11 @@
 **Pre-Deployment Security Change-Risk Assessment Platform**
 *Autonomous Simulation, Digital Twin Blast-Radius Modeling, and Closed-Loop Remediation Engine*
 
-[![Python](https://img.shields.io/badge/Python-3.13%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/Tests-338%20Passing-brightgreen.svg)](simuguard-demo/tests/)
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/Tests-357%20Passing-brightgreen.svg)](simuguard-demo/tests/)
 [![Security](https://img.shields.io/badge/Air--Gapped-Verified-success.svg)](simuguard-demo/docs/SECURITY_MODEL.md)
 [![ITSM](https://img.shields.io/badge/UI-ServiceNow%20Single%20Workspace-0f62fe.svg)](simuguard-demo/docs/USER_GUIDE.md)
+[![Deployment](https://img.shields.io/badge/Streamlit%20Cloud-Ready-red.svg)](https://streamlit.io/cloud)
 
 ---
 
@@ -24,25 +25,51 @@ SimuGuard AI provides a shift-left pre-deployment gate:
 
 ---
 
-## 🚀 Quick Start
+## ☁️ Streamlit Community Cloud Deployment
+
+SimuGuard AI is fully audited, containerized, and optimized for 1-click deployment on **Streamlit Community Cloud** (Debian Linux runtime).
+
+### Deployment Settings Form Values
+
+When deploying the repository on Streamlit Community Cloud, enter the following exact settings:
+
+| Setting | Value | Description |
+| :--- | :--- | :--- |
+| **Repository** | `Abhiram-Laha/SimuGuard-Project-Deloitte` | Your GitHub repository |
+| **Branch** | `main` | Production deployment branch |
+| **Main file path** | `app.py` | Unified root entry point (also supports `simuguard-demo/app.py`) |
+| **Python Version** | `3.11` *(Recommended)* or `3.12` | Fully verified with binary wheels on Linux |
+| **Dependency File** | `requirements.txt` | Discovered automatically at repository root |
+
+### Platform Architecture & Compatibility Highlights
+- **Unambiguous Dependency Discovery**: Single root `requirements.txt` declaring pinned, tested versions (`streamlit>=1.35.0,<=1.42.0`, `pydantic>=2.7.0,<3.0.0`, `networkx>=3.0.0,<4.0.0`, `pandas>=2.0.0,<3.0.0`, `reportlab>=4.0.0,<6.0.0`, `python-hcl2>=8.2.0,<9.0.0`).
+- **Universal Entry Point**: Root `app.py` dynamically resolves repository structure and executes the application natively without isolated `runpy` dictionaries.
+- **Pre-Flight Data & SQLite Bootstrapping**: Automatically initializes local SQLite schema (`simuguard_demo.db`) and seeds 5 enterprise change scenarios with zero manual setup.
+- **Ephemeral Storage Boundary**: Streamlit Community Cloud containers have ephemeral disk storage. All demonstration data and assessment capabilities are completely self-contained and re-initialized idempotently on any container reboot.
+
+---
+
+## 🚀 Local Quick Start
 
 ### 1. Prerequisites
-- Python 3.10+ (Python 3.13 recommended)
+- Python 3.10, 3.11, 3.12, or 3.13
 - Git
 
 ### 2. Installation & Startup
 ```bash
-# Navigate to the application workspace
-cd simuguard-demo
+# Clone the repository
+git clone https://github.com/Abhiram-Laha/SimuGuard-Project-Deloitte.git
+cd SimuGuard-Project-Deloitte
 
-# Optional: activate virtual environment
+# Create and activate virtual environment
 python -m venv .venv
-# Windows:
+
+# On Windows:
 .venv\Scripts\Activate.ps1
-# macOS / Linux:
+# On macOS / Linux:
 source .venv/bin/activate
 
-# Install dependencies
+# Install dependencies from repository root
 pip install -r requirements.txt
 
 # Launch the Streamlit application
@@ -53,10 +80,9 @@ Open `http://localhost:8501` in your browser. The application automatically open
 
 ### 3. Running the Test Suite
 ```bash
-# From simuguard-demo directory:
-pytest tests/ -q
+pytest
 ```
-All **338 tests pass deterministically** with 0 failures in under 35 seconds.
+All **357 tests pass deterministically** with 0 failures in under 35 seconds (including full deployment smoke tests).
 
 ---
 
