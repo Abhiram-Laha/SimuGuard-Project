@@ -1,0 +1,213 @@
+{
+  "change_request_number": "CHG-NET-2026-3105",
+  "title": "Enable direct Internet SSH access to analytics DMZ workers for vendor support",
+  "target_firewall": "fw-edge-01-primary",
+  "target_firewall_device_group": "DG-Internet-Perimeter",
+  "existing_rule_id": "RULE-PAN-015",
+  "existing_rule_name": "Allow-Untrust-Inbound-SSH-Public",
+  "dataset_classification": "INTENTIONAL_MISCONFIG_EXCESSIVE_INBOUND",
+  "recommended_bastion_host": "obj-mgmt-bastion-vip (10.254.0.100/32) in Mgmt-OOB",
+  "baseline_simulation": {
+    "verdict": "WARN_MANUAL_REVIEW",
+    "composite_risk_score": 51.0,
+    "security_gaps_count": 1,
+    "blast_radius_nodes_count": 7,
+    "details": {
+      "change_ticket_id": "CHG-NET-2026-3105",
+      "overall_risk_score": 51,
+      "deployment_verdict": "WARN_MANUAL_REVIEW",
+      "executive_summary": "Pre-flight simulation for CHG-NET-2026-3105 concluded with verdict: WARN_MANUAL_REVIEW. Composite risk score: 51/100. Identified 1 security finding(s) across 7 affected asset(s). Manual Review Required: Detected 1 HIGH severity finding(s): [Missing Threat Prevention Profile: Rule 'Allow-Untrust-Inbound-SSH-Public'].",
+      "predicted_affected_assets": [
+        {
+          "asset_id": "fw-edge-01-primary",
+          "asset_name": "Apex Internet Edge Firewall 01 (Primary Active)",
+          "asset_type": "NGFW_Palo_Alto",
+          "criticality": "CRITICAL",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security policy containing rule(s) 'Allow-Untrust-Inbound-SSH-Public' deployed directly onto perimeter firewall",
+          "data_classification": null
+        },
+        {
+          "asset_id": "fw-edge-02-secondary",
+          "asset_name": "Apex Internet Edge Firewall 02 (Secondary Passive)",
+          "asset_type": "NGFW_Palo_Alto",
+          "criticality": "CRITICAL",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Untrust-Inbound-SSH-Public' modifies egress filtering for zone 'Untrust-Internet'",
+          "data_classification": null
+        },
+        {
+          "asset_id": "zone-untrust-internet",
+          "asset_name": "Zone: Untrust-Internet",
+          "asset_type": "Network_Zone",
+          "criticality": "CRITICAL",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Untrust-Inbound-SSH-Public' modifies egress filtering for zone 'Untrust-Internet'",
+          "data_classification": null
+        },
+        {
+          "asset_id": "fw-internal-01-primary",
+          "asset_name": "Apex Internal Segmentation Firewall 01 (Primary Active)",
+          "asset_type": "NGFW_Palo_Alto",
+          "criticality": "CRITICAL",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Untrust-Inbound-SSH-Public' targets destination zone 'Trust-DMZ'",
+          "data_classification": null
+        },
+        {
+          "asset_id": "fw-internal-02-secondary",
+          "asset_name": "Apex Internal Segmentation Firewall 02 (Secondary Passive)",
+          "asset_type": "NGFW_Palo_Alto",
+          "criticality": "CRITICAL",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Untrust-Inbound-SSH-Public' targets destination zone 'Trust-DMZ'",
+          "data_classification": null
+        },
+        {
+          "asset_id": "zone-trust-dmz",
+          "asset_name": "Zone: Trust-DMZ",
+          "asset_type": "Network_Zone",
+          "criticality": "HIGH",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Untrust-Inbound-SSH-Public' targets destination zone 'Trust-DMZ'",
+          "data_classification": null
+        },
+        {
+          "asset_id": "subnet-trust-dmz",
+          "asset_name": "Subnet: DMZ Public Web & Ingestion Subnet (10.100.4.0/24)",
+          "asset_type": "Network_Subnet",
+          "criticality": "HIGH",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Untrust-Inbound-SSH-Public' targets destination zone 'Trust-DMZ'",
+          "data_classification": null
+        }
+      ],
+      "identified_security_gaps": [
+        {
+          "severity": "HIGH",
+          "gap_title": "Missing Threat Prevention Profile: Rule 'Allow-Untrust-Inbound-SSH-Public'",
+          "technical_impact": "Palo Alto rule 'Allow-Untrust-Inbound-SSH-Public' between ['Untrust-Internet'] and ['Trust-DMZ'] omits or disables security_profile_group ('none'). Traffic flows without deep packet inspection, antivirus, anti-spyware, or WildFire zero-day sandbox analysis.",
+          "compliance_violation": "CIS Palo Alto Firewall Benchmark v1.1.0 (Rule 4.2) & NIST SP 800-171 3.13.1",
+          "rule_id": "FW-03",
+          "remediation_guidance": "Attach an approved security profile group (e.g. security_profile_group = 'corporate-threat-prevention-standard') to rule 'Allow-Untrust-Inbound-SSH-Public'."
+        }
+      ],
+      "pre_implementation_validation_plan": [
+        {
+          "step_number": 1,
+          "target_component": "Palo Alto Firewall (Allow-Untrust-Inbound-SSH-Public)",
+          "what_to_validate": "Verify App-ID application and threat profile bindings for rule 'Allow-Untrust-Inbound-SSH-Public'",
+          "cli_command": "show running security-policy rule \"Allow-Untrust-Inbound-SSH-Public\"",
+          "expected_pass_criteria": "Applications must NOT show 'any'; security-profiles must include active profile group",
+          "command_type": "PAN_OS_CLI"
+        }
+      ],
+      "safe_remediated_config": "# [REMEDIATED] Palo Alto Security Policy with explicit App-ID and Threat Prevention\nresource \"panos_security_policy\" \"remediated_analytics_egress\" {\n  rule {\n    name                  = \"Allow-Analytics-Outbound-Webhook-Remediated\"\n    source_zones          = [\"Trust-DMZ\"]\n    source_addresses      = [\"10.100.4.0/24\"]\n    source_users          = [\"any\"]\n    destination_zones     = [\"Untrust-Internet\"]\n    destination_addresses = [\"52.84.120.0/22\"] # Scoped to verified partner CIDR\n    applications          = [\"ssl\", \"web-browsing\"] # Layer 7 App-ID enforced\n    services              = [\"service-https\"]\n    action                = \"allow\"\n    security_profile_group = \"corporate-threat-prevention-standard\"\n  }\n}",
+      "target_environment": "Enterprise Hybrid (PAN-OS / AWS)",
+      "evaluated_file": "staged_eval_chg_net_2026_3105.tf",
+      "generated_at": "2026-11-17T06:31:59.511293+00:00",
+      "compliance_frameworks": [
+        "NIST CSF 2.0 (PR.AC, PR.PT)",
+        "NIST SP 800-171 3.13.1",
+        "CIS Palo Alto Firewall Benchmark v1.1.0"
+      ]
+    }
+  },
+  "candidate_remediation_simulation": {
+    "verdict": "ALLOW",
+    "composite_risk_score": 0.0,
+    "security_gaps_count": 0,
+    "blast_radius_nodes_count": 7,
+    "details": {
+      "change_ticket_id": "CHG-NET-2026-3105",
+      "overall_risk_score": 0,
+      "deployment_verdict": "ALLOW",
+      "executive_summary": "Pre-flight simulation for CHG-NET-2026-3105 concluded with verdict: ALLOW. Composite risk score: 0/100. Identified 0 security finding(s) across 7 affected asset(s). Deployment APPROVED: Composite risk score of 0/100 is within acceptable limits (<40). Zero HIGH or CRITICAL security findings and zero unmapped impacts detected.",
+      "predicted_affected_assets": [
+        {
+          "asset_id": "fw-edge-01-primary",
+          "asset_name": "Apex Internet Edge Firewall 01 (Primary Active)",
+          "asset_type": "NGFW_Palo_Alto",
+          "criticality": "CRITICAL",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security policy containing rule(s) 'Allow-Analytics-Outbound-Webhook-Remediated' deployed directly onto perimeter firewall",
+          "data_classification": null
+        },
+        {
+          "asset_id": "fw-edge-02-secondary",
+          "asset_name": "Apex Internet Edge Firewall 02 (Secondary Passive)",
+          "asset_type": "NGFW_Palo_Alto",
+          "criticality": "CRITICAL",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Analytics-Outbound-Webhook-Remediated' modifies egress filtering for zone 'Trust-DMZ'",
+          "data_classification": null
+        },
+        {
+          "asset_id": "fw-internal-01-primary",
+          "asset_name": "Apex Internal Segmentation Firewall 01 (Primary Active)",
+          "asset_type": "NGFW_Palo_Alto",
+          "criticality": "CRITICAL",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Analytics-Outbound-Webhook-Remediated' modifies egress filtering for zone 'Trust-DMZ'",
+          "data_classification": null
+        },
+        {
+          "asset_id": "fw-internal-02-secondary",
+          "asset_name": "Apex Internal Segmentation Firewall 02 (Secondary Passive)",
+          "asset_type": "NGFW_Palo_Alto",
+          "criticality": "CRITICAL",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Analytics-Outbound-Webhook-Remediated' modifies egress filtering for zone 'Trust-DMZ'",
+          "data_classification": null
+        },
+        {
+          "asset_id": "zone-trust-dmz",
+          "asset_name": "Zone: Trust-DMZ",
+          "asset_type": "Network_Zone",
+          "criticality": "HIGH",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Analytics-Outbound-Webhook-Remediated' modifies egress filtering for zone 'Trust-DMZ'",
+          "data_classification": null
+        },
+        {
+          "asset_id": "subnet-trust-dmz",
+          "asset_name": "Subnet: DMZ Public Web & Ingestion Subnet (10.100.4.0/24)",
+          "asset_type": "Network_Subnet",
+          "criticality": "HIGH",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Analytics-Outbound-Webhook-Remediated' modifies egress filtering for zone 'Trust-DMZ'",
+          "data_classification": null
+        },
+        {
+          "asset_id": "zone-untrust-internet",
+          "asset_name": "Zone: Untrust-Internet",
+          "asset_type": "Network_Zone",
+          "criticality": "CRITICAL",
+          "blast_tier": "DIRECT",
+          "impact_description": "Security rule 'Allow-Analytics-Outbound-Webhook-Remediated' targets destination zone 'Untrust-Internet'",
+          "data_classification": null
+        }
+      ],
+      "identified_security_gaps": [],
+      "pre_implementation_validation_plan": [
+        {
+          "step_number": 1,
+          "target_component": "Palo Alto Firewall (Allow-Analytics-Outbound-Webhook-Remediated)",
+          "what_to_validate": "Verify App-ID application and threat profile bindings for rule 'Allow-Analytics-Outbound-Webhook-Remediated'",
+          "cli_command": "show running security-policy rule \"Allow-Analytics-Outbound-Webhook-Remediated\"",
+          "expected_pass_criteria": "Applications must NOT show 'any'; security-profiles must include active profile group",
+          "command_type": "PAN_OS_CLI"
+        }
+      ],
+      "safe_remediated_config": "# [REMEDIATED] Palo Alto Security Policy with explicit App-ID and Threat Prevention\nresource \"panos_security_policy\" \"remediated_analytics_egress\" {\n  rule {\n    name                  = \"Allow-Analytics-Outbound-Webhook-Remediated\"\n    source_zones          = [\"Trust-DMZ\"]\n    source_addresses      = [\"10.100.4.0/24\"]\n    source_users          = [\"any\"]\n    destination_zones     = [\"Untrust-Internet\"]\n    destination_addresses = [\"52.84.120.0/22\"] # Scoped to verified partner CIDR\n    applications          = [\"ssl\", \"web-browsing\"] # Layer 7 App-ID enforced\n    services              = [\"service-https\"]\n    action                = \"allow\"\n    security_profile_group = \"corporate-threat-prevention-standard\"\n  }\n}",
+      "target_environment": "Enterprise Hybrid (PAN-OS / AWS)",
+      "evaluated_file": "candidate_staged_eval_chg_net_2026_3105.tf",
+      "generated_at": "2026-11-17T06:31:59.536178+00:00",
+      "compliance_frameworks": [
+        "NIST CSF 2.0 (PR.AC, PR.PT)",
+        "NIST SP 800-171 3.13.1",
+        "CIS Palo Alto Firewall Benchmark v1.1.0"
+      ]
+    }
+  }
+}
